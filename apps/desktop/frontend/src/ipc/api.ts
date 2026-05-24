@@ -42,4 +42,33 @@ export const api = {
   quickSearch: (query: string) => unwrap(commands.quickSearch(query)),
   reindexVault: () => unwrap(commands.reindexVault()),
   getVaultInfo: () => unwrap(commands.getVaultInfo()),
+  getPreferences: () => unwrap(commands.getPreferences()),
+
+  // Tasks
+  listTasks: (status: "open" | "completed" | "all" = "open") =>
+    unwrap(
+      commands.listTasks({
+        status: status === "all" ? null : status,
+        priority: null,
+        dueBefore: null,
+        dueAfter: null,
+        note: null,
+        folder: null,
+      }),
+    ),
+  createTask: (
+    text: string,
+    opts?: { status?: string; priority?: string; dueDate?: string; notePath?: string },
+  ) =>
+    unwrap(
+      commands.createTask({
+        text,
+        status: opts?.status ?? null,
+        priority: opts?.priority ?? null,
+        dueDate: opts?.dueDate ?? null,
+        notePath: opts?.notePath ?? null,
+      }),
+    ),
+  toggleTask: (id: string) => unwrap(commands.toggleTask(id)),
+  setTaskStatus: (id: string, status: string) => unwrap(commands.setTaskStatus(id, status)),
 };

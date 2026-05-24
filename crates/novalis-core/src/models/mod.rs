@@ -5,12 +5,14 @@
 pub mod note;
 pub mod preferences;
 pub mod search;
+pub mod task;
 pub mod template;
 pub mod vault;
 
 pub use note::*;
 pub use preferences::*;
 pub use search::*;
+pub use task::*;
 pub use template::*;
 pub use vault::*;
 

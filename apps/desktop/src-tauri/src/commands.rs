@@ -11,9 +11,11 @@ use novalis_core::change;
 use novalis_core::conflict;
 use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
-    ConflictDiff, ConflictFile, CreateNoteRequest, FolderNode, Note, NoteSummary, Preferences,
-    ResolveConflictRequest, SearchResult, UpdateMetaRequest, VaultInfo, VaultStats,
+    CaptureRequest, ConflictDiff, ConflictFile, CreateNoteRequest, CreateTaskRequest, FolderNode,
+    Note, NoteSummary, Preferences, ResolveConflictRequest, SearchResult, Task, TaskQuery,
+    UpdateMetaRequest, VaultInfo, VaultStats,
 };
+use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
 use novalis_core::vault::{config, fs as vault_fs, stats};
 use novalis_core::{AppInfo, CoreError};
@@ -332,6 +334,38 @@ pub fn get_preferences(state: State<AppEngine>) -> CmdResult<Preferences> {
 #[specta::specta]
 pub fn set_preferences(state: State<AppEngine>, prefs: Preferences) -> CmdResult<()> {
     state.with(|e| config::write_preferences(&e.vault_path, &prefs))
+}
+
+// ── Tasks ────────────────────────────────────────────────────────────────
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_tasks(state: State<AppEngine>, query: TaskQuery) -> CmdResult<Vec<Task>> {
+    state.with(|e| task_svc::list(&e.db, &query))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn create_task(state: State<AppEngine>, req: CreateTaskRequest) -> CmdResult<Task> {
+    state.with(|e| task_svc::create(&e.db, &e.vault_path, req))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn toggle_task(state: State<AppEngine>, id: String) -> CmdResult<bool> {
+    state.with(|e| task_svc::toggle(&e.db, &e.vault_path, &id))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_task_status(state: State<AppEngine>, id: String, status: String) -> CmdResult<()> {
+    state.with(|e| task_svc::set_status(&e.db, &e.vault_path, &id, &status))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn quick_capture(state: State<AppEngine>, req: CaptureRequest) -> CmdResult<String> {
+    state.with(|e| task_svc::quick_capture(&e.db, &e.vault_path, req))
 }
 
 /// Build a stable, filesystem-safe key for a vault path (used to name its

@@ -48,6 +48,11 @@ export const commands = {
 	emptyTrash: () => typedError<number, CommandError>(__TAURI_INVOKE("empty_trash")),
 	getPreferences: () => typedError<Preferences, CommandError>(__TAURI_INVOKE("get_preferences")),
 	setPreferences: (prefs: Preferences) => typedError<null, CommandError>(__TAURI_INVOKE("set_preferences", { prefs })),
+	listTasks: (query: TaskQuery) => typedError<Task[], CommandError>(__TAURI_INVOKE("list_tasks", { query })),
+	createTask: (req: CreateTaskRequest) => typedError<Task, CommandError>(__TAURI_INVOKE("create_task", { req })),
+	toggleTask: (id: string) => typedError<boolean, CommandError>(__TAURI_INVOKE("toggle_task", { id })),
+	setTaskStatus: (id: string, status: string) => typedError<null, CommandError>(__TAURI_INVOKE("set_task_status", { id, status })),
+	quickCapture: (req: CaptureRequest) => typedError<string, CommandError>(__TAURI_INVOKE("quick_capture", { req })),
 };
 
 /** Events */
@@ -63,6 +68,13 @@ export const events = {
 export type AppInfo = {
 	name: string,
 	version: string,
+};
+
+export type CaptureRequest = {
+	text: string,
+	/**  When true the line is captured as a task checkbox; otherwise a bullet. */
+	asTask?: boolean,
+	notePath: string | null,
 };
 
 /**
@@ -99,6 +111,15 @@ export type CreateNoteRequest = {
 	path: string,
 	content: string | null,
 	template: string | null,
+};
+
+export type CreateTaskRequest = {
+	text: string,
+	status: string | null,
+	priority: string | null,
+	dueDate: string | null,
+	/**  Explicit destination note (overrides the preference-based strategy). */
+	notePath: string | null,
 };
 
 export type FileTreePrefs = {
@@ -191,9 +212,38 @@ export type SearchResult = {
 	score: number | null,
 };
 
+/**
+ *  A task extracted from a markdown checkbox line, e.g.
+ *  `- [ ] Buy milk @due(2026-05-30) @priority(high) @status(todo) #shopping`.
+ */
+export type Task = {
+	id: string,
+	text: string,
+	completed: boolean,
+	priority: string | null,
+	dueDate: string | null,
+	status: string | null,
+	sourceNote: string,
+	sourceLine: number,
+	tags: string[],
+	repeat?: string | null,
+	parentId?: string | null,
+};
+
 export type TaskCreationPrefs = {
 	strategy?: string,
 	inboxPath?: string,
+};
+
+/**  Filters for [`crate::tasks::service::list`]. */
+export type TaskQuery = {
+	/**  "open" | "completed" | "all" */
+	status: string | null,
+	priority: string | null,
+	dueBefore: string | null,
+	dueAfter: string | null,
+	note: string | null,
+	folder: string | null,
 };
 
 export type TaskViewPrefs = {

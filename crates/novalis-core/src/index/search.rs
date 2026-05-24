@@ -74,7 +74,11 @@ pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> Core
         params![summary.title, body, tags_json, summary.path],
     )?;
 
-    // Outgoing wiki-links. (Task indexing arrives in M2.)
+    // Inline markdown checkbox tasks.
+    let tasks = crate::tasks::index::extract_tasks(content, &summary.path);
+    crate::tasks::index::index_tasks(db, &summary.path, &tasks)?;
+
+    // Outgoing wiki-links.
     let targets = links::extract_wiki_links(&body);
     links::index_links(db, &summary.path, &targets)?;
 

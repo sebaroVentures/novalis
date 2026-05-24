@@ -3,7 +3,17 @@ import { useState } from "react";
 import type { FolderNode, NoteSummary } from "../ipc/api";
 import { useVault } from "../stores/vaultStore";
 
-export function Sidebar({ onOpenSearch }: { onOpenSearch: () => void }) {
+export type MainView = "notes" | "tasks";
+
+export function Sidebar({
+  view,
+  onViewChange,
+  onOpenSearch,
+}: {
+  view: MainView;
+  onViewChange: (v: MainView) => void;
+  onOpenSearch: () => void;
+}) {
   const tree = useVault((s) => s.tree);
   const vaultPath = useVault((s) => s.vaultPath);
   const newNote = useVault((s) => s.newNote);
@@ -32,6 +42,21 @@ export function Sidebar({ onOpenSearch }: { onOpenSearch: () => void }) {
           </button>
         </div>
       </div>
+
+      <div className="flex gap-1 border-b border-neutral-800 p-2">
+        {(["notes", "tasks"] as const).map((v) => (
+          <button
+            key={v}
+            onClick={() => onViewChange(v)}
+            className={`flex-1 rounded-md py-1 text-xs capitalize ${
+              view === v ? "bg-white/10 text-neutral-100" : "text-neutral-400 hover:text-neutral-200"
+            }`}
+          >
+            {v}
+          </button>
+        ))}
+      </div>
+
       <div className="flex-1 overflow-y-auto py-1">
         {tree ? (
           <TreeChildren node={tree} depth={0} />
