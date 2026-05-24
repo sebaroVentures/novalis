@@ -45,6 +45,21 @@ pnpm gen:bindings            # regenerate typed IPC bindings (Rust -> TS)
 pnpm dev                     # run the desktop app (Tauri)
 ```
 
+### Calendar accounts (optional)
+
+ICS-URL subscriptions (including Google/Outlook private iCal links) work out of
+the box. For interactive **Connect Google / Connect Outlook** sign-in, register
+your own OAuth client (desktop / "loopback" type, with a calendar read scope)
+and provide its client id via env var before launching:
+
+```bash
+export NOVALIS_GOOGLE_CLIENT_ID=…   # Google Cloud OAuth client (Desktop app)
+export NOVALIS_MS_CLIENT_ID=…       # Azure app registration (public client)
+```
+
+No client secret is needed — the flow uses loopback redirect + PKCE, and tokens
+are stored in the OS keychain.
+
 ## License
 
 MIT © Sebastian Grundhoefer

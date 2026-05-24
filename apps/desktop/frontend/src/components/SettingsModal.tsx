@@ -27,6 +27,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
   const [sources, setSources] = useState<CalendarSourceConfig[]>([]);
   const [srcName, setSrcName] = useState("");
   const [srcUrl, setSrcUrl] = useState("");
+  const [calMsg, setCalMsg] = useState<string | null>(null);
   const [saved, setSaved] = useState(false);
 
   useEffect(() => {
@@ -201,7 +202,30 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
           </div>
         </Section>
 
-        <Section title="Calendars (read-only ICS subscriptions)">
+        <Section title="Calendars">
+          <div className="mb-2 flex gap-2">
+            {(["google", "outlook"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => {
+                  setCalMsg(null);
+                  void api
+                    .oauthBegin(p)
+                    .then(() => api.refreshCalendarSource(p))
+                    .then(reloadSources)
+                    .catch((e) => setCalMsg(String(e)));
+                }}
+                className="rounded-md border border-neutral-700 px-2.5 py-1 text-xs capitalize text-neutral-200 hover:bg-white/5"
+              >
+                Connect {p}
+              </button>
+            ))}
+          </div>
+          {calMsg && <p className="mb-2 text-xs text-red-400">{calMsg}</p>}
+          <p className="mb-2 text-[11px] text-neutral-600">
+            Read-only. You can also subscribe to any ICS URL (incl. Google/Outlook secret iCal
+            links) below.
+          </p>
           <div className="space-y-1">
             {sources.length === 0 && (
               <p className="text-xs text-neutral-600">No calendar subscriptions.</p>
@@ -219,7 +243,12 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
                     Refresh
                   </button>
                   <button
-                    onClick={() => void api.removeCalendarSource(s.id).then(reloadSources)}
+                    onClick={() =>
+                      void (s.kind === "google" || s.kind === "outlook"
+                        ? api.oauthDisconnect(s.id)
+                        : api.removeCalendarSource(s.id)
+                      ).then(reloadSources)
+                    }
                     className="text-neutral-500 hover:text-red-300"
                   >
                     Remove

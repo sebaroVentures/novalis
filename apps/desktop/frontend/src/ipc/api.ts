@@ -103,6 +103,9 @@ export const api = {
   refreshCalendarSource: (id: string) => unwrap(commands.refreshCalendarSource(id)),
   importIcs: () => unwrap(commands.importIcs()),
   exportIcs: (start: string, end: string) => unwrap(commands.exportIcs(start, end)),
+  oauthBegin: (provider: "google" | "outlook") => unwrap(commands.oauthBegin(provider)),
+  oauthStatus: (provider: string) => commands.oauthStatus(provider),
+  oauthDisconnect: (provider: string) => unwrap(commands.oauthDisconnect(provider)),
 };
 
 export interface EventDraft {

@@ -518,26 +518,42 @@ pub fn remove_calendar_source(state: State<AppEngine>, id: String) -> CmdResult<
     })
 }
 
-/// Fetch an ICS-URL source and cache its events. Returns the number cached.
+/// Refresh a source's cached events. ICS-URL sources are fetched over HTTP;
+/// Google/Outlook sources use stored OAuth tokens. Returns the number cached.
 #[tauri::command]
 #[specta::specta]
 pub fn refresh_calendar_source(state: State<AppEngine>, id: String) -> CmdResult<u32> {
-    let url = state.with(|e| {
+    let (kind, url) = state.with(|e| {
         calendar::source::list_sources(&e.vault_path)
             .into_iter()
             .find(|s| s.id == id)
             .ok_or_else(|| CoreError::NotFound(format!("Calendar source not found: {id}")))
-            .map(|s| s.url)
+            .map(|s| (s.kind, s.url))
     })?;
-    let Some(url) = url else {
-        return Ok(0);
-    };
+
+    // Broad rolling window for the cache.
+    let today = chrono::Local::now().date_naive();
+    let start = (today - chrono::Days::new(31))
+        .format("%Y-%m-%d")
+        .to_string();
+    let end = (today + chrono::Days::new(365))
+        .format("%Y-%m-%d")
+        .to_string();
 
     // Network fetch happens outside the engine lock.
-    let bytes = reqwest::blocking::get(&url)
-        .and_then(|r| r.bytes())
-        .map_err(|err| CommandError::internal(format!("fetch failed: {err}")))?;
-    let events = calendar::source::import_ics(&bytes, &id)?;
+    let events = match kind.as_str() {
+        "icsUrl" => {
+            let Some(url) = url else {
+                return Ok(0);
+            };
+            let bytes = reqwest::blocking::get(&url)
+                .and_then(|r| r.bytes())
+                .map_err(|err| CommandError::internal(format!("fetch failed: {err}")))?;
+            calendar::source::import_ics(&bytes, &id)?
+        }
+        "google" | "outlook" => crate::oauth::fetch_events(&kind, &id, &start, &end)?,
+        _ => return Ok(0),
+    };
 
     state.with(|e| {
         novalis_core::index::events::clear_source(&e.db, &id)?;
@@ -545,6 +561,51 @@ pub fn refresh_calendar_source(state: State<AppEngine>, id: String) -> CmdResult
             novalis_core::index::events::upsert(&e.db, ev)?;
         }
         Ok(events.len() as u32)
+    })
+}
+
+// ── OAuth (Google / Outlook) ──────────────────────────────────────────────
+
+/// Run the interactive OAuth flow for `provider` ("google" | "outlook") and
+/// register it as a calendar source.
+#[tauri::command]
+#[specta::specta]
+pub fn oauth_begin(app: AppHandle, state: State<AppEngine>, provider: String) -> CmdResult<()> {
+    crate::oauth::connect(&app, &provider)?;
+    let name = match provider.as_str() {
+        "google" => "Google Calendar",
+        "outlook" => "Outlook Calendar",
+        _ => "Calendar",
+    };
+    state.with(|e| {
+        calendar::source::add_source(
+            &e.vault_path,
+            CalendarSourceConfig {
+                id: provider.clone(),
+                kind: provider.clone(),
+                name: name.to_string(),
+                url: None,
+                enabled: true,
+            },
+        )
+    })
+}
+
+/// Whether a provider is currently connected.
+#[tauri::command]
+#[specta::specta]
+pub fn oauth_status(provider: String) -> bool {
+    crate::oauth::is_connected(&provider)
+}
+
+/// Disconnect a provider: clear tokens, its source, and its cached events.
+#[tauri::command]
+#[specta::specta]
+pub fn oauth_disconnect(state: State<AppEngine>, provider: String) -> CmdResult<()> {
+    crate::oauth::disconnect(&provider)?;
+    state.with(|e| {
+        calendar::source::remove_source(&e.vault_path, &provider)?;
+        novalis_core::index::events::clear_source(&e.db, &provider)
     })
 }
 

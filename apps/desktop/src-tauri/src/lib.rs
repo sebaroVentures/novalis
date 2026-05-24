@@ -7,6 +7,7 @@
 
 mod commands;
 mod engine;
+mod oauth;
 mod settings;
 mod watcher;
 
@@ -94,6 +95,9 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::refresh_calendar_source,
             commands::import_ics,
             commands::export_ics,
+            commands::oauth_begin,
+            commands::oauth_status,
+            commands::oauth_disconnect,
         ])
         .events(collect_events![
             ReindexedEvent,
@@ -126,6 +130,7 @@ pub fn run() {
 
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_opener::init())
         .manage(engine::AppEngine::default())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {

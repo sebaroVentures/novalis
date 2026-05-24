@@ -74,12 +74,24 @@ export const commands = {
 	listCalendarSources: () => typedError<CalendarSourceConfig[], CommandError>(__TAURI_INVOKE("list_calendar_sources")),
 	addCalendarSource: (cfg: CalendarSourceConfig) => typedError<null, CommandError>(__TAURI_INVOKE("add_calendar_source", { cfg })),
 	removeCalendarSource: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("remove_calendar_source", { id })),
-	/**  Fetch an ICS-URL source and cache its events. Returns the number cached. */
+	/**
+	 *  Refresh a source's cached events. ICS-URL sources are fetched over HTTP;
+	 *  Google/Outlook sources use stored OAuth tokens. Returns the number cached.
+	 */
 	refreshCalendarSource: (id: string) => typedError<number, CommandError>(__TAURI_INVOKE("refresh_calendar_source", { id })),
 	/**  Import an `.ics` file (native picker), creating own events. Returns the count. */
 	importIcs: () => typedError<number, CommandError>(__TAURI_INVOKE("import_ics")),
 	/**  Export events in a range to an `.ics` file (save dialog). Returns saved path. */
 	exportIcs: (rangeStart: string, rangeEnd: string) => typedError<string | null, CommandError>(__TAURI_INVOKE("export_ics", { rangeStart, rangeEnd })),
+	/**
+	 *  Run the interactive OAuth flow for `provider` ("google" | "outlook") and
+	 *  register it as a calendar source.
+	 */
+	oauthBegin: (provider: string) => typedError<null, CommandError>(__TAURI_INVOKE("oauth_begin", { provider })),
+	/**  Whether a provider is currently connected. */
+	oauthStatus: (provider: string) => __TAURI_INVOKE<boolean>("oauth_status", { provider }),
+	/**  Disconnect a provider: clear tokens, its source, and its cached events. */
+	oauthDisconnect: (provider: string) => typedError<null, CommandError>(__TAURI_INVOKE("oauth_disconnect", { provider })),
 };
 
 /** Events */

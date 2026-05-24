@@ -2,6 +2,7 @@
 //! `type: event` frontmatter, so they sync as plain files like everything else.
 //! Remote sources and `.ics` interchange are added in the source layer.
 
+pub mod remote;
 pub mod source;
 
 use std::path::Path;
