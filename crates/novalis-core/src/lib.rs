@@ -8,10 +8,13 @@
 pub mod change;
 pub mod conflict;
 pub mod error;
+pub mod export;
 pub mod index;
+pub mod media;
 pub mod models;
 pub mod notes;
 pub mod tasks;
+pub mod templates;
 pub mod trash;
 pub mod vault;
 

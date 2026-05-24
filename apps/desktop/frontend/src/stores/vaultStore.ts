@@ -16,7 +16,7 @@ interface VaultState {
   openVault: (path: string) => Promise<void>;
   refreshTree: () => Promise<void>;
   openNote: (path: string) => Promise<void>;
-  newNote: (folder: string) => Promise<void>;
+  newNote: (folder: string, templateId?: string) => Promise<void>;
   deleteActive: () => Promise<void>;
   saveNote: (path: string, content: string) => Promise<void>;
   clearError: () => void;
@@ -76,12 +76,15 @@ export const useVault = create<VaultState>((set, get) => ({
     }
   },
 
-  newNote: async (folder) => {
+  newNote: async (folder, templateId) => {
     const base = folder ? `${folder}/` : "";
     for (let i = 1; i <= 50; i++) {
       const name = i === 1 ? "Untitled" : `Untitled ${i}`;
       try {
-        const note = await api.createNote(`${base}${name}.md`);
+        const note = await api.createNote(
+          `${base}${name}.md`,
+          templateId ? { template: templateId } : undefined,
+        );
         await get().refreshTree();
         set({ activePath: note.path, activeNote: note });
         return;

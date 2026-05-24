@@ -32,8 +32,14 @@ export const api = {
   closeVault: () => unwrap(commands.closeVault()),
   getFolderTree: () => unwrap(commands.getFolderTree()),
   getNote: (path: string) => unwrap(commands.getNote(path)),
-  createNote: (path: string, content?: string) =>
-    unwrap(commands.createNote({ path, content: content ?? null, template: null })),
+  createNote: (path: string, opts?: { content?: string; template?: string }) =>
+    unwrap(
+      commands.createNote({
+        path,
+        content: opts?.content ?? null,
+        template: opts?.template ?? null,
+      }),
+    ),
   updateNote: (path: string, content: string) => unwrap(commands.updateNote(path, content)),
   deleteNote: (path: string) => unwrap(commands.deleteNote(path)),
   moveNote: (path: string, newPath: string) => unwrap(commands.moveNote(path, newPath)),
@@ -71,4 +77,16 @@ export const api = {
     ),
   toggleTask: (id: string) => unwrap(commands.toggleTask(id)),
   setTaskStatus: (id: string, status: string) => unwrap(commands.setTaskStatus(id, status)),
+
+  // Templates / export / media
+  listTemplates: () => unwrap(commands.listTemplates()),
+  createTemplate: (name: string, content: string, description?: string) =>
+    unwrap(commands.createTemplate(name, description ?? null, content)),
+  deleteTemplate: (id: string) => unwrap(commands.deleteTemplate(id)),
+  setPreferences: (prefs: Parameters<typeof commands.setPreferences>[0]) =>
+    unwrap(commands.setPreferences(prefs)),
+  exportNote: (path: string, format: "html" | "docx") =>
+    unwrap(commands.exportNote(path, format)),
+  savePastedImage: (bytes: number[], ext: string) =>
+    unwrap(commands.savePastedImage(bytes, ext)),
 };

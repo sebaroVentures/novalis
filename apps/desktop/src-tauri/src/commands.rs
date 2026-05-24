@@ -12,13 +12,13 @@ use novalis_core::conflict;
 use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     CaptureRequest, ConflictDiff, ConflictFile, CreateNoteRequest, CreateTaskRequest, FolderNode,
-    Note, NoteSummary, Preferences, ResolveConflictRequest, SearchResult, Task, TaskQuery,
-    UpdateMetaRequest, VaultInfo, VaultStats,
+    Note, NoteSummary, NoteTemplate, Preferences, ResolveConflictRequest, SearchResult, Task,
+    TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
-use novalis_core::vault::{config, fs as vault_fs, stats};
-use novalis_core::{AppInfo, CoreError};
+use novalis_core::vault::{config, frontmatter, fs as vault_fs, stats};
+use novalis_core::{export, media, templates, AppInfo, CoreError};
 
 use crate::engine::{AppEngine, CommandError, Engine};
 
@@ -39,6 +39,11 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
     let state = app.state::<AppEngine>();
     let vault_path = PathBuf::from(path);
     config::ensure_vault_dir(&vault_path).map_err(CoreError::Io)?;
+
+    // Let the webview load images from the vault via the asset protocol.
+    let _ = app
+        .asset_protocol_scope()
+        .allow_directory(&vault_path, true);
 
     let data_dir = app
         .path()
@@ -366,6 +371,89 @@ pub fn set_task_status(state: State<AppEngine>, id: String, status: String) -> C
 #[specta::specta]
 pub fn quick_capture(state: State<AppEngine>, req: CaptureRequest) -> CmdResult<String> {
     state.with(|e| task_svc::quick_capture(&e.db, &e.vault_path, req))
+}
+
+// ── Export / templates / media ─────────────────────────────────────────────
+
+/// Export a note to HTML or DOCX, prompting for a save location. Returns the
+/// saved path, or `None` if the user cancelled.
+#[tauri::command]
+#[specta::specta]
+pub fn export_note(
+    app: AppHandle,
+    state: State<AppEngine>,
+    path: String,
+    format: String,
+) -> CmdResult<Option<String>> {
+    use tauri_plugin_dialog::DialogExt;
+
+    let (default_name, bytes) = state.with(|e| {
+        let note = vault_fs::read_note(&e.vault_path, &path)?;
+        let (_, body) = frontmatter::parse_frontmatter(&note.content);
+        let stem = note.path.rsplit('/').next().unwrap_or("note").to_string();
+        match format.as_str() {
+            "html" => Ok((
+                stem.replace(".md", ".html"),
+                export::note_html(&note.title, &body).into_bytes(),
+            )),
+            "docx" => Ok((
+                stem.replace(".md", ".docx"),
+                export::note_docx(&note.title, &body)?,
+            )),
+            other => Err(CoreError::BadRequest(format!(
+                "Unknown export format: {other}"
+            ))),
+        }
+    })?;
+
+    let target = app
+        .dialog()
+        .file()
+        .set_file_name(&default_name)
+        .blocking_save_file();
+    let Some(fp) = target else {
+        return Ok(None);
+    };
+    let out = fp
+        .into_path()
+        .map_err(|e| CommandError::internal(e.to_string()))?;
+    std::fs::write(&out, &bytes).map_err(|e| CommandError::from(CoreError::Io(e)))?;
+    Ok(Some(out.to_string_lossy().to_string()))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn list_templates(state: State<AppEngine>) -> CmdResult<Vec<NoteTemplate>> {
+    state.with(|e| templates::list(&e.data_dir))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn create_template(
+    state: State<AppEngine>,
+    name: String,
+    description: Option<String>,
+    content: String,
+) -> CmdResult<NoteTemplate> {
+    state.with(|e| templates::create(&e.data_dir, name, description, content))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn delete_template(state: State<AppEngine>, id: String) -> CmdResult<()> {
+    state.with(|e| templates::delete(&e.data_dir, &id))
+}
+
+/// Save a pasted/dropped image into the vault `media/` folder; returns the
+/// vault-relative path for embedding as `![](...)`.
+#[tauri::command]
+#[specta::specta]
+pub fn save_pasted_image(
+    state: State<AppEngine>,
+    bytes: Vec<u8>,
+    ext: String,
+) -> CmdResult<String> {
+    state.with(|e| media::save_image(&e.vault_path, &bytes, &ext))
 }
 
 /// Build a stable, filesystem-safe key for a vault path (used to name its

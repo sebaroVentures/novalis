@@ -1,19 +1,25 @@
-import { EditorContent, type Editor, useEditor } from "@tiptap/react";
-import StarterKit from "@tiptap/starter-kit";
+import { mergeAttributes } from "@tiptap/core";
+import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
+import { EditorContent, type Editor, useEditor } from "@tiptap/react";
+import type { EditorView } from "@tiptap/pm/view";
+import StarterKit from "@tiptap/starter-kit";
 import { Markdown } from "tiptap-markdown";
 
 export interface NovalisEditorProps {
-  /** Initial markdown content. Treated as the starting value; remount (via a
-   *  React `key`) to load a different note. */
+  /** Initial markdown content. Remount (via a React `key`) to load another note. */
   value: string;
   /** Called with the full markdown on every edit. */
   onChange?: (markdown: string) => void;
   editable?: boolean;
   placeholder?: string;
+  /** Persist a pasted/dropped image; returns the markdown-relative path (or null). */
+  onUploadImage?: (file: File) => Promise<string | null>;
+  /** Map a stored (relative) image src to a displayable URL. */
+  resolveImageSrc?: (src: string) => string;
 }
 
 function getMarkdown(editor: Editor): string {
@@ -25,7 +31,33 @@ export function NovalisEditor({
   onChange,
   editable = true,
   placeholder,
+  onUploadImage,
+  resolveImageSrc,
 }: NovalisEditorProps) {
+  // Image node that stores the relative `src` (for markdown round-trip) but
+  // renders a resolved URL so the webview can display vault images.
+  const VaultImage = Image.extend({
+    renderHTML({ HTMLAttributes }) {
+      const attrs = { ...HTMLAttributes };
+      if (typeof attrs.src === "string" && resolveImageSrc) {
+        attrs.src = resolveImageSrc(attrs.src);
+      }
+      return ["img", mergeAttributes(attrs)];
+    },
+  });
+
+  const insertUploaded = (view: EditorView, file: File) => {
+    if (!onUploadImage) return;
+    void onUploadImage(file).then((rel) => {
+      if (!rel) return;
+      const node = view.state.schema.nodes.image.create({ src: rel });
+      view.dispatch(view.state.tr.replaceSelectionWith(node));
+    });
+  };
+
+  const firstImage = (files: FileList | undefined | null) =>
+    Array.from(files ?? []).find((f) => f.type.startsWith("image/"));
+
   const editor = useEditor({
     editable,
     extensions: [
@@ -39,10 +71,27 @@ export function NovalisEditor({
       TaskList,
       TaskItem.configure({ nested: true }),
       Link.configure({ openOnClick: false, autolink: true }),
+      VaultImage,
       Placeholder.configure({ placeholder: placeholder ?? "Start writing…" }),
     ],
     content: value,
     onUpdate: ({ editor }) => onChange?.(getMarkdown(editor)),
+    editorProps: {
+      handlePaste(view, event) {
+        const file = firstImage(event.clipboardData?.files);
+        if (!file || !onUploadImage) return false;
+        event.preventDefault();
+        insertUploaded(view, file);
+        return true;
+      },
+      handleDrop(view, event) {
+        const file = firstImage(event.dataTransfer?.files);
+        if (!file || !onUploadImage) return false;
+        event.preventDefault();
+        insertUploaded(view, file);
+        return true;
+      },
+    },
   });
 
   if (!editor) return null;
@@ -68,7 +117,6 @@ function Toolbar({ editor }: { editor: Editor }) {
     <button
       type="button"
       className={`nv-tb-btn${active ? " is-active" : ""}`}
-      // mousedown + preventDefault keeps the editor selection.
       onMouseDown={(e) => {
         e.preventDefault();
         onClick();

@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 
 import { EditorPane } from "./components/EditorPane";
 import { SearchModal } from "./components/SearchModal";
+import { SettingsModal } from "./components/SettingsModal";
 import { Sidebar, type MainView } from "./components/Sidebar";
 import { TasksView } from "./components/TasksView";
 import { VaultGate } from "./components/VaultGate";
@@ -15,6 +16,7 @@ export default function App() {
   const clearError = useVault((s) => s.clearError);
   const [view, setView] = useState<MainView>("notes");
   const [searchOpen, setSearchOpen] = useState(false);
+  const [settingsOpen, setSettingsOpen] = useState(false);
 
   useNovalisEvents();
 
@@ -45,9 +47,15 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100">
-      <Sidebar view={view} onViewChange={setView} onOpenSearch={() => setSearchOpen(true)} />
+      <Sidebar
+        view={view}
+        onViewChange={setView}
+        onOpenSearch={() => setSearchOpen(true)}
+        onOpenSettings={() => setSettingsOpen(true)}
+      />
       {view === "notes" ? <EditorPane /> : <TasksView />}
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {error && (
         <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-red-500/40 bg-red-950/80 px-4 py-2 text-sm text-red-200">
           <span className="min-w-0 break-words">{error}</span>

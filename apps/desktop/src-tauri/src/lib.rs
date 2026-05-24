@@ -78,6 +78,11 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::toggle_task,
             commands::set_task_status,
             commands::quick_capture,
+            commands::export_note,
+            commands::list_templates,
+            commands::create_template,
+            commands::delete_template,
+            commands::save_pasted_image,
         ])
         .events(collect_events![
             ReindexedEvent,

@@ -53,6 +53,19 @@ export const commands = {
 	toggleTask: (id: string) => typedError<boolean, CommandError>(__TAURI_INVOKE("toggle_task", { id })),
 	setTaskStatus: (id: string, status: string) => typedError<null, CommandError>(__TAURI_INVOKE("set_task_status", { id, status })),
 	quickCapture: (req: CaptureRequest) => typedError<string, CommandError>(__TAURI_INVOKE("quick_capture", { req })),
+	/**
+	 *  Export a note to HTML or DOCX, prompting for a save location. Returns the
+	 *  saved path, or `None` if the user cancelled.
+	 */
+	exportNote: (path: string, format: string) => typedError<string | null, CommandError>(__TAURI_INVOKE("export_note", { path, format })),
+	listTemplates: () => typedError<NoteTemplate[], CommandError>(__TAURI_INVOKE("list_templates")),
+	createTemplate: (name: string, description: string | null, content: string) => typedError<NoteTemplate, CommandError>(__TAURI_INVOKE("create_template", { name, description, content })),
+	deleteTemplate: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_template", { id })),
+	/**
+	 *  Save a pasted/dropped image into the vault `media/` folder; returns the
+	 *  vault-relative path for embedding as `![](...)`.
+	 */
+	savePastedImage: (bytes: number[], ext: string) => typedError<string, CommandError>(__TAURI_INVOKE("save_pasted_image", { bytes, ext })),
 };
 
 /** Events */
@@ -185,6 +198,14 @@ export type NoteSummary = {
 	wordCount: number,
 	taskTotal: number,
 	taskCompleted: number,
+};
+
+export type NoteTemplate = {
+	id: string,
+	name: string,
+	description: string,
+	content: string,
+	created: string,
 };
 
 export type Preferences = {

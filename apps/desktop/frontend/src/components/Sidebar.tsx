@@ -1,6 +1,6 @@
 import { useState } from "react";
 
-import type { FolderNode, NoteSummary } from "../ipc/api";
+import { api, type FolderNode, type NoteSummary, type NoteTemplate } from "../ipc/api";
 import { useVault } from "../stores/vaultStore";
 
 export type MainView = "notes" | "tasks";
@@ -9,14 +9,15 @@ export function Sidebar({
   view,
   onViewChange,
   onOpenSearch,
+  onOpenSettings,
 }: {
   view: MainView;
   onViewChange: (v: MainView) => void;
   onOpenSearch: () => void;
+  onOpenSettings: () => void;
 }) {
   const tree = useVault((s) => s.tree);
   const vaultPath = useVault((s) => s.vaultPath);
-  const newNote = useVault((s) => s.newNote);
   const vaultName = vaultPath ? vaultPath.split("/").filter(Boolean).pop() : "Vault";
 
   return (
@@ -33,12 +34,13 @@ export function Sidebar({
           >
             ⌕
           </button>
+          <NewNoteButton />
           <button
-            title="New note"
-            onClick={() => void newNote("")}
+            title="Settings"
+            onClick={onOpenSettings}
             className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-white/5 hover:text-neutral-100"
           >
-            ＋
+            ⚙
           </button>
         </div>
       </div>
@@ -65,6 +67,55 @@ export function Sidebar({
         )}
       </div>
     </aside>
+  );
+}
+
+function NewNoteButton() {
+  const newNote = useVault((s) => s.newNote);
+  const [open, setOpen] = useState(false);
+  const [templates, setTemplates] = useState<NoteTemplate[]>([]);
+
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    if (next) void api.listTemplates().then(setTemplates).catch(() => setTemplates([]));
+  };
+
+  return (
+    <div className="relative">
+      <button
+        title="New note"
+        onClick={toggle}
+        className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-white/5 hover:text-neutral-100"
+      >
+        ＋
+      </button>
+      {open && (
+        <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-md border border-neutral-700 bg-neutral-900 shadow-xl">
+          <button
+            onClick={() => {
+              setOpen(false);
+              void newNote("");
+            }}
+            className="block w-full px-3 py-1.5 text-left text-xs text-neutral-200 hover:bg-white/5"
+          >
+            Blank note
+          </button>
+          {templates.map((t) => (
+            <button
+              key={t.id}
+              onClick={() => {
+                setOpen(false);
+                void newNote("", t.id);
+              }}
+              className="block w-full truncate px-3 py-1.5 text-left text-xs text-neutral-300 hover:bg-white/5"
+            >
+              {t.name}
+            </button>
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 
