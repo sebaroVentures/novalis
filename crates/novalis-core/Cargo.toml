@@ -13,6 +13,13 @@ serde_json.workspace = true
 chrono.workspace = true
 thiserror.workspace = true
 specta.workspace = true
+rusqlite = { version = "0.32", features = ["bundled"] }
+gray_matter = "0.2"
+serde_yaml = "0.9"
+walkdir = "2"
+regex = "1"
+log = "0.4"
+uuid = { workspace = true }
 
 [dev-dependencies]
 tempfile = "3"

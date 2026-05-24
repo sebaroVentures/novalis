@@ -1,16 +1,19 @@
 //! # novalis-core
 //!
 //! UI-agnostic logic for Novalis. This crate knows nothing about Tauri, HTTP,
-//! windows, or the filesystem location of the app — it operates on paths and
-//! connections handed to it, which keeps it unit-testable in isolation and
-//! reusable across desktop and (later) mobile shells.
-//!
-//! Modules are added milestone by milestone: `vault`, `index`, `notes`,
-//! `tasks`, `calendar`, `conflict`, `export`, `trash`, `change`. For M0 only
-//! the foundations (`error`, `models`) exist.
+//! windows, or where the app stores its data — it operates on paths and
+//! database connections handed to it, which keeps it unit-testable in
+//! isolation and reusable across the desktop and (later) mobile shells.
 
+pub mod change;
+pub mod conflict;
 pub mod error;
+pub mod index;
 pub mod models;
+pub mod notes;
+pub mod tasks;
+pub mod trash;
+pub mod vault;
 
 pub use error::{CoreError, CoreResult};
 pub use models::AppInfo;
@@ -21,7 +24,7 @@ pub fn version() -> &'static str {
 }
 
 /// Build the [`AppInfo`] payload. Exposed by the desktop shell as a Tauri
-/// command; the simplest possible end-to-end path through the core.
+/// command; the simplest end-to-end path through the core.
 pub fn app_info() -> AppInfo {
     AppInfo {
         name: "Novalis".to_string(),

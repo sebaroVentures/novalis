@@ -1,34 +1,59 @@
 import { useEffect, useState } from "react";
-import { commands } from "./ipc/bindings";
-import type { AppInfo } from "./ipc/bindings";
+
+import { EditorPane } from "./components/EditorPane";
+import { SearchModal } from "./components/SearchModal";
+import { Sidebar } from "./components/Sidebar";
+import { VaultGate } from "./components/VaultGate";
+import { useNovalisEvents } from "./lib/useNovalisEvents";
+import { useVault } from "./stores/vaultStore";
 
 export default function App() {
-  const [info, setInfo] = useState<AppInfo | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  const loading = useVault((s) => s.loading);
+  const vaultPath = useVault((s) => s.vaultPath);
+  const error = useVault((s) => s.error);
+  const clearError = useVault((s) => s.clearError);
+  const [searchOpen, setSearchOpen] = useState(false);
 
-  // M0 smoke test: round-trip through the Rust core via a typed Tauri command.
+  useNovalisEvents();
+
   useEffect(() => {
-    commands
-      .appInfo()
-      .then(setInfo)
-      .catch((e) => setError(String(e)));
+    void useVault.getState().sync();
   }, []);
 
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setSearchOpen((v) => !v);
+      }
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, []);
+
+  if (loading) {
+    return (
+      <main className="flex min-h-screen items-center justify-center bg-neutral-950 text-neutral-500">
+        Loading…
+      </main>
+    );
+  }
+
+  if (!vaultPath) return <VaultGate />;
+
   return (
-    <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-neutral-950 text-neutral-100">
-      <h1 className="text-4xl font-semibold tracking-tight">Novalis</h1>
-      {info ? (
-        <p className="text-neutral-400">
-          {info.name} · v{info.version}
-        </p>
-      ) : error ? (
-        <p className="text-red-400">IPC error: {error}</p>
-      ) : (
-        <p className="text-neutral-500">Connecting to core…</p>
+    <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100">
+      <Sidebar onOpenSearch={() => setSearchOpen(true)} />
+      <EditorPane />
+      <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
+      {error && (
+        <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-lg border border-red-500/40 bg-red-950/80 px-4 py-2 text-sm text-red-200">
+          <span className="min-w-0 break-words">{error}</span>
+          <button onClick={clearError} className="text-red-400 hover:text-red-200">
+            ✕
+          </button>
+        </div>
       )}
-      <p className="text-xs text-neutral-600">
-        M0 scaffolding · notes + tasks + calendar
-      </p>
-    </main>
+    </div>
   );
 }

@@ -5,8 +5,8 @@ use thiserror::Error;
 
 pub type CoreResult<T> = Result<T, CoreError>;
 
-/// All failures the core can produce. Variants mirror the HTTP status buckets
-/// the original module used (`errors.rs`), minus the `axum::IntoResponse` impl.
+/// All failures the core can produce. Variants mirror the status buckets the
+/// original module used (`errors.rs`), minus the `axum::IntoResponse` impl.
 #[derive(Debug, Error)]
 pub enum CoreError {
     #[error("not found: {0}")]
@@ -18,8 +18,11 @@ pub enum CoreError {
     #[error("bad request: {0}")]
     BadRequest(String),
 
-    #[error(transparent)]
+    #[error("IO error: {0}")]
     Io(#[from] std::io::Error),
+
+    #[error("database error: {0}")]
+    Database(#[from] rusqlite::Error),
 
     #[error("serialization error: {0}")]
     Serde(String),

@@ -1,38 +1,90 @@
 //! Thin Tauri v2 shell for Novalis.
 //!
-//! This binary owns no business logic: it wires [`novalis_core`] functions to
-//! the frontend as typed Tauri **commands** and pushes **events**. The
-//! command/event surface is declared once in [`specta_builder`] and is the
-//! single source of truth for the auto-generated TypeScript bindings
-//! (`frontend/src/ipc/bindings.ts`), so Rust and TS can never drift.
+//! No business logic lives here: it wires [`novalis_core`] to the frontend as
+//! typed Tauri **commands** and **events**. The command/event surface is
+//! declared once in [`specta_builder`] and is the single source of truth for
+//! the auto-generated TypeScript bindings (`frontend/src/ipc/bindings.ts`).
 
-use novalis_core::AppInfo;
+mod commands;
+mod engine;
+mod settings;
+mod watcher;
+
 use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri_specta::{collect_commands, collect_events, Builder};
 
-/// Returns app/build info from the core. M0 smoke test for the IPC pipeline.
-#[tauri::command]
-#[specta::specta]
-fn app_info() -> AppInfo {
-    novalis_core::app_info()
-}
-
-/// Emitted when the vault finishes (re)indexing. Placeholder proving the typed
-/// event channel; real vault/calendar events land in M1/M4.
+/// Emitted when the vault finishes (re)indexing, so the UI can refresh fully.
 #[derive(Debug, Clone, Serialize, Deserialize, Type, tauri_specta::Event)]
 pub struct ReindexedEvent;
+
+/// A note was created or modified on disk (path is vault-relative).
+#[derive(Debug, Clone, Serialize, Deserialize, Type, tauri_specta::Event)]
+pub struct NoteChanged {
+    pub path: String,
+}
+
+/// A note was removed from disk.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, tauri_specta::Event)]
+pub struct NoteDeleted {
+    pub path: String,
+}
+
+/// A sync-conflict file was detected.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, tauri_specta::Event)]
+pub struct ConflictDetected {
+    pub path: String,
+}
 
 /// The command + event surface. Shared by [`run`] and the binding generator.
 fn specta_builder() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new()
-        .commands(collect_commands![app_info])
-        .events(collect_events![ReindexedEvent])
+        .commands(collect_commands![
+            commands::app_info,
+            commands::open_vault,
+            commands::close_vault,
+            commands::current_vault,
+            commands::pick_vault_folder,
+            commands::list_notes,
+            commands::get_note,
+            commands::create_note,
+            commands::update_note,
+            commands::update_note_meta,
+            commands::move_note,
+            commands::duplicate_note,
+            commands::delete_note,
+            commands::get_folder_tree,
+            commands::create_folder,
+            commands::delete_folder,
+            commands::move_folder,
+            commands::search,
+            commands::quick_search,
+            commands::backlinks,
+            commands::unlinked_mentions,
+            commands::get_vault_info,
+            commands::get_vault_stats,
+            commands::reindex_vault,
+            commands::rescan_vault,
+            commands::list_conflicts,
+            commands::conflict_diff,
+            commands::resolve_conflict,
+            commands::list_trash,
+            commands::restore_trash,
+            commands::empty_trash,
+            commands::get_preferences,
+            commands::set_preferences,
+        ])
+        .events(collect_events![
+            ReindexedEvent,
+            NoteChanged,
+            NoteDeleted,
+            ConflictDetected
+        ])
+        // Counts/sizes are small; render Rust integer types as TS `number`.
+        .dangerously_cast_bigints_to_number()
 }
 
-/// Export the TypeScript IPC bindings beside the frontend source. The path is
-/// resolved from this crate's directory so it is independent of the working
-/// directory (works from `cargo run`, `cargo test`, or `tauri dev`).
+/// Export the TypeScript IPC bindings beside the frontend source.
 pub fn export_bindings() {
     let out =
         std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("../frontend/src/ipc/bindings.ts");
@@ -46,16 +98,27 @@ pub fn export_bindings() {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    // Keep bindings in sync automatically during development.
     #[cfg(debug_assertions)]
     export_bindings();
 
     let builder = specta_builder();
 
     tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .manage(engine::AppEngine::default())
         .invoke_handler(builder.invoke_handler())
         .setup(move |app| {
             builder.mount_events(app);
+
+            // Reopen the last vault in the background so the window appears fast.
+            let handle = app.handle().clone();
+            if let Some(last) = settings::load_last_vault(&handle) {
+                std::thread::spawn(move || {
+                    if let Err(e) = commands::open_vault_impl(&handle, &last) {
+                        log::warn!("failed to reopen last vault: {e:?}");
+                    }
+                });
+            }
             Ok(())
         })
         .run(tauri::generate_context!())

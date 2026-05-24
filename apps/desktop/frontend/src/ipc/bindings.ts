@@ -5,32 +5,245 @@ import * as __TAURI_EVENT from "@tauri-apps/api/event";
 
 /** Commands */
 export const commands = {
-	/**  Returns app/build info from the core. M0 smoke test for the IPC pipeline. */
+	/**  Returns app/build info from the core. Works without a vault open. */
 	appInfo: () => __TAURI_INVOKE<AppInfo>("app_info"),
+	/**  Open (or create) a vault at `path`. */
+	openVault: (path: string) => typedError<VaultInfo, CommandError>(__TAURI_INVOKE("open_vault", { path })),
+	/**  Close the current vault (drops the index connection). */
+	closeVault: () => typedError<null, CommandError>(__TAURI_INVOKE("close_vault")),
+	/**  Path of the currently open vault, if any. */
+	currentVault: () => typedError<string | null, CommandError>(__TAURI_INVOKE("current_vault")),
+	/**  Show a native folder picker; returns the chosen path, if any. */
+	pickVaultFolder: () => __TAURI_INVOKE<string | null>("pick_vault_folder"),
+	listNotes: () => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("list_notes")),
+	getNote: (path: string) => typedError<Note, CommandError>(__TAURI_INVOKE("get_note", { path })),
+	createNote: (req: CreateNoteRequest) => typedError<Note, CommandError>(__TAURI_INVOKE("create_note", { req })),
+	updateNote: (path: string, content: string) => typedError<Note, CommandError>(__TAURI_INVOKE("update_note", { path, content })),
+	updateNoteMeta: (req: UpdateMetaRequest) => typedError<Note, CommandError>(__TAURI_INVOKE("update_note_meta", { req })),
+	moveNote: (path: string, newPath: string) => typedError<Note, CommandError>(__TAURI_INVOKE("move_note", { path, newPath })),
+	duplicateNote: (path: string) => typedError<Note, CommandError>(__TAURI_INVOKE("duplicate_note", { path })),
+	deleteNote: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_note", { path })),
+	getFolderTree: () => typedError<FolderNode, CommandError>(__TAURI_INVOKE("get_folder_tree")),
+	createFolder: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("create_folder", { path })),
+	deleteFolder: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_folder", { path })),
+	moveFolder: (path: string, newPath: string) => typedError<null, CommandError>(__TAURI_INVOKE("move_folder", { path, newPath })),
+	search: (query: string, folder: string | null, tag: string | null) => typedError<SearchResult[], CommandError>(__TAURI_INVOKE("search", { query, folder, tag })),
+	quickSearch: (query: string) => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("quick_search", { query })),
+	backlinks: (title: string) => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("backlinks", { title })),
+	unlinkedMentions: (title: string, selfPath: string) => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("unlinked_mentions", { title, selfPath })),
+	getVaultInfo: () => typedError<VaultInfo, CommandError>(__TAURI_INVOKE("get_vault_info")),
+	getVaultStats: () => typedError<VaultStats, CommandError>(__TAURI_INVOKE("get_vault_stats")),
+	/**  Rebuild the entire index from the vault. Returns the number of notes indexed. */
+	reindexVault: () => typedError<number, CommandError>(__TAURI_INVOKE("reindex_vault")),
+	/**
+	 *  Re-scan from disk (pull model — used on mobile/foreground and manual refresh).
+	 *  For M1 this is a full rebuild; incremental mtime scanning comes later.
+	 */
+	rescanVault: () => typedError<number, CommandError>(__TAURI_INVOKE("rescan_vault")),
+	listConflicts: () => typedError<ConflictFile[], CommandError>(__TAURI_INVOKE("list_conflicts")),
+	conflictDiff: (original: string, conflict: string) => typedError<ConflictDiff, CommandError>(__TAURI_INVOKE("conflict_diff", { original, conflict })),
+	resolveConflict: (req: ResolveConflictRequest) => typedError<string | null, CommandError>(__TAURI_INVOKE("resolve_conflict", { req })),
+	listTrash: () => typedError<TrashItem[], CommandError>(__TAURI_INVOKE("list_trash")),
+	restoreTrash: (id: string) => typedError<string, CommandError>(__TAURI_INVOKE("restore_trash", { id })),
+	emptyTrash: () => typedError<number, CommandError>(__TAURI_INVOKE("empty_trash")),
+	getPreferences: () => typedError<Preferences, CommandError>(__TAURI_INVOKE("get_preferences")),
+	setPreferences: (prefs: Preferences) => typedError<null, CommandError>(__TAURI_INVOKE("set_preferences", { prefs })),
 };
 
 /** Events */
 export const events = {
+	conflictDetected: makeEvent<ConflictDetected>("conflict-detected"),
+	noteChanged: makeEvent<NoteChanged>("note-changed"),
+	noteDeleted: makeEvent<NoteDeleted>("note-deleted"),
 	reindexedEvent: makeEvent<ReindexedEvent>("reindexed-event"),
 };
 
 /* Types */
-/**
- *  Basic app/build information surfaced to the UI. Acts as the M0 smoke-test
- *  payload proving the Rust -> TS binding pipeline end-to-end.
- */
+/**  Basic app/build information surfaced to the UI. */
 export type AppInfo = {
 	name: string,
 	version: string,
 };
 
 /**
- *  Emitted when the vault finishes (re)indexing. Placeholder proving the typed
- *  event channel; real vault/calendar events land in M1/M4.
+ *  Serializable error returned to the frontend. `kind` lets the UI branch
+ *  (e.g. show an "open a vault" prompt for `noVault`).
  */
+export type CommandError = {
+	kind: string,
+	message: string,
+};
+
+/**  A sync-conflict file was detected. */
+export type ConflictDetected = {
+	path: string,
+};
+
+export type ConflictDiff = {
+	originalPath: string,
+	conflictPath: string,
+	originalContent: string,
+	conflictContent: string,
+	originalExists: boolean,
+};
+
+/**  A sync-conflict file detected in the vault (e.g. OneDrive `note (1).md`). */
+export type ConflictFile = {
+	id: string,
+	originalPath: string,
+	conflictPath: string,
+	detectedAt: string,
+};
+
+export type CreateNoteRequest = {
+	path: string,
+	content: string | null,
+	template: string | null,
+};
+
+export type FileTreePrefs = {
+	sortBy?: string,
+	sortDir?: string,
+};
+
+/**  A node in the recursive vault folder tree. */
+export type FolderNode = {
+	name: string,
+	path: string,
+	children: FolderNode[],
+	notes: NoteSummary[],
+};
+
+export type KanbanColumnDef = {
+	id?: string,
+	title?: string,
+};
+
+/**  A full note: raw markdown `content` (frontmatter included) plus a parsed view. */
+export type Note = {
+	path: string,
+	title: string,
+	content: string,
+	frontmatter: NoteFrontmatter,
+	wordCount: number,
+};
+
+/**  A note was created or modified on disk (path is vault-relative). */
+export type NoteChanged = {
+	path: string,
+};
+
+/**  A note was removed from disk. */
+export type NoteDeleted = {
+	path: string,
+};
+
+/**
+ *  YAML frontmatter. Field names are the literal YAML keys (no camelCase). The
+ *  `extra` map preserves any unknown keys verbatim so we never drop a user's
+ *  metadata on round-trip; it's skipped from the TS type as it is open-ended.
+ */
+export type NoteFrontmatter = {
+	title?: string | null,
+	tags?: string[],
+	aliases?: string[],
+	created?: string,
+	modified?: string,
+	pinned?: boolean,
+};
+
+/**  Lightweight note metadata used for lists, the file tree, and search results. */
+export type NoteSummary = {
+	path: string,
+	title: string,
+	folder: string,
+	tags: string[],
+	created: string,
+	modified: string,
+	pinned: boolean,
+	wordCount: number,
+	taskTotal: number,
+	taskCompleted: number,
+};
+
+export type Preferences = {
+	taskView?: TaskViewPrefs,
+	fileTree?: FileTreePrefs,
+};
+
+/**  Emitted when the vault finishes (re)indexing, so the UI can refresh fully. */
 export type ReindexedEvent = null;
 
+export type ResolveConflictRequest = {
+	/**  "original" | "conflict" | "both" */
+	keep: string,
+	/**  Vault-relative path to the original file (authoritative copy). */
+	originalPath: string,
+	/**  Vault-relative path to the conflict file as reported by list_conflicts. */
+	conflictPath: string,
+};
+
+/**  A full-text search hit with an FTS5 snippet and rank-derived score. */
+export type SearchResult = {
+	path: string,
+	title: string,
+	snippet: string,
+	score: number | null,
+};
+
+export type TaskCreationPrefs = {
+	strategy?: string,
+	inboxPath?: string,
+};
+
+export type TaskViewPrefs = {
+	defaultMode?: string,
+	kanbanColumns?: KanbanColumnDef[],
+	taskCreation?: TaskCreationPrefs,
+};
+
+export type TrashItem = {
+	id: string,
+	originalPath: string,
+	trashedAt: string,
+	filename: string,
+};
+
+export type UpdateMetaRequest = {
+	path: string | null,
+	tags: string[] | null,
+	pinned: boolean | null,
+	aliases: string[] | null,
+};
+
+export type VaultInfo = {
+	path: string,
+	noteCount: number,
+	folderCount: number,
+	totalWords: number,
+	totalTasks: number,
+	completedTasks: number,
+};
+
+/**  Aggregate vault statistics, including a tag histogram. */
+export type VaultStats = {
+	noteCount: number,
+	wordCount: number,
+	taskTotal: number,
+	taskCompleted: number,
+	tagDistribution: { [key in string]: number },
+};
+
 /* Tauri Specta runtime */
+async function typedError<T, E>(result: Promise<T>): Promise<{ status: "ok"; data: T } | { status: "error"; error: E }> {
+    try {
+        return { status: "ok", data: await result };
+    } catch (e) {
+        if (e instanceof Error) throw e;
+        return { status: "error", error: e as any };
+    }
+}
+
 type EventEmit<T> = [T] extends [null] ? () => Promise<void> : (payload: T) => Promise<void>;
 
 function makeEvent<T>(name: string, serialize?: (payload: T) => unknown, deserialize?: (payload: any) => T) {

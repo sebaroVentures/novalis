@@ -18,9 +18,15 @@ tauri-build = { version = "2", features = [] }
 
 [dependencies]
 tauri = { version = "2", features = [] }
+tauri-plugin-dialog = "2"
 tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
 specta.workspace = true
 specta-typescript = "0.0.12"
 serde.workspace = true
 serde_json.workspace = true
+rusqlite = { version = "0.32", features = ["bundled"] }
+notify = "7"
+notify-debouncer-mini = "0.5"
+regex = "1"
+log = "0.4"
 novalis-core.workspace = true
