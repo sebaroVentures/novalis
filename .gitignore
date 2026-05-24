@@ -1,0 +1,82 @@
+# ─────────────────────────────────────────────────────────────
+# Secrets & credentials — NEVER commit these (this is an OSS repo)
+# ─────────────────────────────────────────────────────────────
+# Environment files (keep an example committed)
+.env
+.env.*
+!.env.example
+*.local
+
+# OAuth / API credentials (Google Calendar, Microsoft Graph, etc.)
+**/client_secret*.json
+**/credentials*.json
+**/*credentials*.json
+**/service-account*.json
+secrets/
+.secrets/
+
+# Generic key / certificate material
+*.pem
+*.key
+*.p12
+*.pfx
+*.cer
+*.der
+*.keystore
+*.jks
+
+# Tauri updater & mobile signing keys
+*.tauri.key
+**/*.tauri/signing*
+tauri-key*
+*.kotlin.keystore
+
+# Apple / Android signing
+*.mobileprovision
+*.provisionprofile
+**/google-services.json
+**/GoogleService-Info.plist
+
+# ─────────────────────────────────────────────────────────────
+# Rust
+# ─────────────────────────────────────────────────────────────
+/target
+**/target
+**/*.rs.bk
+*.pdb
+
+# ─────────────────────────────────────────────────────────────
+# Node / pnpm
+# ─────────────────────────────────────────────────────────────
+node_modules
+.pnpm-store
+.pnpm-debug.log*
+npm-debug.log*
+yarn-error.log*
+
+# ─────────────────────────────────────────────────────────────
+# Build output
+# ─────────────────────────────────────────────────────────────
+dist
+**/dist
+*.tsbuildinfo
+
+# Tauri generated artifacts (schemas, mobile projects regenerated on build)
+apps/desktop/src-tauri/gen
+
+# ─────────────────────────────────────────────────────────────
+# Vaults / user data — never commit someone's notes
+# ─────────────────────────────────────────────────────────────
+*.vault/
+test-vault-local/
+
+# ─────────────────────────────────────────────────────────────
+# OS / editor
+# ─────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+*.log
+.idea
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json

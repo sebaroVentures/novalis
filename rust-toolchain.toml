@@ -1,0 +1,5 @@
+[toolchain]
+# Pinned to 1.93: specta 2.0.0-rc.25 uses `core::fmt::from_fn`, stabilized
+# after 1.91. Keeps the build reproducible across dev machines and CI.
+channel = "1.93.0"
+components = ["rustfmt", "clippy"]

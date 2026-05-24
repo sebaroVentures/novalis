@@ -1,0 +1,50 @@
+# Novalis
+
+A local-first, open-source **notes + tasks + calendar** app. Your data stays on
+your device as plain Markdown files; it syncs between devices via OneDrive (or
+any file-sync tool). Built with **Tauri v2** (Rust core + web UI) for
+macOS/Linux/Windows today, and Android/iOS later — from one codebase.
+
+> Status: early development (milestone **M0** — scaffolding). See
+> [the plan](https://github.com/) and `crates/`/`apps/` for structure.
+
+## Principles
+
+- **Local-first.** No server we run. All logic runs on-device; only `.md` files
+  sync. The only network use is the *optional, read-only* calendar import.
+- **Own your data.** YAML frontmatter, `[[wikilinks]]`, plain Markdown — vaults
+  aim to be Obsidian-compatible. No lock-in.
+- **Modular.** Notes, Tasks, and Calendar are internal modules built against an
+  extension API that becomes a public plugin API.
+- **Open source (MIT).**
+
+## Repository layout
+
+```
+crates/
+  novalis-core/        UI-agnostic Rust logic (vault, index, notes, tasks, calendar, ...)
+  novalis-extension/   internal extension API (public plugin API later)
+apps/
+  desktop/
+    frontend/          React + Vite + Tailwind UI (the shared web UI)
+    src-tauri/         thin Tauri v2 binary wiring core -> commands/events
+  mobile/              (later) Android/iOS, reuses core + frontend
+packages/
+  editor/              @novalis/editor — standalone TipTap-based editor
+  ui/                  @novalis/ui — shared UI primitives
+```
+
+## Development
+
+Prerequisites: Rust (stable), Node 20+, pnpm 11.
+
+```bash
+pnpm install                 # install JS deps
+cargo test -p novalis-core   # run core unit tests
+pnpm gen:bindings            # regenerate typed IPC bindings (Rust -> TS)
+pnpm dev                     # run the desktop app (Tauri)
+```
+
+## License
+
+MIT © Sebastian Grundhoefer

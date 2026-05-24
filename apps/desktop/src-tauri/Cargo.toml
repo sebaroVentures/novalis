@@ -1,0 +1,26 @@
+[package]
+name = "novalis-desktop"
+description = "Novalis desktop app (Tauri v2 shell)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+# Tauri requires a lib (used by desktop bin and mobile entry points) plus a thin
+# binary that calls into it.
+[lib]
+name = "novalis_desktop_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }
+tauri-specta = { version = "=2.0.0-rc.25", features = ["derive", "typescript"] }
+specta.workspace = true
+specta-typescript = "0.0.12"
+serde.workspace = true
+serde_json.workspace = true
+novalis-core.workspace = true

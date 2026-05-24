@@ -1,0 +1,12 @@
+[package]
+name = "novalis-extension"
+description = "Internal extension API for Novalis modules (becomes the public plugin API)"
+version.workspace = true
+edition.workspace = true
+license.workspace = true
+authors.workspace = true
+rust-version.workspace = true
+
+[dependencies]
+serde.workspace = true
+novalis-core.workspace = true

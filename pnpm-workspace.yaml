@@ -1,0 +1,6 @@
+packages:
+  - "apps/desktop"
+  - "apps/desktop/frontend"
+  - "packages/*"
+allowBuilds:
+  esbuild: true

@@ -1,0 +1,21 @@
+{
+  "name": "novalis",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Local-first, open-source notes + tasks + calendar app",
+  "license": "MIT",
+  "packageManager": "pnpm@11.0.9",
+  "scripts": {
+    "dev": "pnpm --filter @novalis/desktop dev",
+    "build": "pnpm --filter @novalis/desktop build",
+    "tauri": "pnpm --filter @novalis/desktop tauri",
+    "frontend:build": "pnpm --filter @novalis/frontend build",
+    "gen:bindings": "cargo run -p novalis-desktop --bin gen_bindings",
+    "fmt": "cargo fmt --all",
+    "lint": "cargo clippy --workspace --all-targets -- -D warnings",
+    "test": "cargo test --workspace"
+  },
+  "devDependencies": {
+    "@tauri-apps/cli": "^2"
+  }
+}

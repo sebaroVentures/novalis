@@ -1,0 +1,36 @@
+[workspace]
+resolver = "2"
+members = [
+    "crates/novalis-core",
+    "crates/novalis-extension",
+    "apps/desktop/src-tauri",
+]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2021"
+license = "MIT"
+authors = ["Sebastian Grundhoefer <sebastiangrundhoefer@gmail.com>"]
+rust-version = "1.85"
+
+[workspace.dependencies]
+# Shared, UI-agnostic dependencies. Crates pull what they need.
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+chrono = { version = "0.4", features = ["serde"] }
+thiserror = "2"
+uuid = { version = "1", features = ["v4"] }
+# Type export — pinned: specta + tauri-specta must share the same rc.
+specta = { version = "=2.0.0-rc.25", features = ["derive", "chrono", "uuid"] }
+
+# In-workspace crates
+novalis-core = { path = "crates/novalis-core" }
+novalis-extension = { path = "crates/novalis-extension" }
+
+[profile.release]
+# Smaller, faster binaries — matters for a desktop app we distribute.
+panic = "abort"
+codegen-units = 1
+lto = true
+opt-level = "s"
+strip = true

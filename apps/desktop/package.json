@@ -1,0 +1,12 @@
+{
+  "name": "@novalis/desktop",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Novalis desktop app (Tauri v2 shell)",
+  "license": "MIT",
+  "scripts": {
+    "dev": "tauri dev",
+    "build": "tauri build",
+    "tauri": "tauri"
+  }
+}
