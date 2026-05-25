@@ -3,7 +3,6 @@
 //! [`open_vault`] / [`close_vault`].
 
 use std::path::PathBuf;
-use std::sync::atomic::Ordering;
 
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -70,10 +69,15 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
 
     crate::settings::save_last_vault(app, path);
 
-    // Bump the watcher generation so any previous watcher exits, then start a
-    // fresh one for this vault.
-    let generation = crate::watcher::WATCH_GEN.fetch_add(1, Ordering::SeqCst) + 1;
-    crate::watcher::start(app.clone(), vault_path, generation);
+    // Desktop watches the vault for external changes. Mobile relies on
+    // `rescan_vault` (foreground / pull-to-refresh) instead — `notify` isn't
+    // built for mobile targets.
+    #[cfg(desktop)]
+    {
+        let generation =
+            crate::watcher::WATCH_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+        crate::watcher::start(app.clone(), vault_path.clone(), generation);
+    }
 
     let _ = app.emit("reindexed-event", ());
     Ok(info)

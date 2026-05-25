@@ -15,12 +15,14 @@ import { useVault } from "./stores/vaultStore";
 export default function App() {
   const loading = useVault((s) => s.loading);
   const vaultPath = useVault((s) => s.vaultPath);
+  const activePath = useVault((s) => s.activePath);
   const error = useVault((s) => s.error);
   const clearError = useVault((s) => s.clearError);
   const [view, setView] = useState<MainView>("notes");
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
+  const [navOpen, setNavOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
 
   useNovalisEvents();
@@ -37,6 +39,11 @@ export default function App() {
   useEffect(() => {
     if (vaultPath) void usePlugins.getState().reload();
   }, [vaultPath]);
+
+  // Close the mobile nav drawer after navigating.
+  useEffect(() => {
+    setNavOpen(false);
+  }, [view, activePath]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -65,13 +72,42 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100">
-      <Sidebar
-        view={view}
-        onViewChange={setView}
-        onOpenSearch={() => setSearchOpen(true)}
-        onOpenSettings={() => setSettingsOpen(true)}
-      />
-      {view === "notes" ? <EditorPane /> : view === "tasks" ? <TasksView /> : <CalendarView />}
+      {/* Sidebar: static from md up, slide-in drawer below md. */}
+      <div
+        className={`fixed inset-y-0 left-0 z-40 transition-transform md:static md:z-auto md:translate-x-0 ${
+          navOpen ? "translate-x-0" : "-translate-x-full"
+        }`}
+      >
+        <Sidebar
+          view={view}
+          onViewChange={setView}
+          onOpenSearch={() => setSearchOpen(true)}
+          onOpenSettings={() => setSettingsOpen(true)}
+        />
+      </div>
+      {navOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          onClick={() => setNavOpen(false)}
+        />
+      )}
+
+      <div className="flex min-w-0 flex-1 flex-col">
+        <div className="flex items-center gap-2 border-b border-neutral-800 px-3 py-2 md:hidden">
+          <button
+            onClick={() => setNavOpen(true)}
+            title="Menu"
+            className="rounded px-2 py-1 text-neutral-300 hover:bg-white/5"
+          >
+            ☰
+          </button>
+          <span className="text-sm font-medium capitalize text-neutral-300">{view}</span>
+        </div>
+        <div className="flex min-h-0 flex-1 flex-col">
+          {view === "notes" ? <EditorPane /> : view === "tasks" ? <TasksView /> : <CalendarView />}
+        </div>
+      </div>
+
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />

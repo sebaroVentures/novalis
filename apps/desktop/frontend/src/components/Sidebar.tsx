@@ -36,6 +36,13 @@ export function Sidebar({
           </button>
           <NewNoteButton />
           <button
+            title="Refresh from disk"
+            onClick={() => void api.rescanVault()}
+            className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-white/5 hover:text-neutral-100"
+          >
+            ⟳
+          </button>
+          <button
             title="Settings"
             onClick={onOpenSettings}
             className="rounded px-1.5 py-0.5 text-neutral-400 hover:bg-white/5 hover:text-neutral-100"

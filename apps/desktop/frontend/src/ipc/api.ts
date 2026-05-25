@@ -48,6 +48,7 @@ export const api = {
   search: (query: string) => unwrap(commands.search(query, null, null)),
   quickSearch: (query: string) => unwrap(commands.quickSearch(query)),
   reindexVault: () => unwrap(commands.reindexVault()),
+  rescanVault: () => unwrap(commands.rescanVault()),
   getVaultInfo: () => unwrap(commands.getVaultInfo()),
   getPreferences: () => unwrap(commands.getPreferences()),
 

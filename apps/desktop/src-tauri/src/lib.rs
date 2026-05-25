@@ -9,6 +9,7 @@ mod commands;
 mod engine;
 mod oauth;
 mod settings;
+#[cfg(desktop)]
 mod watcher;
 
 use serde::{Deserialize, Serialize};
