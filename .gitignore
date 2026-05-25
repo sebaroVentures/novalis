@@ -50,6 +50,8 @@ tauri-key*
 # ─────────────────────────────────────────────────────────────
 node_modules
 .pnpm-store
+.turbo/
+*.tgz
 .pnpm-debug.log*
 npm-debug.log*
 yarn-error.log*
@@ -61,8 +63,9 @@ dist
 **/dist
 *.tsbuildinfo
 
-# Tauri generated artifacts (schemas, mobile projects regenerated on build)
+# Tauri generated artifacts (schemas, android/apple projects — regenerated on build)
 apps/desktop/src-tauri/gen
+**/gen/
 
 # ─────────────────────────────────────────────────────────────
 # Vaults / user data — never commit someone's notes
@@ -76,7 +79,12 @@ test-vault-local/
 .DS_Store
 Thumbs.db
 *.log
+*.swp
+*.swo
+*~
+*.orig
 .idea
+.zed/
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
