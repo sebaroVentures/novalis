@@ -5,8 +5,22 @@ your device as plain Markdown files; it syncs between devices via OneDrive (or
 any file-sync tool). Built with **Tauri v2** (Rust core + web UI) for
 macOS/Linux/Windows today, and Android/iOS later — from one codebase.
 
-> Status: early development (milestone **M0** — scaffolding). See
-> [the plan](https://github.com/) and `crates/`/`apps/` for structure.
+> Status: early development. Milestones **M0–M6** complete (scaffolding,
+> notes/editor/vault/search, tasks, export/media/templates, calendar +
+> OAuth, plugin system, mobile-ready foundation). See `crates/`/`apps/`
+> for structure.
+
+## Releases
+
+Pre-built installers are published on the
+[GitHub Releases](https://github.com/grundhofer/novalis/releases) page
+for macOS (universal `.dmg`), Linux (`.AppImage`, `.deb`), and Windows
+(`.msi`, `.exe`).
+
+Builds are currently **unsigned** — macOS and Windows will show a
+"verify the developer" warning on first launch. See
+[RELEASING.md](RELEASING.md#unsigned-build-warnings-what-users-see)
+for how to bypass it.
 
 ## Principles
 

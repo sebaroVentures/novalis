@@ -1,0 +1,107 @@
+name: Release
+
+# Cut a release by pushing an annotated tag, e.g.:
+#   git tag -a v0.1.0 -m "v0.1.0"
+#   git push origin v0.1.0
+#
+# This workflow builds installers on Linux, macOS (universal), and Windows,
+# and attaches them to a *draft* GitHub release. Review and publish manually.
+#
+# Builds are currently unsigned — see RELEASING.md for the Phase B signing TODO.
+
+on:
+  push:
+    tags:
+      - "v*.*.*"
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  release:
+    name: build (${{ matrix.platform }})
+    runs-on: ${{ matrix.platform }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - platform: macos-latest
+            # Single universal .dmg covers Intel + Apple Silicon.
+            args: --target universal-apple-darwin
+            rust-targets: aarch64-apple-darwin,x86_64-apple-darwin
+          - platform: ubuntu-latest
+            args: ""
+            rust-targets: ""
+          - platform: windows-latest
+            args: ""
+            rust-targets: ""
+
+    steps:
+      - uses: actions/checkout@v4
+
+      # WebKitGTK stack required for Tauri's Linux build (matches ci.yml).
+      - name: Install Linux system dependencies
+        if: matrix.platform == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y \
+            libwebkit2gtk-4.1-dev \
+            libgtk-3-dev \
+            librsvg2-dev \
+            libayatana-appindicator3-dev \
+            libxdo-dev \
+            patchelf \
+            build-essential
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: Setup Rust (pinned by rust-toolchain.toml)
+        uses: dtolnay/rust-toolchain@master
+        with:
+          toolchain: "1.93.0"
+          targets: ${{ matrix.rust-targets }}
+
+      - name: Cargo cache
+        uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: "."
+
+      - name: Install JS dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Build & publish (tauri-action)
+        uses: tauri-apps/tauri-action@v0
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          # Phase B: add APPLE_CERTIFICATE / APPLE_CERTIFICATE_PASSWORD /
+          # APPLE_SIGNING_IDENTITY / APPLE_ID / APPLE_PASSWORD / APPLE_TEAM_ID
+          # here for macOS signing+notarization, and
+          # WINDOWS_CERTIFICATE / WINDOWS_CERTIFICATE_PASSWORD for Windows.
+          # tauri-action reads them automatically when present.
+        with:
+          projectPath: apps/desktop
+          tagName: ${{ github.ref_name }}
+          releaseName: "Novalis ${{ github.ref_name }}"
+          releaseBody: |
+            Novalis ${{ github.ref_name }}.
+
+            Builds attached below are **unsigned**. See [RELEASING.md](../blob/main/RELEASING.md)
+            for the warnings you'll see on first launch and how to bypass them.
+
+            - **macOS:** universal `.dmg` (Intel + Apple Silicon)
+            - **Linux:** `.AppImage` and `.deb`
+            - **Windows:** `.msi` and `.exe`
+          releaseDraft: true
+          prerelease: false
+          args: ${{ matrix.args }}
