@@ -66,6 +66,19 @@ jobs:
       - name: Build frontend
         run: pnpm --filter @novalis/frontend build
 
+      # Frontend JS checks are OS-independent — run once (Linux) to save CI time.
+      - name: Frontend lint (no hardcoded UI strings)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm --filter @novalis/frontend lint
+
+      - name: Frontend i18n catalogs up to date
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm --filter @novalis/frontend i18n:check
+
+      - name: Frontend tests
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm --filter @novalis/frontend test
+
       - name: Rust format check
         run: cargo fmt --all --check
 

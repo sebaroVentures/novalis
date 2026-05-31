@@ -1,0 +1,154 @@
+{
+  "about": {
+    "application": "Application",
+    "section": "About",
+    "tagline": "Local-first notes, tasks, and calendar. Your data stays in your vault.",
+    "version": "Version"
+  },
+  "appearance": {
+    "accent": {
+      "desc": "Used for highlights, selection, focus, and the editor.",
+      "label": "Accent color"
+    },
+    "colorTheme": {
+      "dark": "Dark",
+      "desc": "Dark, light, or follow your system.",
+      "label": "Color theme",
+      "light": "Light",
+      "system": "System"
+    },
+    "density": {
+      "comfortable": "Comfortable",
+      "compact": "Compact",
+      "desc": "Compact tightens the editor reading area.",
+      "label": "Density"
+    },
+    "fontSize": {
+      "desc": "Overall text and UI scale. Applied when you close Settings.",
+      "label": "Font size",
+      "preview": "The quick brown fox jumps over the lazy dog"
+    },
+    "sectionDisplay": "Display",
+    "sectionTheme": "Theme"
+  },
+  "calendar": {
+    "calendarsDesc": "Read-only subscriptions — Google, Outlook, or any ICS URL (incl. secret iCal links).",
+    "connectProvider": "Connect {{provider}}",
+    "duration": {
+      "desc": "Length of a newly created event.",
+      "label": "Default event duration"
+    },
+    "empty": "No calendar subscriptions.",
+    "namePlaceholder": "Calendar name",
+    "sectionCalendars": "Calendars",
+    "sectionDisplay": "Display",
+    "subscribe": "Subscribe",
+    "timeFormat": {
+      "desc": "How event times are displayed.",
+      "h12": "12-hour",
+      "h24": "24-hour",
+      "label": "Time format"
+    },
+    "urlPlaceholder": "ICS URL (e.g. Google/Outlook secret iCal address)",
+    "weekStart": {
+      "desc": "First day of the calendar grid.",
+      "label": "Week starts on",
+      "monday": "Monday",
+      "sunday": "Sunday"
+    }
+  },
+  "editor": {
+    "autosave": {
+      "desc": "How long after you stop typing the note is saved.",
+      "label": "Autosave delay"
+    },
+    "sectionAdvanced": "Advanced",
+    "sectionEditing": "Editing",
+    "spellcheck": {
+      "aria": "Spell check",
+      "desc": "Underline misspelled words while writing.",
+      "label": "Spell check"
+    },
+    "typing": {
+      "desc": "Lower reacts faster to keystrokes but uses a little more CPU.",
+      "label": "Typing responsiveness"
+    }
+  },
+  "general": {
+    "defaultTaskView": {
+      "desc": "List, board, or agenda when opening Tasks.",
+      "label": "Default task view"
+    },
+    "inboxPath": {
+      "desc": "Note that receives tasks for the Inbox strategy.",
+      "label": "Inbox path"
+    },
+    "recentNotes": {
+      "desc": "How many recently opened notes to keep (this device).",
+      "label": "Recent notes"
+    },
+    "sidebar": {
+      "title": "Sidebar"
+    },
+    "startup": {
+      "title": "Startup"
+    },
+    "startView": {
+      "desc": "Which view opens when you launch Novalis.",
+      "label": "Start view"
+    },
+    "strategy": {
+      "activeNote": "Active note",
+      "daily": "Daily note",
+      "desc": "Where new tasks are filed by default.",
+      "inbox": "Inbox note",
+      "label": "Strategy"
+    },
+    "taskCreation": {
+      "title": "Task creation"
+    }
+  },
+  "language": {
+    "hint": "Applies to this device. Changes take effect immediately.",
+    "label": "Display language",
+    "section": "Language"
+  },
+  "modal": {
+    "close": "Close settings",
+    "title": "Settings"
+  },
+  "nav": {
+    "about": "About",
+    "appearance": "Appearance",
+    "calendar": "Calendar",
+    "editor": "Editor",
+    "general": "General",
+    "heading": "Settings",
+    "language": "Language",
+    "plugins": "Plugins",
+    "tasks": "Tasks & Kanban",
+    "templates": "Templates"
+  },
+  "plugins": {
+    "empty": "No plugins installed. Drop a plugin folder into <2>.novalis/plugins/</2> in your vault (see PLUGINS.md), then reopen Settings.",
+    "enableAria": "Enable {{name}}",
+    "loadFailed": "Failed to load plugin {{id}}: {{error}}",
+    "section": "Plugins"
+  },
+  "tasks": {
+    "addColumn": "Add column",
+    "columnsDesc": "Columns shown in the board view.",
+    "newColumn": "New Column",
+    "removeColumn": "Remove column",
+    "sectionColumns": "Kanban columns"
+  },
+  "templates": {
+    "add": "Add template",
+    "contentPlaceholder": "Template content (markdown)…",
+    "deleteAria": "Delete template",
+    "desc": "Reusable note scaffolds available when creating a note.",
+    "empty": "No templates yet.",
+    "namePlaceholder": "Template name",
+    "section": "Note templates"
+  }
+}

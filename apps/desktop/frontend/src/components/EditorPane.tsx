@@ -3,8 +3,10 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { NovalisEditor } from "@novalis/editor";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import { ChevronDown, FileText, Loader2, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { api } from "../ipc/api";
+import { useSettings } from "../stores/settingsStore";
 import { useVault } from "../stores/vaultStore";
 
 // Split a note into its YAML frontmatter block and body. The editor edits the
@@ -24,9 +26,11 @@ export function EditorPane() {
   const openNote = useVault((s) => s.openNote);
   const refreshTree = useVault((s) => s.refreshTree);
   const deleteActive = useVault((s) => s.deleteActive);
+  const editorPrefs = useSettings((s) => s.prefs?.editor);
   const timer = useRef<number | null>(null);
   const pendingBody = useRef<string | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const { t } = useTranslation(["editor", "common"]);
 
   const split = useMemo(
     () => (activeNote ? splitFrontmatter(activeNote.content) : null),
@@ -42,13 +46,11 @@ export function EditorPane() {
 
   if (!activePath) {
     return (
-      <section className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-neutral-600">
-        <FileText size={40} strokeWidth={1.25} className="text-neutral-700" />
+      <section className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-fg-faint">
+        <FileText size={40} strokeWidth={1.25} className="text-fg-faint" />
         <div>
-          <p className="text-sm font-medium text-neutral-400">No note open</p>
-          <p className="mt-1 text-xs text-neutral-600">
-            Select a note from the sidebar, or create a new one.
-          </p>
+          <p className="text-sm font-medium text-fg-muted">{t("noteOpen")}</p>
+          <p className="mt-1 text-xs text-fg-faint">{t("selectHint")}</p>
         </div>
       </section>
     );
@@ -61,15 +63,15 @@ export function EditorPane() {
     const name = activePath.split("/").pop()?.replace(/\.md$/, "") ?? activePath;
     return (
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-        <header className="flex items-center gap-2 border-b border-neutral-800 px-5 py-2.5">
+        <header className="flex items-center gap-2 border-b border-border px-5 py-2.5">
           <div className="min-w-0">
-            <h2 className="truncate text-sm font-medium text-neutral-100">{name}</h2>
-            <p className="truncate text-xs text-neutral-600">{activePath}</p>
+            <h2 className="truncate text-sm font-medium text-fg">{name}</h2>
+            <p className="truncate text-xs text-fg-faint">{activePath}</p>
           </div>
         </header>
-        <div className="flex flex-1 items-center justify-center gap-2 text-neutral-600">
+        <div className="flex flex-1 items-center justify-center gap-2 text-fg-faint">
           <Loader2 size={18} className="animate-spin" />
-          <span className="text-sm">Loading…</span>
+          <span className="text-sm">{t("common:loading")}</span>
         </div>
       </section>
     );
@@ -81,7 +83,7 @@ export function EditorPane() {
     timer.current = window.setTimeout(() => {
       pendingBody.current = null;
       void saveNote(activePath, split.fm + body);
-    }, 600);
+    }, editorPrefs?.autosaveMs ?? 600);
   };
 
   const onUploadImage = async (file: File): Promise<string | null> => {
@@ -130,41 +132,41 @@ export function EditorPane() {
 
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col">
-      <header className="flex items-center justify-between gap-2 border-b border-neutral-800 px-5 py-2.5">
+      <header className="flex items-center justify-between gap-2 border-b border-border px-5 py-2.5">
         <div className="min-w-0">
-          <h2 className="truncate text-sm font-medium text-neutral-100">{activeNote.title}</h2>
-          <p className="truncate text-xs text-neutral-600">{activePath}</p>
+          <h2 className="truncate text-sm font-medium text-fg">{activeNote.title}</h2>
+          <p className="truncate text-xs text-fg-faint">{activePath}</p>
         </div>
         <div className="flex items-center gap-1">
           <div className="relative">
             <button
               onClick={() => setExportOpen((v) => !v)}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-neutral-400 transition-colors hover:bg-white/10 hover:text-neutral-100"
+              className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-fg-muted transition-colors hover:bg-active hover:text-fg"
             >
-              Export
+              {t("export")}
               <ChevronDown size={13} />
             </button>
             {exportOpen && (
-              <div className="absolute right-0 z-10 mt-1 w-32 overflow-hidden rounded-lg border border-neutral-700/80 bg-neutral-900 p-1 shadow-xl">
+              <div className="absolute right-0 z-10 mt-1 w-32 overflow-hidden rounded-lg border border-border-strong/80 bg-surface p-1 shadow-xl">
                 <button
                   onClick={() => doExport("html")}
-                  className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-neutral-200 transition-colors hover:bg-white/5"
+                  className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-fg transition-colors hover:bg-hover"
                 >
-                  HTML
+                  {t("exportHtml")}
                 </button>
                 <button
                   onClick={() => doExport("docx")}
-                  className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-neutral-200 transition-colors hover:bg-white/5"
+                  className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-fg transition-colors hover:bg-hover"
                 >
-                  Word (.docx)
+                  {t("exportDocx")}
                 </button>
               </div>
             )}
           </div>
           <button
-            title="Delete note"
+            title={t("deleteNote")}
             onClick={() => void deleteActive()}
-            className="rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-red-500/10 hover:text-red-300"
+            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-red-500/10 hover:text-danger"
           >
             <Trash2 size={15} />
           </button>
@@ -177,6 +179,19 @@ export function EditorPane() {
         onUploadImage={onUploadImage}
         resolveImageSrc={resolveImageSrc}
         onWikiLinkClick={onWikiLinkClick}
+        serializeMs={editorPrefs?.serializeMs ?? 200}
+        spellCheck={editorPrefs?.spellcheck ?? true}
+        labels={{
+          placeholder: t("placeholder"),
+          bold: t("bold"),
+          italic: t("italic"),
+          heading1: t("heading1"),
+          heading2: t("heading2"),
+          bulletList: t("bulletList"),
+          taskList: t("taskList"),
+          codeBlock: t("codeBlock"),
+          blockquote: t("blockquote"),
+        }}
       />
     </section>
   );

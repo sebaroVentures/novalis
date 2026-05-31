@@ -1,0 +1,154 @@
+{
+  "about": {
+    "application": "Anwendung",
+    "section": "Über",
+    "tagline": "Local-first Notizen, Aufgaben und Kalender. Alle Daten bleiben im Vault.",
+    "version": "Version"
+  },
+  "appearance": {
+    "accent": {
+      "desc": "Wird für Hervorhebungen, Auswahl, Fokus und den Editor verwendet.",
+      "label": "Akzentfarbe"
+    },
+    "colorTheme": {
+      "dark": "Dunkel",
+      "desc": "Dunkel, hell oder dem System folgen.",
+      "label": "Farbschema",
+      "light": "Hell",
+      "system": "System"
+    },
+    "density": {
+      "comfortable": "Komfortabel",
+      "compact": "Kompakt",
+      "desc": "Kompakt verkleinert den Lesebereich des Editors.",
+      "label": "Dichte"
+    },
+    "fontSize": {
+      "desc": "Gesamte Skalierung von Text und Oberfläche. Wird beim Schließen der Einstellungen angewendet.",
+      "label": "Schriftgröße",
+      "preview": "Franz jagt im komplett verwahrlosten Taxi quer durch Bayern."
+    },
+    "sectionDisplay": "Anzeige",
+    "sectionTheme": "Design"
+  },
+  "calendar": {
+    "calendarsDesc": "Schreibgeschützte Abonnements – Google, Outlook oder eine beliebige ICS-URL (inkl. geheimer iCal-Links).",
+    "connectProvider": "{{provider}} verbinden",
+    "duration": {
+      "desc": "Länge eines neu erstellten Termins.",
+      "label": "Standarddauer von Terminen"
+    },
+    "empty": "Keine Kalender-Abonnements.",
+    "namePlaceholder": "Kalendername",
+    "sectionCalendars": "Kalender",
+    "sectionDisplay": "Anzeige",
+    "subscribe": "Abonnieren",
+    "timeFormat": {
+      "desc": "Wie Terminzeiten angezeigt werden.",
+      "h12": "12-Stunden",
+      "h24": "24-Stunden",
+      "label": "Zeitformat"
+    },
+    "urlPlaceholder": "ICS-URL (z. B. geheime iCal-Adresse von Google/Outlook)",
+    "weekStart": {
+      "desc": "Erster Tag im Kalenderraster.",
+      "label": "Woche beginnt am",
+      "monday": "Montag",
+      "sunday": "Sonntag"
+    }
+  },
+  "editor": {
+    "autosave": {
+      "desc": "Wie lange nach der letzten Eingabe die Notiz gespeichert wird.",
+      "label": "Verzögerung für automatisches Speichern"
+    },
+    "sectionAdvanced": "Erweitert",
+    "sectionEditing": "Bearbeitung",
+    "spellcheck": {
+      "aria": "Rechtschreibprüfung",
+      "desc": "Falsch geschriebene Wörter beim Schreiben unterstreichen.",
+      "label": "Rechtschreibprüfung"
+    },
+    "typing": {
+      "desc": "Ein niedrigerer Wert reagiert schneller auf Tastenanschläge, benötigt aber etwas mehr CPU-Leistung.",
+      "label": "Reaktion beim Tippen"
+    }
+  },
+  "general": {
+    "defaultTaskView": {
+      "desc": "Liste, Board oder Agenda beim Öffnen der Aufgaben.",
+      "label": "Standard-Aufgabenansicht"
+    },
+    "inboxPath": {
+      "desc": "Notiz, die Aufgaben für die Inbox-Strategie aufnimmt.",
+      "label": "Inbox-Pfad"
+    },
+    "recentNotes": {
+      "desc": "Wie viele zuletzt geöffnete Notizen behalten werden (dieses Gerät).",
+      "label": "Zuletzt geöffnete Notizen"
+    },
+    "sidebar": {
+      "title": "Seitenleiste"
+    },
+    "startup": {
+      "title": "Start"
+    },
+    "startView": {
+      "desc": "Welche Ansicht beim Start von Novalis geöffnet wird.",
+      "label": "Startansicht"
+    },
+    "strategy": {
+      "activeNote": "Aktive Notiz",
+      "daily": "Tagesnotiz",
+      "desc": "Wo neue Aufgaben standardmäßig abgelegt werden.",
+      "inbox": "Inbox-Notiz",
+      "label": "Strategie"
+    },
+    "taskCreation": {
+      "title": "Aufgabenerstellung"
+    }
+  },
+  "language": {
+    "hint": "Gilt für dieses Gerät. Änderungen werden sofort wirksam.",
+    "label": "Anzeigesprache",
+    "section": "Sprache"
+  },
+  "modal": {
+    "close": "Einstellungen schließen",
+    "title": "Einstellungen"
+  },
+  "nav": {
+    "about": "Über",
+    "appearance": "Darstellung",
+    "calendar": "Kalender",
+    "editor": "Editor",
+    "general": "Allgemein",
+    "heading": "Einstellungen",
+    "language": "Sprache",
+    "plugins": "Plugins",
+    "tasks": "Aufgaben & Kanban",
+    "templates": "Vorlagen"
+  },
+  "plugins": {
+    "empty": "Keine Plugins installiert. Einen Plugin-Ordner in <2>.novalis/plugins/</2> im Vault ablegen (siehe PLUGINS.md), dann die Einstellungen erneut öffnen.",
+    "enableAria": "{{name}} aktivieren",
+    "loadFailed": "Plugin {{id}} konnte nicht geladen werden: {{error}}",
+    "section": "Plugins"
+  },
+  "tasks": {
+    "addColumn": "Spalte hinzufügen",
+    "columnsDesc": "In der Board-Ansicht angezeigte Spalten.",
+    "newColumn": "Neue Spalte",
+    "removeColumn": "Spalte entfernen",
+    "sectionColumns": "Kanban-Spalten"
+  },
+  "templates": {
+    "add": "Vorlage hinzufügen",
+    "contentPlaceholder": "Vorlageninhalt (Markdown)…",
+    "deleteAria": "Vorlage löschen",
+    "desc": "Wiederverwendbare Notizgerüste, verfügbar beim Erstellen einer Notiz.",
+    "empty": "Noch keine Vorlagen.",
+    "namePlaceholder": "Vorlagenname",
+    "section": "Notizvorlagen"
+  }
+}

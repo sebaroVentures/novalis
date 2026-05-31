@@ -1,0 +1,17 @@
+{
+  "blockquote": "Zitat",
+  "bold": "Fett",
+  "bulletList": "Liste",
+  "codeBlock": "Code",
+  "deleteNote": "Notiz löschen",
+  "export": "Exportieren",
+  "exportDocx": "Word (.docx)",
+  "exportHtml": "HTML",
+  "heading1": "Überschrift 1",
+  "heading2": "Überschrift 2",
+  "italic": "Kursiv",
+  "noteOpen": "Keine Notiz geöffnet",
+  "placeholder": "Mit dem Schreiben beginnen…",
+  "selectHint": "Eine Notiz in der Seitenleiste auswählen oder eine neue erstellen.",
+  "taskList": "Aufgaben"
+}

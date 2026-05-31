@@ -1,0 +1,17 @@
+{
+  "blockquote": "Quote",
+  "bold": "Bold",
+  "bulletList": "List",
+  "codeBlock": "Code",
+  "deleteNote": "Delete note",
+  "export": "Export",
+  "exportDocx": "Word (.docx)",
+  "exportHtml": "HTML",
+  "heading1": "Heading 1",
+  "heading2": "Heading 2",
+  "italic": "Italic",
+  "noteOpen": "No note open",
+  "placeholder": "Start writing…",
+  "selectHint": "Select a note from the sidebar, or create a new one.",
+  "taskList": "Tasks"
+}

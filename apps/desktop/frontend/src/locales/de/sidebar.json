@@ -1,0 +1,42 @@
+{
+  "blankNote": "Leere Notiz",
+  "cloudOnly": "Nur online – wird beim Öffnen heruntergeladen",
+  "collapseAll": "Alle Ordner einklappen",
+  "confirm": {
+    "deleteEmptyFolder": "Leeren Ordner „{{name}}“ löschen?",
+    "trashFolder": "Ordner „{{name}}“ und seinen gesamten Inhalt in den Papierkorb verschieben?",
+    "trashNote": "„{{title}}“ in den Papierkorb verschieben?"
+  },
+  "filterPlaceholder": "Notizen filtern…",
+  "folderNamePlaceholder": "Ordnername",
+  "inFolder": "in /{{target}}",
+  "menu": {
+    "delete": "Löschen",
+    "duplicate": "Duplizieren",
+    "newNoteHere": "Neue Notiz hier",
+    "newSubfolder": "Neuer Unterordner",
+    "open": "Öffnen",
+    "pin": "Anheften",
+    "rename": "Umbenennen",
+    "setColor": "Farbe festlegen…",
+    "unpin": "Nicht mehr anheften"
+  },
+  "newFolder": "Neuer Ordner",
+  "newNote": "Neue Notiz",
+  "newNoteIn": "Neue Notiz in {{target}}",
+  "noColor": "Keine Farbe",
+  "notesHeading": "Notizen",
+  "pinned": "Angeheftet",
+  "recent": "Zuletzt geöffnet",
+  "refreshFromDisk": "Von der Festplatte neu laden",
+  "searchShortcut": "Suchen (⌘K)",
+  "settings": "Einstellungen",
+  "sort": {
+    "created": "Zuletzt erstellt",
+    "manual": "Manuell (zum Sortieren ziehen)",
+    "modified": "Zuletzt geändert",
+    "nameAsc": "Name (A–Z)",
+    "nameDesc": "Name (Z–A)"
+  },
+  "sortTitle": "Sortierung: {{mode}}"
+}

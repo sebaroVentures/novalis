@@ -1,0 +1,19 @@
+{
+  "allDay": "All day",
+  "editEvent": "Edit event",
+  "eventTitle": "Event title",
+  "exportIcs": "Export .ics",
+  "freq": {
+    "daily": "Daily",
+    "monthly": "Monthly",
+    "none": "Does not repeat",
+    "weekly": "Weekly",
+    "yearly": "Yearly"
+  },
+  "importIcs": "Import .ics",
+  "location": "Location",
+  "newEvent": "New event",
+  "nextMonth": "Next month",
+  "prevMonth": "Previous month",
+  "today": "Today"
+}

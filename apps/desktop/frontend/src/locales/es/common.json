@@ -1,0 +1,20 @@
+{
+  "cancel": "Cancelar",
+  "delete": "Eliminar",
+  "errorPrefix": "Error: ",
+  "loading": "Cargando…",
+  "menu": "Menú",
+  "refresh": "Actualizar",
+  "remove": "Quitar",
+  "save": "Guardar",
+  "taskModes": {
+    "agenda": "Agenda",
+    "kanban": "Kanban",
+    "list": "Lista"
+  },
+  "views": {
+    "calendar": "Calendario",
+    "notes": "Notas",
+    "tasks": "Tareas"
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "addPlaceholder": "Aufgabe hinzufügen…  (z. B. Release veröffentlichen @due(2026-06-01) @priority(high))",
+  "agenda": {
+    "noDate": "Ohne Datum",
+    "overdue": "Überfällig",
+    "today": "Heute",
+    "upcoming": "Demnächst"
+  },
+  "empty": "Keine Aufgaben. Oben eine hinzufügen oder <1>- [ ] etwas</1> in einer Notiz schreiben.",
+  "filter": {
+    "all": "Alle",
+    "completed": "Erledigt",
+    "open": "Offen"
+  },
+  "kanban": {
+    "backlog": "Backlog",
+    "done": "Fertig",
+    "inProgress": "In Bearbeitung",
+    "review": "Review",
+    "todo": "Zu erledigen"
+  },
+  "priority": {
+    "high": "Hoch",
+    "low": "Niedrig",
+    "medium": "Mittel",
+    "urgent": "Dringend"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "blockquote": "Cita",
+  "bold": "Negrita",
+  "bulletList": "Lista",
+  "codeBlock": "Código",
+  "deleteNote": "Eliminar nota",
+  "export": "Exportar",
+  "exportDocx": "Word (.docx)",
+  "exportHtml": "HTML",
+  "heading1": "Encabezado 1",
+  "heading2": "Encabezado 2",
+  "italic": "Cursiva",
+  "noteOpen": "No hay ninguna nota abierta",
+  "placeholder": "Empezar a escribir…",
+  "selectHint": "Seleccionar una nota en la barra lateral o crear una nueva.",
+  "taskList": "Tareas"
+}

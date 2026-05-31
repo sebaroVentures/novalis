@@ -58,12 +58,12 @@ export function ContextMenu({
       ref={ref}
       role="menu"
       style={{ left: pos.x, top: pos.y }}
-      className="fixed z-50 w-48 overflow-hidden rounded-lg border border-neutral-700/80 bg-neutral-900 p-1 shadow-xl"
+      className="fixed z-50 w-48 overflow-hidden rounded-lg border border-border-strong/80 bg-surface p-1 shadow-xl"
       onContextMenu={(e) => e.preventDefault()}
     >
       {items.map((item, i) => (
         <div key={i}>
-          {item.separatorBefore && <div className="my-1 border-t border-neutral-800" />}
+          {item.separatorBefore && <div className="my-1 border-t border-border" />}
           <button
             role="menuitem"
             disabled={item.disabled}
@@ -74,8 +74,8 @@ export function ContextMenu({
             }}
             className={`block w-full truncate rounded-md px-2.5 py-1.5 text-left text-xs transition-colors disabled:opacity-40 ${
               item.danger
-                ? "text-red-300 hover:bg-red-500/10"
-                : "text-neutral-200 hover:bg-white/5"
+                ? "text-danger hover:bg-red-500/10"
+                : "text-fg hover:bg-hover"
             }`}
           >
             {item.label}

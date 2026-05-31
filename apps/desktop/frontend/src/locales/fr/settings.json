@@ -1,0 +1,154 @@
+{
+  "about": {
+    "application": "Application",
+    "section": "À propos",
+    "tagline": "Local-first : notes, tâches et calendrier. Toutes les données restent dans le Vault.",
+    "version": "Version"
+  },
+  "appearance": {
+    "accent": {
+      "desc": "Utilisée pour les surbrillances, la sélection, le focus et l'éditeur.",
+      "label": "Couleur d'accentuation"
+    },
+    "colorTheme": {
+      "dark": "Sombre",
+      "desc": "Sombre, clair ou selon le système.",
+      "label": "Thème de couleurs",
+      "light": "Clair",
+      "system": "Système"
+    },
+    "density": {
+      "comfortable": "Confortable",
+      "compact": "Compact",
+      "desc": "Le mode compact resserre la zone de lecture de l'éditeur.",
+      "label": "Densité"
+    },
+    "fontSize": {
+      "desc": "Échelle globale du texte et de l'interface. Appliquée à la fermeture des paramètres.",
+      "label": "Taille de police",
+      "preview": "Portez ce vieux whisky au juge blond qui fume."
+    },
+    "sectionDisplay": "Affichage",
+    "sectionTheme": "Thème"
+  },
+  "calendar": {
+    "calendarsDesc": "Abonnements en lecture seule – Google, Outlook ou n'importe quelle URL ICS (y compris les liens iCal secrets).",
+    "connectProvider": "Se connecter à {{provider}}",
+    "duration": {
+      "desc": "Durée d'un événement nouvellement créé.",
+      "label": "Durée d'événement par défaut"
+    },
+    "empty": "Aucun abonnement de calendrier.",
+    "namePlaceholder": "Nom du calendrier",
+    "sectionCalendars": "Calendriers",
+    "sectionDisplay": "Affichage",
+    "subscribe": "S'abonner",
+    "timeFormat": {
+      "desc": "Mode d'affichage des heures des événements.",
+      "h12": "12 heures",
+      "h24": "24 heures",
+      "label": "Format de l'heure"
+    },
+    "urlPlaceholder": "URL ICS (p. ex. adresse iCal secrète de Google/Outlook)",
+    "weekStart": {
+      "desc": "Premier jour de la grille du calendrier.",
+      "label": "La semaine commence le",
+      "monday": "Lundi",
+      "sunday": "Dimanche"
+    }
+  },
+  "editor": {
+    "autosave": {
+      "desc": "Délai entre l'arrêt de la saisie et l'enregistrement de la note.",
+      "label": "Délai d'enregistrement automatique"
+    },
+    "sectionAdvanced": "Avancé",
+    "sectionEditing": "Édition",
+    "spellcheck": {
+      "aria": "Vérification orthographique",
+      "desc": "Souligner les mots mal orthographiés pendant la saisie.",
+      "label": "Vérification orthographique"
+    },
+    "typing": {
+      "desc": "Une valeur plus basse réagit plus vite aux frappes, mais sollicite un peu plus le processeur.",
+      "label": "Réactivité de la saisie"
+    }
+  },
+  "general": {
+    "defaultTaskView": {
+      "desc": "Liste, tableau ou agenda à l'ouverture des tâches.",
+      "label": "Vue des tâches par défaut"
+    },
+    "inboxPath": {
+      "desc": "Note qui reçoit les tâches pour la stratégie Inbox.",
+      "label": "Chemin Inbox"
+    },
+    "recentNotes": {
+      "desc": "Nombre de notes récemment ouvertes à conserver (cet appareil).",
+      "label": "Notes récentes"
+    },
+    "sidebar": {
+      "title": "Barre latérale"
+    },
+    "startup": {
+      "title": "Démarrage"
+    },
+    "startView": {
+      "desc": "Vue qui s'ouvre au lancement de Novalis.",
+      "label": "Vue de démarrage"
+    },
+    "strategy": {
+      "activeNote": "Note active",
+      "daily": "Note quotidienne",
+      "desc": "Emplacement par défaut des nouvelles tâches.",
+      "inbox": "Note Inbox",
+      "label": "Stratégie"
+    },
+    "taskCreation": {
+      "title": "Création de tâches"
+    }
+  },
+  "language": {
+    "hint": "S'applique à cet appareil. Les modifications prennent effet immédiatement.",
+    "label": "Langue d'affichage",
+    "section": "Langue"
+  },
+  "modal": {
+    "close": "Fermer les paramètres",
+    "title": "Paramètres"
+  },
+  "nav": {
+    "about": "À propos",
+    "appearance": "Apparence",
+    "calendar": "Calendrier",
+    "editor": "Éditeur",
+    "general": "Général",
+    "heading": "Paramètres",
+    "language": "Langue",
+    "plugins": "Plugins",
+    "tasks": "Tâches et Kanban",
+    "templates": "Modèles"
+  },
+  "plugins": {
+    "empty": "Aucun plugin installé. Placer un dossier de plugin dans <2>.novalis/plugins/</2> dans le Vault (voir PLUGINS.md), puis rouvrir les paramètres.",
+    "enableAria": "Activer {{name}}",
+    "loadFailed": "Échec du chargement du plugin {{id}} : {{error}}",
+    "section": "Plugins"
+  },
+  "tasks": {
+    "addColumn": "Ajouter une colonne",
+    "columnsDesc": "Colonnes affichées dans la vue tableau.",
+    "newColumn": "Nouvelle colonne",
+    "removeColumn": "Supprimer la colonne",
+    "sectionColumns": "Colonnes Kanban"
+  },
+  "templates": {
+    "add": "Ajouter un modèle",
+    "contentPlaceholder": "Contenu du modèle (Markdown)…",
+    "deleteAria": "Supprimer le modèle",
+    "desc": "Structures de notes réutilisables, disponibles lors de la création d'une note.",
+    "empty": "Aucun modèle pour le moment.",
+    "namePlaceholder": "Nom du modèle",
+    "section": "Modèles de notes"
+  }
+}

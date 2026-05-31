@@ -1,0 +1,42 @@
+{
+  "blankNote": "Blank note",
+  "cloudOnly": "Online only — downloads on open",
+  "collapseAll": "Collapse all folders",
+  "confirm": {
+    "deleteEmptyFolder": "Delete empty folder \"{{name}}\"?",
+    "trashFolder": "Move folder \"{{name}}\" and all its contents to trash?",
+    "trashNote": "Move \"{{title}}\" to trash?"
+  },
+  "filterPlaceholder": "Filter notes…",
+  "folderNamePlaceholder": "Folder name",
+  "inFolder": "in /{{target}}",
+  "menu": {
+    "delete": "Delete",
+    "duplicate": "Duplicate",
+    "newNoteHere": "New note here",
+    "newSubfolder": "New subfolder",
+    "open": "Open",
+    "pin": "Pin",
+    "rename": "Rename",
+    "setColor": "Set color…",
+    "unpin": "Unpin"
+  },
+  "newFolder": "New folder",
+  "newNote": "New note",
+  "newNoteIn": "New note in {{target}}",
+  "noColor": "No color",
+  "notesHeading": "Notes",
+  "pinned": "Pinned",
+  "recent": "Recent",
+  "refreshFromDisk": "Refresh from disk",
+  "searchShortcut": "Search (⌘K)",
+  "settings": "Settings",
+  "sort": {
+    "created": "Recently created",
+    "manual": "Manual (drag to order)",
+    "modified": "Recently modified",
+    "nameAsc": "Name (A–Z)",
+    "nameDesc": "Name (Z–A)"
+  },
+  "sortTitle": "Sort: {{mode}}"
+}

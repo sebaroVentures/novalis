@@ -1,0 +1,19 @@
+{
+  "allDay": "Ganztägig",
+  "editEvent": "Termin bearbeiten",
+  "eventTitle": "Titel des Termins",
+  "exportIcs": ".ics exportieren",
+  "freq": {
+    "daily": "Täglich",
+    "monthly": "Monatlich",
+    "none": "Keine Wiederholung",
+    "weekly": "Wöchentlich",
+    "yearly": "Jährlich"
+  },
+  "importIcs": ".ics importieren",
+  "location": "Ort",
+  "newEvent": "Neuer Termin",
+  "nextMonth": "Nächster Monat",
+  "prevMonth": "Voriger Monat",
+  "today": "Heute"
+}

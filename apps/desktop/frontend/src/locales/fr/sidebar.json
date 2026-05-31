@@ -1,0 +1,42 @@
+{
+  "blankNote": "Note vierge",
+  "cloudOnly": "En ligne uniquement – téléchargée à l'ouverture",
+  "collapseAll": "Réduire tous les dossiers",
+  "confirm": {
+    "deleteEmptyFolder": "Supprimer le dossier vide « {{name}} » ?",
+    "trashFolder": "Mettre le dossier « {{name}} » et tout son contenu à la corbeille ?",
+    "trashNote": "Mettre « {{title}} » à la corbeille ?"
+  },
+  "filterPlaceholder": "Filtrer les notes…",
+  "folderNamePlaceholder": "Nom du dossier",
+  "inFolder": "dans /{{target}}",
+  "menu": {
+    "delete": "Supprimer",
+    "duplicate": "Dupliquer",
+    "newNoteHere": "Nouvelle note ici",
+    "newSubfolder": "Nouveau sous-dossier",
+    "open": "Ouvrir",
+    "pin": "Épingler",
+    "rename": "Renommer",
+    "setColor": "Définir une couleur…",
+    "unpin": "Détacher"
+  },
+  "newFolder": "Nouveau dossier",
+  "newNote": "Nouvelle note",
+  "newNoteIn": "Nouvelle note dans {{target}}",
+  "noColor": "Aucune couleur",
+  "notesHeading": "Notes",
+  "pinned": "Épinglées",
+  "recent": "Récentes",
+  "refreshFromDisk": "Recharger depuis le disque",
+  "searchShortcut": "Rechercher (⌘K)",
+  "settings": "Paramètres",
+  "sort": {
+    "created": "Créées récemment",
+    "manual": "Manuel (glisser pour réorganiser)",
+    "modified": "Modifiées récemment",
+    "nameAsc": "Nom (A–Z)",
+    "nameDesc": "Nom (Z–A)"
+  },
+  "sortTitle": "Tri : {{mode}}"
+}

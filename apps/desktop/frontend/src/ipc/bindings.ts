@@ -162,6 +162,22 @@ export type AppInfo = {
 };
 
 /**
+ *  Appearance / theming. `theme` and `density` are applied at runtime by the
+ *  frontend (CSS variables / `data-*` on the document element); `accent` is a
+ *  color token shared with the folder-color palette.
+ */
+export type AppearancePrefs = {
+	/**  `"dark"` | `"light"` | `"system"`. */
+	theme?: string,
+	/**  Accent color token (e.g. `"indigo"`), shared with the folder palette. */
+	accent?: string,
+	/**  Base UI font size in px. */
+	fontSize?: number,
+	/**  `"comfortable"` | `"compact"`. */
+	density?: string,
+};
+
+/**
  *  A calendar event — either an own event (backed by a markdown note in the
  *  vault) or a cached event from a remote source. Times are strings:
  *  `YYYY-MM-DD` for all-day, or `YYYY-MM-DDTHH:MM` for timed.
@@ -179,6 +195,16 @@ export type CalendarEvent = {
 	location: string | null,
 	/**  Vault-relative note path for own events. */
 	notePath: string | null,
+};
+
+/**  Calendar display preferences. */
+export type CalendarPrefs = {
+	/**  `"monday"` | `"sunday"`. */
+	weekStart?: string,
+	/**  Default duration (minutes) for a newly created event. */
+	defaultEventMinutes?: number,
+	/**  `"24h"` | `"12h"`. */
+	timeFormat?: string,
 };
 
 /**
@@ -245,6 +271,16 @@ export type CreateTaskRequest = {
 	notePath: string | null,
 };
 
+/**  Editor behavior. Debounce values are milliseconds. */
+export type EditorPrefs = {
+	/**  Autosave debounce after the last keystroke. */
+	autosaveMs?: number,
+	/**  Internal serialize/typing-responsiveness debounce (advanced). */
+	serializeMs?: number,
+	/**  Browser spellcheck in the editor. */
+	spellcheck?: boolean,
+};
+
 /**  Request to create/update an own event (written to a markdown note). */
 export type EventInput = {
 	title: string,
@@ -283,6 +319,12 @@ export type FolderNode = {
 	path: string,
 	children: FolderNode[],
 	notes: NoteSummary[],
+};
+
+/**  General / startup behavior. */
+export type GeneralPrefs = {
+	/**  View shown on launch: `"notes"` | `"tasks"` | `"calendar"`. */
+	defaultAppView?: string,
 };
 
 export type KanbanColumnDef = {
@@ -376,6 +418,10 @@ export type PluginManifest = {
 export type Preferences = {
 	taskView?: TaskViewPrefs,
 	fileTree?: FileTreePrefs,
+	appearance?: AppearancePrefs,
+	editor?: EditorPrefs,
+	calendar?: CalendarPrefs,
+	general?: GeneralPrefs,
 };
 
 /**  Emitted when the vault finishes (re)indexing, so the UI can refresh fully. */

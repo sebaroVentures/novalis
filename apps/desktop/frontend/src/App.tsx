@@ -1,18 +1,23 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Menu, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { CalendarView } from "./components/CalendarView";
 import { CloudHint } from "./components/CloudHint";
 import { CommandPalette } from "./components/CommandPalette";
 import { EditorPane } from "./components/EditorPane";
 import { SearchModal } from "./components/SearchModal";
-import { SettingsModal } from "./components/SettingsModal";
+import { SettingsModal } from "./components/settings/SettingsModal";
 import { Sidebar, type MainView } from "./components/Sidebar";
 import { TasksView } from "./components/TasksView";
 import { VaultGate } from "./components/VaultGate";
+import { applyAppearance, watchSystemTheme } from "./lib/appearance";
+import { applyLanguage } from "./lib/i18n";
+import { getLanguage } from "./lib/language";
 import { useNovalisEvents } from "./lib/useNovalisEvents";
 import { usePlugins } from "./stores/pluginStore";
+import { useSettings } from "./stores/settingsStore";
 import { useVault } from "./stores/vaultStore";
 
 export default function App() {
@@ -27,10 +32,15 @@ export default function App() {
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [notice, setNotice] = useState<string | null>(null);
+  const initialViewVault = useRef<string | null>(null);
+  const { t } = useTranslation();
 
   useNovalisEvents();
 
   useEffect(() => {
+    // UI language is device-local; apply it once at startup (before any vault),
+    // so the document lang/dir is set and the VaultGate renders translated.
+    applyLanguage(getLanguage());
     void useVault.getState().sync();
     usePlugins.getState().setNotify((m) => {
       setNotice(m);
@@ -42,6 +52,30 @@ export default function App() {
   useEffect(() => {
     if (vaultPath) void usePlugins.getState().reload();
   }, [vaultPath]);
+
+  // Load preferences when a vault becomes active; apply appearance (theme /
+  // accent / font-size / density) and, on first load, the configured start view.
+  useEffect(() => {
+    if (!vaultPath) {
+      initialViewVault.current = null;
+      return;
+    }
+    void useSettings
+      .getState()
+      .load()
+      .then(() => {
+        const prefs = useSettings.getState().prefs;
+        applyAppearance(prefs?.appearance);
+        if (initialViewVault.current !== vaultPath) {
+          const dv = prefs?.general?.defaultAppView;
+          if (dv === "notes" || dv === "tasks" || dv === "calendar") setView(dv);
+          initialViewVault.current = vaultPath;
+        }
+      });
+  }, [vaultPath]);
+
+  // Re-apply theme when the OS color scheme changes (only matters for "system").
+  useEffect(() => watchSystemTheme(() => useSettings.getState().prefs?.appearance), []);
 
   // Close the mobile nav drawer after navigating.
   useEffect(() => {
@@ -57,6 +91,9 @@ export default function App() {
       } else if (mod && !e.shiftKey && e.key.toLowerCase() === "k") {
         e.preventDefault();
         setSearchOpen((v) => !v);
+      } else if (mod && e.key === ",") {
+        e.preventDefault();
+        setSettingsOpen((v) => !v);
       }
     };
     window.addEventListener("keydown", onKey);
@@ -65,16 +102,22 @@ export default function App() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-neutral-950 text-neutral-500">
-        Loading…
+      <main className="flex min-h-screen items-center justify-center bg-app text-fg-subtle">
+        {t("loading")}
       </main>
     );
   }
 
   if (!vaultPath) return <VaultGate />;
 
+  const viewLabels: Record<MainView, string> = {
+    notes: t("views.notes"),
+    tasks: t("views.tasks"),
+    calendar: t("views.calendar"),
+  };
+
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-neutral-950 text-neutral-100">
+    <div className="flex h-screen w-screen overflow-hidden bg-app text-fg">
       {/* Sidebar: static from md up, slide-in drawer below md. */}
       <div
         className={`fixed inset-y-0 left-0 z-40 transition-transform md:static md:z-auto md:translate-x-0 ${
@@ -90,21 +133,21 @@ export default function App() {
       </div>
       {navOpen && (
         <div
-          className="fixed inset-0 z-30 bg-black/50 md:hidden"
+          className="fixed inset-0 z-30 bg-overlay md:hidden"
           onClick={() => setNavOpen(false)}
         />
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center gap-2 border-b border-neutral-800 px-3 py-2 md:hidden">
+        <div className="flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
           <button
             onClick={() => setNavOpen(true)}
-            title="Menu"
-            className="rounded-md p-1.5 text-neutral-300 transition-colors hover:bg-white/10"
+            title={t("menu")}
+            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active"
           >
             <Menu size={18} />
           </button>
-          <span className="text-sm font-medium capitalize text-neutral-300">{view}</span>
+          <span className="text-sm font-medium capitalize text-fg-muted">{viewLabels[view]}</span>
         </div>
         <CloudHint />
         <div className="flex min-h-0 flex-1 flex-col">
@@ -116,16 +159,16 @@ export default function App() {
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       {notice && (
-        <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-xl border border-neutral-700/80 bg-neutral-900/90 px-4 py-2.5 text-sm text-neutral-200 shadow-xl backdrop-blur">
+        <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-xl border border-border-strong/80 bg-surface/90 px-4 py-2.5 text-sm text-fg shadow-xl backdrop-blur">
           {notice}
         </div>
       )}
       {error && (
-        <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-xl border border-red-500/40 bg-red-950/80 px-4 py-2.5 text-sm text-red-200 shadow-xl backdrop-blur">
+        <div className="fixed bottom-4 right-4 z-50 flex max-w-sm items-start gap-3 rounded-xl border border-red-500/40 bg-red-950/80 px-4 py-2.5 text-sm text-danger shadow-xl backdrop-blur">
           <span className="min-w-0 break-words">{error}</span>
           <button
             onClick={clearError}
-            className="shrink-0 rounded p-0.5 text-red-400 transition-colors hover:bg-white/10 hover:text-red-200"
+            className="shrink-0 rounded p-0.5 text-danger transition-colors hover:bg-active hover:text-danger"
           >
             <X size={15} />
           </button>

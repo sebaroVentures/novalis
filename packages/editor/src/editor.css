@@ -6,6 +6,7 @@
   --nv-accent: var(--nv-editor-accent, #818cf8);
   --nv-border: var(--nv-editor-border, #2a2a2a);
   --nv-code-bg: var(--nv-editor-code-bg, #1b1b1f);
+  --nv-hover: var(--nv-editor-hover, rgba(255, 255, 255, 0.06));
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -33,12 +34,12 @@
 }
 .nv-tb-btn:hover {
   color: var(--nv-fg);
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--nv-hover);
 }
 .nv-tb-btn.is-active {
   color: var(--nv-fg);
   border-color: var(--nv-border);
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--nv-hover);
 }
 
 .nv-editor-content {
@@ -100,5 +101,5 @@
   cursor: pointer;
 }
 .nv-editor-content .nv-wikilink:hover {
-  background: rgba(129, 140, 248, 0.12);
+  background: color-mix(in srgb, var(--nv-accent) 14%, transparent);
 }

@@ -1,0 +1,28 @@
+{
+  "addPlaceholder": "Añadir una tarea…  (p. ej. Publicar la versión @due(2026-06-01) @priority(high))",
+  "agenda": {
+    "noDate": "Sin fecha",
+    "overdue": "Vencidas",
+    "today": "Hoy",
+    "upcoming": "Próximas"
+  },
+  "empty": "No hay tareas. Añadir una arriba o escribir <1>- [ ] algo</1> en una nota.",
+  "filter": {
+    "all": "Todas",
+    "completed": "Completadas",
+    "open": "Abiertas"
+  },
+  "kanban": {
+    "backlog": "Backlog",
+    "done": "Hecho",
+    "inProgress": "En curso",
+    "review": "Revisión",
+    "todo": "Por hacer"
+  },
+  "priority": {
+    "high": "Alta",
+    "low": "Baja",
+    "medium": "Media",
+    "urgent": "Urgente"
+  }
+}

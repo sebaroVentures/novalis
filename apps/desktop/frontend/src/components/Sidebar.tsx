@@ -18,7 +18,10 @@ import {
   Settings,
   X,
 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
+import { COLOR_HEX, COLOR_TOKENS } from "../lib/colors";
+import i18n from "../lib/i18n";
 import { api, type FolderNode, type NoteSummary, type NoteTemplate } from "../ipc/api";
 import { orderedItems, type SortBy, type TreeItem } from "../lib/treeOrder";
 import { newNoteFolder, useVault, type DragItem } from "../stores/vaultStore";
@@ -27,20 +30,7 @@ import { ContextMenu, type MenuItem } from "./ContextMenu";
 export type MainView = "notes" | "tasks" | "calendar";
 
 const iconBtn =
-  "rounded-md p-1.5 text-neutral-400 transition-colors hover:bg-white/10 hover:text-neutral-100";
-
-// Fixed, theme-consistent folder palette. Stored as tokens (vault-synced); the
-// hex drives the icon tint and the row's left accent bar.
-const COLOR_HEX: Record<string, string> = {
-  indigo: "#818cf8",
-  sky: "#38bdf8",
-  emerald: "#34d399",
-  amber: "#fbbf24",
-  rose: "#fb7185",
-  violet: "#a78bfa",
-  slate: "#94a3b8",
-};
-const COLOR_TOKENS = Object.keys(COLOR_HEX);
+  "rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg";
 
 // The currently-dragged item — kept in a module variable because the HTML5 DnD
 // `dragover` event can't read `dataTransfer` payloads (only their types), yet we
@@ -93,6 +83,12 @@ export function Sidebar({
   const collapseAll = useVault((s) => s.collapseAll);
   const moveItem = useVault((s) => s.moveItem);
   const vaultName = vaultPath ? vaultPath.split("/").filter(Boolean).pop() : "Vault";
+  const { t } = useTranslation(["sidebar", "common"]);
+  const viewLabels: Record<MainView, string> = {
+    notes: t("common:views.notes"),
+    tasks: t("common:views.tasks"),
+    calendar: t("common:views.calendar"),
+  };
 
   const [filter, setFilter] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -133,56 +129,57 @@ export function Sidebar({
   };
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-neutral-800/80 bg-neutral-900/40">
-      <div className="flex items-center justify-between gap-2 border-b border-neutral-800/80 px-3 py-2.5">
-        <span className="truncate text-sm font-semibold text-neutral-100" title={vaultPath ?? ""}>
+    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border/80 bg-surface/40">
+      <div className="flex items-center justify-between gap-2 border-b border-border/80 px-3 py-2.5">
+        <span className="truncate text-sm font-semibold text-fg" title={vaultPath ?? ""}>
           {vaultName}
         </span>
         <div className="flex items-center gap-0.5">
-          <button title="Search (⌘K)" onClick={onOpenSearch} className={iconBtn}>
+          <button title={t("searchShortcut")} onClick={onOpenSearch} className={iconBtn}>
             <Search size={16} />
           </button>
-          <button title="Refresh from disk" onClick={() => void api.rescanVault()} className={iconBtn}>
+          <button title={t("refreshFromDisk")} onClick={() => void api.rescanVault()} className={iconBtn}>
             <RefreshCw size={16} />
           </button>
-          <button title="Settings" onClick={onOpenSettings} className={iconBtn}>
+          <button title={t("settings")} onClick={onOpenSettings} className={iconBtn}>
             <Settings size={16} />
           </button>
         </div>
       </div>
 
       <div className="flex gap-1 p-2 pb-1">
+        {/* eslint-disable-next-line i18next/no-literal-string -- view ids (logic keys); labels come from viewLabels */}
         {(["notes", "tasks", "calendar"] as const).map((v) => (
           <button
             key={v}
             onClick={() => onViewChange(v)}
             className={`flex-1 rounded-md py-1.5 text-xs font-medium capitalize transition-colors ${
               view === v
-                ? "bg-white/10 text-neutral-100 shadow-sm ring-1 ring-white/10"
-                : "text-neutral-400 hover:bg-white/5 hover:text-neutral-200"
+                ? "bg-active text-fg shadow-sm ring-1 ring-border"
+                : "text-fg-muted hover:bg-hover hover:text-fg"
             }`}
           >
-            {v}
+            {viewLabels[v]}
           </button>
         ))}
       </div>
 
       {/* Tree toolbar */}
       <div className="flex items-center justify-between px-2 py-1">
-        <span className="px-1 text-[11px] font-semibold uppercase tracking-wide text-neutral-600">
-          Notes
+        <span className="px-1 text-[11px] font-semibold uppercase tracking-wide text-fg-faint">
+          {t("notesHeading")}
         </span>
         <div className="flex items-center gap-0.5">
           <NewNoteButton />
           <button
-            title="New folder"
+            title={t("newFolder")}
             onClick={() => ctx.beginNewFolder(useVault.getState().selectedFolder)}
             className={iconBtn}
           >
             <FolderPlus size={15} />
           </button>
           <SortButton />
-          <button title="Collapse all folders" onClick={() => collapseAll()} className={iconBtn}>
+          <button title={t("collapseAll")} onClick={() => collapseAll()} className={iconBtn}>
             <ChevronsDownUp size={15} />
           </button>
         </div>
@@ -190,17 +187,17 @@ export function Sidebar({
 
       {/* Filter */}
       <div className="px-2 pb-1.5">
-        <div className="flex items-center gap-1.5 rounded-md bg-neutral-800/60 px-2 py-1">
-          <Search size={12} className="shrink-0 text-neutral-500" />
+        <div className="flex items-center gap-1.5 rounded-md bg-surface-2/60 px-2 py-1">
+          <Search size={12} className="shrink-0 text-fg-subtle" />
           <input
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
             onKeyDown={(e) => e.key === "Escape" && setFilter("")}
-            placeholder="Filter notes…"
-            className="w-full bg-transparent text-xs text-neutral-200 outline-none placeholder:text-neutral-600"
+            placeholder={t("filterPlaceholder")}
+            className="w-full bg-transparent text-xs text-fg outline-none placeholder:text-fg-faint"
           />
           {filter && (
-            <button onClick={() => setFilter("")} className="shrink-0 text-neutral-500 hover:text-neutral-200">
+            <button onClick={() => setFilter("")} className="shrink-0 text-fg-subtle hover:text-fg">
               <X size={12} />
             </button>
           )}
@@ -225,7 +222,7 @@ export function Sidebar({
           {tree ? (
             <TreeChildren node={tree} depth={0} />
           ) : (
-            <p className="px-3 py-2 text-xs text-neutral-600">Loading…</p>
+            <p className="px-3 py-2 text-xs text-fg-faint">{t("common:loading")}</p>
           )}
         </Ctx.Provider>
       </div>
@@ -256,19 +253,19 @@ function buildMenu(target: MenuTarget, actions: CtxActions): MenuItem[] {
     const note = target.note;
     const pinned = note?.pinned ?? false;
     return [
-      { label: "Open", onClick: () => void s.openNote(target.path) },
-      { label: "Rename", onClick: () => actions.beginRename(target.path) },
-      { label: "Duplicate", onClick: () => void s.duplicateNote(target.path) },
+      { label: i18n.t("sidebar:menu.open"), onClick: () => void s.openNote(target.path) },
+      { label: i18n.t("sidebar:menu.rename"), onClick: () => actions.beginRename(target.path) },
+      { label: i18n.t("sidebar:menu.duplicate"), onClick: () => void s.duplicateNote(target.path) },
       {
-        label: pinned ? "Unpin" : "Pin",
+        label: pinned ? i18n.t("sidebar:menu.unpin") : i18n.t("sidebar:menu.pin"),
         onClick: () => void s.togglePin(target.path, !pinned),
       },
       {
-        label: "Delete",
+        label: i18n.t("sidebar:menu.delete"),
         danger: true,
         separatorBefore: true,
         onClick: () => {
-          if (window.confirm(`Move "${note?.title ?? target.path}" to trash?`)) {
+          if (window.confirm(i18n.t("sidebar:confirm.trashNote", { title: note?.title ?? target.path }))) {
             void api.deleteNote(target.path).then(() => {
               s.invalidateNote(target.path);
               if (s.activePath === target.path) useVault.setState({ activePath: null, activeNote: null });
@@ -282,21 +279,21 @@ function buildMenu(target: MenuTarget, actions: CtxActions): MenuItem[] {
   const node = target.node;
   const empty = !!node && node.children.length === 0 && node.notes.length === 0;
   return [
-    { label: "New note here", onClick: () => void s.newNote(target.path) },
-    { label: "New subfolder", onClick: () => actions.beginNewFolder(target.path) },
-    { label: "Rename", onClick: () => actions.beginRename(target.path) },
+    { label: i18n.t("sidebar:menu.newNoteHere"), onClick: () => void s.newNote(target.path) },
+    { label: i18n.t("sidebar:menu.newSubfolder"), onClick: () => actions.beginNewFolder(target.path) },
+    { label: i18n.t("sidebar:menu.rename"), onClick: () => actions.beginRename(target.path) },
     {
-      label: "Set color…",
+      label: i18n.t("sidebar:menu.setColor"),
       onClick: () => actions.openColorPicker(target.path, 0, 0),
     },
     {
-      label: "Delete",
+      label: i18n.t("sidebar:menu.delete"),
       danger: true,
       separatorBefore: true,
       onClick: () => {
         const msg = empty
-          ? `Delete empty folder "${node?.name}"?`
-          : `Move folder "${node?.name}" and all its contents to trash?`;
+          ? i18n.t("sidebar:confirm.deleteEmptyFolder", { name: node?.name })
+          : i18n.t("sidebar:confirm.trashFolder", { name: node?.name });
         if (window.confirm(msg)) void s.deleteFolder(target.path);
       },
     },
@@ -309,6 +306,7 @@ function NewNoteButton() {
   const target = useVault((s) => newNoteFolder(s));
   const [open, setOpen] = useState(false);
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
+  const { t } = useTranslation("sidebar");
 
   const toggle = () => {
     const next = !open;
@@ -319,17 +317,17 @@ function NewNoteButton() {
   return (
     <div className="relative">
       <button
-        title={target ? `New note in ${target}` : "New note"}
+        title={target ? t("newNoteIn", { target }) : t("newNote")}
         onClick={toggle}
         className={iconBtn}
       >
         <Plus size={16} />
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-neutral-700/80 bg-neutral-900 p-1 shadow-xl">
+        <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-border-strong/80 bg-surface p-1 shadow-xl">
           {target && (
-            <p className="truncate px-2.5 py-1 text-[10px] uppercase tracking-wide text-neutral-600">
-              in /{target}
+            <p className="truncate px-2.5 py-1 text-[10px] uppercase tracking-wide text-fg-faint">
+              {t("inFolder", { target })}
             </p>
           )}
           <button
@@ -337,20 +335,20 @@ function NewNoteButton() {
               setOpen(false);
               void newNote(target);
             }}
-            className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-neutral-200 transition-colors hover:bg-white/5"
+            className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-fg transition-colors hover:bg-hover"
           >
-            Blank note
+            {t("blankNote")}
           </button>
-          {templates.map((t) => (
+          {templates.map((tpl) => (
             <button
-              key={t.id}
+              key={tpl.id}
               onClick={() => {
                 setOpen(false);
-                void newNote(target, t.id);
+                void newNote(target, tpl.id);
               }}
-              className="block w-full truncate rounded-md px-2.5 py-1.5 text-left text-xs text-neutral-300 transition-colors hover:bg-white/5"
+              className="block w-full truncate rounded-md px-2.5 py-1.5 text-left text-xs text-fg-muted transition-colors hover:bg-hover"
             >
-              {t.name}
+              {tpl.name}
             </button>
           ))}
         </div>
@@ -362,25 +360,26 @@ function NewNoteButton() {
 function SortButton() {
   const sortBy = useVault((s) => s.sortBy);
   const setSortMode = useVault((s) => s.setSortMode);
+  const { t } = useTranslation("sidebar");
   const [open, setOpen] = useState(false);
   const opts: { label: string; by: SortBy; dir?: "asc" | "desc" }[] = [
-    { label: "Name (A–Z)", by: "name", dir: "asc" },
-    { label: "Name (Z–A)", by: "name", dir: "desc" },
-    { label: "Recently modified", by: "modified", dir: "desc" },
-    { label: "Recently created", by: "created", dir: "desc" },
-    { label: "Manual (drag to order)", by: "manual" },
+    { label: t("sort.nameAsc"), by: "name", dir: "asc" },
+    { label: t("sort.nameDesc"), by: "name", dir: "desc" },
+    { label: t("sort.modified"), by: "modified", dir: "desc" },
+    { label: t("sort.created"), by: "created", dir: "desc" },
+    { label: t("sort.manual"), by: "manual" },
   ];
   return (
     <div className="relative">
       <button
-        title={`Sort: ${sortBy}`}
+        title={t("sortTitle", { mode: sortBy })}
         onClick={() => setOpen((v) => !v)}
-        className={`${iconBtn} ${sortBy === "manual" ? "text-indigo-400" : ""}`}
+        className={`${iconBtn} ${sortBy === "manual" ? "text-accent" : ""}`}
       >
         <ArrowDownUp size={15} />
       </button>
       {open && (
-        <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-neutral-700/80 bg-neutral-900 p-1 shadow-xl">
+        <div className="absolute right-0 z-20 mt-1 w-44 overflow-hidden rounded-lg border border-border-strong/80 bg-surface p-1 shadow-xl">
           {opts.map((o) => (
             <button
               key={o.label}
@@ -388,8 +387,8 @@ function SortButton() {
                 setOpen(false);
                 setSortMode(o.by, o.dir);
               }}
-              className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-white/5 ${
-                sortBy === o.by ? "text-indigo-200" : "text-neutral-300"
+              className={`block w-full rounded-md px-2.5 py-1.5 text-left text-xs transition-colors hover:bg-hover ${
+                sortBy === o.by ? "text-accent" : "text-fg-muted"
               }`}
             >
               {o.label}
@@ -414,6 +413,7 @@ function ColorPopover({
 }) {
   const setFolderColor = useVault((s) => s.setFolderColor);
   const current = useVault((s) => s.folderColors[path]);
+  const { t } = useTranslation("sidebar");
   const ref = useRef<HTMLDivElement>(null);
   useEffect(() => {
     const onDown = (e: MouseEvent) => {
@@ -429,7 +429,7 @@ function ColorPopover({
     <div
       ref={ref}
       style={{ left, top }}
-      className="fixed z-50 flex items-center gap-1.5 rounded-lg border border-neutral-700/80 bg-neutral-900 p-2 shadow-xl"
+      className="fixed z-50 flex items-center gap-1.5 rounded-lg border border-border-strong/80 bg-surface p-2 shadow-xl"
     >
       {COLOR_TOKENS.map((token) => (
         <button
@@ -441,17 +441,17 @@ function ColorPopover({
           }}
           style={{ background: COLOR_HEX[token] }}
           className={`h-5 w-5 rounded-full transition-transform hover:scale-110 ${
-            current === token ? "ring-2 ring-white ring-offset-2 ring-offset-neutral-900" : ""
+            current === token ? "ring-2 ring-accent-fg ring-offset-2 ring-offset-surface" : ""
           }`}
         />
       ))}
       <button
-        title="No color"
+        title={t("noColor")}
         onClick={() => {
           setFolderColor(path, null);
           onClose();
         }}
-        className="flex h-5 w-5 items-center justify-center rounded-full border border-neutral-600 text-neutral-400 hover:text-neutral-100"
+        className="flex h-5 w-5 items-center justify-center rounded-full border border-border-strong text-fg-muted hover:text-fg"
       >
         <X size={12} />
       </button>
@@ -467,6 +467,7 @@ function flattenNotes(node: FolderNode, out: NoteSummary[]): void {
 
 function PinnedSection() {
   const tree = useVault((s) => s.tree);
+  const { t } = useTranslation("sidebar");
   const [open, setOpen] = useState(true);
   const pinned = useMemo(() => {
     if (!tree) return [];
@@ -476,7 +477,7 @@ function PinnedSection() {
   }, [tree]);
   if (pinned.length === 0) return null;
   return (
-    <SidebarSection title="Pinned" icon={<Pin size={11} />} open={open} onToggle={() => setOpen((v) => !v)}>
+    <SidebarSection title={t("pinned")} icon={<Pin size={11} />} open={open} onToggle={() => setOpen((v) => !v)}>
       {pinned.map((n) => (
         <FlatNoteRow key={n.path} note={n} />
       ))}
@@ -487,6 +488,7 @@ function PinnedSection() {
 function RecentSection() {
   const tree = useVault((s) => s.tree);
   const recent = useVault((s) => s.recent);
+  const { t } = useTranslation("sidebar");
   const [open, setOpen] = useState(true);
   const items = useMemo(() => {
     if (!tree) return [];
@@ -497,7 +499,7 @@ function RecentSection() {
   }, [tree, recent]);
   if (items.length === 0) return null;
   return (
-    <SidebarSection title="Recent" icon={<Clock size={11} />} open={open} onToggle={() => setOpen((v) => !v)}>
+    <SidebarSection title={t("recent")} icon={<Clock size={11} />} open={open} onToggle={() => setOpen((v) => !v)}>
       {items.map((n) => (
         <FlatNoteRow key={n.path} note={n} />
       ))}
@@ -522,14 +524,14 @@ function SidebarSection({
     <div className="mb-1">
       <button
         onClick={onToggle}
-        className="flex w-full items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-neutral-500 hover:text-neutral-300"
+        className="flex w-full items-center gap-1 px-2 py-1 text-[10px] font-semibold uppercase tracking-wide text-fg-subtle hover:text-fg-muted"
       >
         {open ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
         {icon}
         {title}
       </button>
       {open && <div>{children}</div>}
-      <div className="mx-2 mt-1 border-b border-neutral-800/60" />
+      <div className="mx-2 mt-1 border-b border-border/60" />
     </div>
   );
 }
@@ -546,10 +548,10 @@ function FlatNoteRow({ note }: { note: NoteSummary }) {
       onMouseEnter={() => prefetchNote(note.path)}
       title={note.path}
       className={`flex w-full items-center gap-1.5 rounded-md py-1 pl-3 pr-2 text-left text-sm transition-colors ${
-        active ? "bg-indigo-500/20 font-medium text-indigo-100" : "text-neutral-300 hover:bg-white/5 hover:text-neutral-100"
+        active ? "bg-accent-soft font-medium text-accent" : "text-fg-muted hover:bg-hover hover:text-fg"
       }`}
     >
-      <FileText size={14} className="shrink-0 text-neutral-500" />
+      <FileText size={14} className="shrink-0 text-fg-subtle" />
       <span className="truncate">{note.title}</span>
     </button>
   );
@@ -644,6 +646,7 @@ function FolderRow({
   const moveItem = useVault((s) => s.moveItem);
   const newNote = useVault((s) => s.newNote);
   const ctx = useSidebarCtx();
+  const { t } = useTranslation("sidebar");
 
   const forceOpen = ctx.filter !== "";
   const open = forceOpen || !collapsedSet.has(node.path);
@@ -708,9 +711,9 @@ function FolderRow({
         style={{ paddingLeft: 8 + depth * 12 }}
         className={`group relative flex w-full cursor-pointer items-center gap-1 rounded-md py-1 pr-1.5 text-left text-sm font-medium transition-colors ${
           selected
-            ? "bg-white/[0.07] text-neutral-100"
-            : "text-neutral-400 hover:bg-white/5 hover:text-neutral-200"
-        } ${zone === "into" ? "ring-1 ring-inset ring-indigo-500/50" : ""}`}
+            ? "bg-active text-fg"
+            : "text-fg-muted hover:bg-hover hover:text-fg"
+        } ${zone === "into" ? "ring-1 ring-inset ring-accent/50" : ""}`}
       >
         <IndentGuides depth={depth} />
         {/* Left accent bar in the folder's color. */}
@@ -727,7 +730,7 @@ function FolderRow({
             e.stopPropagation();
             toggleCollapsed(node.path);
           }}
-          className="shrink-0 text-neutral-500 hover:text-neutral-300"
+          className="shrink-0 text-fg-subtle hover:text-fg-muted"
           tabIndex={-1}
         >
           {open ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
@@ -739,18 +742,18 @@ function FolderRow({
         )}
         <span className="flex-1 truncate">{node.name}</span>
         <button
-          title="New note here"
+          title={t("menu.newNoteHere")}
           onClick={(e) => {
             e.stopPropagation();
             void newNote(node.path);
           }}
-          className="hidden shrink-0 rounded p-0.5 text-neutral-500 hover:bg-white/10 hover:text-neutral-200 group-hover:block"
+          className="hidden shrink-0 rounded p-0.5 text-fg-subtle hover:bg-active hover:text-fg group-hover:block"
           tabIndex={-1}
         >
           <Plus size={13} />
         </button>
         {noteCount > 0 && (
-          <span className="shrink-0 text-[10px] tabular-nums text-neutral-600 group-hover:hidden">
+          <span className="shrink-0 text-[10px] tabular-nums text-fg-faint group-hover:hidden">
             {noteCount}
           </span>
         )}
@@ -835,13 +838,13 @@ function NoteRow({
       title={note.path}
       style={{ paddingLeft: 24 + depth * 12 }}
       className={`group relative flex w-full cursor-pointer items-center gap-1.5 rounded-md py-1 pr-2 text-left text-sm transition-colors ${
-        active ? "bg-indigo-500/20 font-medium text-indigo-100" : "text-neutral-300 hover:bg-white/5 hover:text-neutral-100"
+        active ? "bg-accent-soft font-medium text-accent" : "text-fg-muted hover:bg-hover hover:text-fg"
       }`}
     >
       <IndentGuides depth={depth} />
       {zone === "before" && <DropLine top />}
       {zone === "after" && <DropLine />}
-      <FileText size={14} className="shrink-0 text-neutral-500" />
+      <FileText size={14} className="shrink-0 text-fg-subtle" />
       <span className="flex-1 truncate">{note.title}</span>
       <NoteBadges note={note} />
     </div>
@@ -849,18 +852,19 @@ function NoteRow({
 }
 
 function NoteBadges({ note }: { note: NoteSummary }) {
+  const { t } = useTranslation("sidebar");
   return (
     <span className="flex shrink-0 items-center gap-1">
-      {note.tags.slice(0, 2).map((t) => (
+      {note.tags.slice(0, 2).map((tag) => (
         <span
-          key={t}
-          title={`#${t}`}
+          key={tag}
+          title={`#${tag}`}
           className="h-1.5 w-1.5 rounded-full"
-          style={{ background: `hsl(${tagHue(t)} 60% 60%)` }}
+          style={{ background: `hsl(${tagHue(tag)} 60% 60%)` }}
         />
       ))}
       {note.cloudOnly && (
-        <Cloud size={12} className="text-sky-400/70" aria-label="Online only — downloads on open" />
+        <Cloud size={12} className="text-sky-400/70" aria-label={t("cloudOnly")} />
       )}
       {note.pinned && <Pin size={11} className="text-amber-400/80" />}
       {note.taskTotal > 0 && (
@@ -868,7 +872,7 @@ function NoteBadges({ note }: { note: NoteSummary }) {
           className={`rounded px-1 text-[10px] tabular-nums ${
             note.taskCompleted === note.taskTotal
               ? "bg-emerald-500/15 text-emerald-300/80"
-              : "bg-white/5 text-neutral-400"
+              : "bg-hover text-fg-muted"
           }`}
         >
           {note.taskCompleted}/{note.taskTotal}
@@ -881,7 +885,7 @@ function NoteBadges({ note }: { note: NoteSummary }) {
 function DropLine({ top }: { top?: boolean }) {
   return (
     <span
-      className={`pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-indigo-400 ${
+      className={`pointer-events-none absolute inset-x-1 h-0.5 rounded-full bg-accent ${
         top ? "top-0" : "bottom-0"
       }`}
     />
@@ -898,7 +902,7 @@ function IndentGuides({ depth }: { depth: number }) {
       {Array.from({ length: depth }, (_, i) => (
         <span
           key={i}
-          className="pointer-events-none absolute inset-y-0 w-px bg-neutral-700/40"
+          className="pointer-events-none absolute inset-y-0 w-px bg-border-strong/40"
           style={{ left: 14 + i * 12 }}
         />
       ))}
@@ -910,6 +914,7 @@ function IndentGuides({ depth }: { depth: number }) {
 function NewFolderInput({ parent, depth = 0 }: { parent: string | null; depth?: number }) {
   const createFolder = useVault((s) => s.createFolder);
   const { endNewFolder } = useSidebarCtx();
+  const { t } = useTranslation("sidebar");
   const [name, setName] = useState("");
   const commit = () => {
     const n = name.trim();
@@ -918,7 +923,7 @@ function NewFolderInput({ parent, depth = 0 }: { parent: string | null; depth?: 
   };
   return (
     <div className="flex items-center gap-1 py-0.5" style={{ paddingLeft: 8 + depth * 12 }}>
-      <FolderPlus size={14} className="shrink-0 text-neutral-500" />
+      <FolderPlus size={14} className="shrink-0 text-fg-subtle" />
       <input
         autoFocus
         value={name}
@@ -928,8 +933,8 @@ function NewFolderInput({ parent, depth = 0 }: { parent: string | null; depth?: 
           else if (e.key === "Escape") endNewFolder();
         }}
         onBlur={commit}
-        placeholder="Folder name"
-        className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm text-neutral-100 outline-none placeholder:text-neutral-600"
+        placeholder={t("folderNamePlaceholder")}
+        className="w-full rounded bg-surface-2 px-1.5 py-0.5 text-sm text-fg outline-none placeholder:text-fg-faint"
       />
     </div>
   );
@@ -961,9 +966,9 @@ function RenameInput({
       style={{ paddingLeft: (isFolder ? 8 : 24) + depth * 12 }}
     >
       {isFolder ? (
-        <Folder size={14} className="shrink-0 text-neutral-500" />
+        <Folder size={14} className="shrink-0 text-fg-subtle" />
       ) : (
-        <FileText size={14} className="shrink-0 text-neutral-500" />
+        <FileText size={14} className="shrink-0 text-fg-subtle" />
       )}
       <input
         autoFocus
@@ -975,7 +980,7 @@ function RenameInput({
           else if (e.key === "Escape") endRename();
         }}
         onBlur={commit}
-        className="w-full rounded bg-neutral-800 px-1.5 py-0.5 text-sm text-neutral-100 outline-none"
+        className="w-full rounded bg-surface-2 px-1.5 py-0.5 text-sm text-fg outline-none"
       />
     </div>
   );

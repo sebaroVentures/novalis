@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 
+import { useTranslation } from "react-i18next";
+
 import { api, type NoteSummary } from "../ipc/api";
 import { useVault } from "../stores/vaultStore";
 
 export function SearchModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+  const { t } = useTranslation("vault");
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<NoteSummary[]>([]);
   const openNote = useVault((s) => s.openNote);
@@ -43,34 +46,34 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-black/50 pt-28"
+      className="fixed inset-0 z-50 flex items-start justify-center bg-overlay pt-28"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-neutral-700 bg-neutral-900 shadow-2xl"
+        className="w-full max-w-lg overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
         onClick={(e) => e.stopPropagation()}
       >
         <input
           ref={inputRef}
           value={query}
           onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search notes by title…"
-          className="w-full bg-transparent px-4 py-3 text-neutral-100 outline-none placeholder:text-neutral-600"
+          placeholder={t("searchPlaceholder")}
+          className="w-full bg-transparent px-4 py-3 text-fg outline-none placeholder:text-fg-faint"
           onKeyDown={(e) => {
             if (e.key === "Escape") onClose();
             if (e.key === "Enter" && results[0]) pick(results[0].path);
           }}
         />
         {results.length > 0 && (
-          <ul className="max-h-80 overflow-y-auto border-t border-neutral-800">
+          <ul className="max-h-80 overflow-y-auto border-t border-border">
             {results.map((r) => (
               <li key={r.path}>
                 <button
                   onClick={() => pick(r.path)}
-                  className="flex w-full flex-col px-4 py-2 text-left hover:bg-white/5"
+                  className="flex w-full flex-col px-4 py-2 text-left hover:bg-hover"
                 >
-                  <span className="text-sm text-neutral-100">{r.title}</span>
-                  <span className="text-xs text-neutral-600">{r.path}</span>
+                  <span className="text-sm text-fg">{r.title}</span>
+                  <span className="text-xs text-fg-faint">{r.path}</span>
                 </button>
               </li>
             ))}

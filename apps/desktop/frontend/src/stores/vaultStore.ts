@@ -1,9 +1,11 @@
 import { create } from "zustand";
 
 import { api, NovalisError, type FolderNode, type Note } from "../ipc/api";
+import { displayError } from "../lib/errors";
+import i18n from "../lib/i18n";
 import {
+  getRecentLimit,
   loadSidebarPrefs,
-  RECENT_LIMIT,
   saveSidebarPrefs,
 } from "../lib/sidebarPrefs";
 import { findFolder, orderedItems, type SortBy } from "../lib/treeOrder";
@@ -219,7 +221,7 @@ export const useVault = create<VaultState>((set, get) => ({
         await get().refreshTree();
       }
     } catch (e) {
-      set({ error: String(e), loading: false });
+      set({ error: displayError(e), loading: false });
     }
   },
 
@@ -248,7 +250,7 @@ export const useVault = create<VaultState>((set, get) => ({
       await get().loadSidebarState();
       await get().refreshTree();
     } catch (e) {
-      set({ error: String(e), loading: false });
+      set({ error: displayError(e), loading: false });
     }
   },
 
@@ -289,7 +291,7 @@ export const useVault = create<VaultState>((set, get) => ({
     } catch (e) {
       // A noVault error here just means the engine isn't ready yet.
       if (!(e instanceof NovalisError && e.kind === "noVault")) {
-        set({ error: String(e) });
+        set({ error: displayError(e) });
       }
     }
   },
@@ -300,7 +302,7 @@ export const useVault = create<VaultState>((set, get) => ({
     // targets this note's folder), reveals it, and records it as recent.
     const collapsed = new Set(get().collapsed);
     for (const a of ancestorsOf(path)) collapsed.delete(a);
-    const recent = [path, ...get().recent.filter((p) => p !== path)].slice(0, RECENT_LIMIT);
+    const recent = [path, ...get().recent.filter((p) => p !== path)].slice(0, getRecentLimit());
     set({ activePath: path, selectedFolder: null, collapsed, recent });
     persistSidebar(get);
 
@@ -316,7 +318,7 @@ export const useVault = create<VaultState>((set, get) => ({
       // Race guard: only apply if the user hasn't since clicked another note.
       if (get().activePath === path) set({ activeNote: note });
     } catch (e) {
-      if (get().activePath === path) set({ error: String(e) });
+      if (get().activePath === path) set({ error: displayError(e) });
     }
   },
 
@@ -345,7 +347,7 @@ export const useVault = create<VaultState>((set, get) => ({
         for (const a of ancestorsOf(note.path)) collapsed.delete(a);
         const recent = [note.path, ...get().recent.filter((p) => p !== note.path)].slice(
           0,
-          RECENT_LIMIT,
+          getRecentLimit(),
         );
         set({ collapsed, recent });
         await get().refreshTree();
@@ -354,7 +356,7 @@ export const useVault = create<VaultState>((set, get) => ({
         return;
       } catch (e) {
         if (e instanceof NovalisError && e.kind === "alreadyExists") continue;
-        set({ error: String(e) });
+        set({ error: displayError(e) });
         return;
       }
     }
@@ -370,7 +372,7 @@ export const useVault = create<VaultState>((set, get) => ({
       set({ activePath: null, activeNote: null });
       await get().refreshTree();
     } catch (e) {
-      set({ error: String(e) });
+      set({ error: displayError(e) });
     }
   },
 
@@ -384,7 +386,7 @@ export const useVault = create<VaultState>((set, get) => ({
       // `note-changed`, which refreshes the tree once (see useNovalisEvents).
       // Refreshing on every debounced keystroke-save was the main typing lag.
     } catch (e) {
-      set({ error: String(e) });
+      set({ error: displayError(e) });
     }
   },
 
@@ -458,9 +460,9 @@ export const useVault = create<VaultState>((set, get) => ({
       persistSidebar(get);
     } catch (e) {
       if (e instanceof NovalisError && e.kind === "alreadyExists") {
-        set({ error: `„${trimmed}“ existiert bereits.` });
+        set({ error: i18n.t("vault:error.folderExists", { name: trimmed }) });
       } else {
-        set({ error: String(e) });
+        set({ error: displayError(e) });
       }
     }
   },
@@ -507,9 +509,9 @@ export const useVault = create<VaultState>((set, get) => ({
       persistSidebar(get);
     } catch (e) {
       if (e instanceof NovalisError && e.kind === "alreadyExists") {
-        set({ error: `„${trimmed}“ existiert in diesem Ordner bereits.` });
+        set({ error: i18n.t("vault:error.itemExistsHere", { name: trimmed }) });
       } else {
-        set({ error: String(e) });
+        set({ error: displayError(e) });
       }
     }
   },
@@ -542,7 +544,7 @@ export const useVault = create<VaultState>((set, get) => ({
       await get().refreshTree();
       persistSidebar(get);
     } catch (e) {
-      set({ error: String(e) });
+      set({ error: displayError(e) });
     }
   },
 
@@ -553,7 +555,7 @@ export const useVault = create<VaultState>((set, get) => ({
       await get().refreshTree();
       set({ activePath: note.path, activeNote: note });
     } catch (e) {
-      set({ error: String(e) });
+      set({ error: displayError(e) });
     }
   },
 
@@ -564,7 +566,7 @@ export const useVault = create<VaultState>((set, get) => ({
       inflight.delete(path);
       await get().refreshTree();
     } catch (e) {
-      set({ error: String(e) });
+      set({ error: displayError(e) });
     }
   },
 
@@ -655,9 +657,9 @@ export const useVault = create<VaultState>((set, get) => ({
       persistSidebar(get);
     } catch (e) {
       if (e instanceof NovalisError && e.kind === "alreadyExists") {
-        set({ error: `„${basename(src)}“ existiert im Zielordner bereits.` });
+        set({ error: i18n.t("vault:error.itemExistsTarget", { name: basename(src) }) });
       } else {
-        set({ error: String(e) });
+        set({ error: displayError(e) });
       }
     }
   },

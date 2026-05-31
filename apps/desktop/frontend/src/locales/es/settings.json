@@ -1,0 +1,154 @@
+{
+  "about": {
+    "application": "Aplicación",
+    "section": "Acerca de",
+    "tagline": "Local-first: notas, tareas y calendario. Todos los datos permanecen en el Vault.",
+    "version": "Versión"
+  },
+  "appearance": {
+    "accent": {
+      "desc": "Se usa para los resaltados, la selección, el foco y el editor.",
+      "label": "Color de acento"
+    },
+    "colorTheme": {
+      "dark": "Oscuro",
+      "desc": "Oscuro, claro o según el sistema.",
+      "label": "Tema de color",
+      "light": "Claro",
+      "system": "Sistema"
+    },
+    "density": {
+      "comfortable": "Cómoda",
+      "compact": "Compacta",
+      "desc": "El modo compacto reduce el área de lectura del editor.",
+      "label": "Densidad"
+    },
+    "fontSize": {
+      "desc": "Escala global del texto y la interfaz. Se aplica al cerrar los Ajustes.",
+      "label": "Tamaño de fuente",
+      "preview": "El veloz murciélago hindú comía feliz cardillo y kiwi."
+    },
+    "sectionDisplay": "Visualización",
+    "sectionTheme": "Tema"
+  },
+  "calendar": {
+    "calendarsDesc": "Suscripciones de solo lectura – Google, Outlook o cualquier URL ICS (incluidos los enlaces iCal secretos).",
+    "connectProvider": "Conectar con {{provider}}",
+    "duration": {
+      "desc": "Duración de un evento recién creado.",
+      "label": "Duración predeterminada del evento"
+    },
+    "empty": "No hay suscripciones de calendario.",
+    "namePlaceholder": "Nombre del calendario",
+    "sectionCalendars": "Calendarios",
+    "sectionDisplay": "Visualización",
+    "subscribe": "Suscribirse",
+    "timeFormat": {
+      "desc": "Cómo se muestran las horas de los eventos.",
+      "h12": "12 horas",
+      "h24": "24 horas",
+      "label": "Formato de hora"
+    },
+    "urlPlaceholder": "URL ICS (p. ej. dirección iCal secreta de Google/Outlook)",
+    "weekStart": {
+      "desc": "Primer día de la cuadrícula del calendario.",
+      "label": "La semana empieza el",
+      "monday": "Lunes",
+      "sunday": "Domingo"
+    }
+  },
+  "editor": {
+    "autosave": {
+      "desc": "Tiempo tras dejar de escribir antes de guardar la nota.",
+      "label": "Retraso de guardado automático"
+    },
+    "sectionAdvanced": "Avanzado",
+    "sectionEditing": "Edición",
+    "spellcheck": {
+      "aria": "Corrección ortográfica",
+      "desc": "Subrayar las palabras mal escritas mientras se escribe.",
+      "label": "Corrección ortográfica"
+    },
+    "typing": {
+      "desc": "Un valor más bajo responde más rápido a las pulsaciones, pero consume algo más de CPU.",
+      "label": "Respuesta al escribir"
+    }
+  },
+  "general": {
+    "defaultTaskView": {
+      "desc": "Lista, tablero o agenda al abrir Tareas.",
+      "label": "Vista de tareas predeterminada"
+    },
+    "inboxPath": {
+      "desc": "Nota que recibe las tareas para la estrategia Inbox.",
+      "label": "Ruta de Inbox"
+    },
+    "recentNotes": {
+      "desc": "Número de notas abiertas recientemente que se conservan (este dispositivo).",
+      "label": "Notas recientes"
+    },
+    "sidebar": {
+      "title": "Barra lateral"
+    },
+    "startup": {
+      "title": "Inicio"
+    },
+    "startView": {
+      "desc": "Vista que se abre al iniciar Novalis.",
+      "label": "Vista inicial"
+    },
+    "strategy": {
+      "activeNote": "Nota activa",
+      "daily": "Nota diaria",
+      "desc": "Ubicación predeterminada de las nuevas tareas.",
+      "inbox": "Nota Inbox",
+      "label": "Estrategia"
+    },
+    "taskCreation": {
+      "title": "Creación de tareas"
+    }
+  },
+  "language": {
+    "hint": "Se aplica a este dispositivo. Los cambios surten efecto de inmediato.",
+    "label": "Idioma de la interfaz",
+    "section": "Idioma"
+  },
+  "modal": {
+    "close": "Cerrar los Ajustes",
+    "title": "Ajustes"
+  },
+  "nav": {
+    "about": "Acerca de",
+    "appearance": "Apariencia",
+    "calendar": "Calendario",
+    "editor": "Editor",
+    "general": "General",
+    "heading": "Ajustes",
+    "language": "Idioma",
+    "plugins": "Plugins",
+    "tasks": "Tareas y Kanban",
+    "templates": "Plantillas"
+  },
+  "plugins": {
+    "empty": "No hay plugins instalados. Colocar una carpeta de plugin en <2>.novalis/plugins/</2> en el Vault (ver PLUGINS.md) y volver a abrir los Ajustes.",
+    "enableAria": "Activar {{name}}",
+    "loadFailed": "Error al cargar el plugin {{id}}: {{error}}",
+    "section": "Plugins"
+  },
+  "tasks": {
+    "addColumn": "Añadir columna",
+    "columnsDesc": "Columnas mostradas en la vista de tablero.",
+    "newColumn": "Nueva columna",
+    "removeColumn": "Quitar columna",
+    "sectionColumns": "Columnas de Kanban"
+  },
+  "templates": {
+    "add": "Añadir plantilla",
+    "contentPlaceholder": "Contenido de la plantilla (Markdown)…",
+    "deleteAria": "Eliminar plantilla",
+    "desc": "Estructuras de notas reutilizables, disponibles al crear una nota.",
+    "empty": "Aún no hay plantillas.",
+    "namePlaceholder": "Nombre de la plantilla",
+    "section": "Plantillas de notas"
+  }
+}

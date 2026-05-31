@@ -25,7 +25,42 @@ export interface NovalisEditorProps {
   resolveImageSrc?: (src: string) => string;
   /** Called when the user clicks a `[[wikilink]]`. Host resolves+opens. */
   onWikiLinkClick?: (title: string) => void;
+  /** Debounce (ms) for full-document markdown serialization. Default 200. */
+  serializeMs?: number;
+  /** Browser spellcheck in the editable area. Default true. */
+  spellCheck?: boolean;
+  /** Localized UI strings (placeholder + toolbar). The host fills these from its
+   *  i18n catalog; any omitted fall back to the English defaults. */
+  labels?: Partial<NovalisEditorLabels>;
 }
+
+/** User-facing strings the editor renders. Exposed as a prop (with English
+ *  defaults) so the package stays framework- and i18n-agnostic — the host owns
+ *  translation. The B/I/H1/H2 buttons show fixed typographic glyphs; these
+ *  strings are their accessible names (tooltip / aria-label). */
+export interface NovalisEditorLabels {
+  placeholder: string;
+  bold: string;
+  italic: string;
+  heading1: string;
+  heading2: string;
+  bulletList: string;
+  taskList: string;
+  codeBlock: string;
+  blockquote: string;
+}
+
+const DEFAULT_LABELS: NovalisEditorLabels = {
+  placeholder: "Start writing…",
+  bold: "Bold",
+  italic: "Italic",
+  heading1: "Heading 1",
+  heading2: "Heading 2",
+  bulletList: "List",
+  taskList: "Tasks",
+  codeBlock: "Code",
+  blockquote: "Quote",
+};
 
 function getMarkdown(editor: Editor): string {
   return (editor.storage.markdown as { getMarkdown(): string }).getMarkdown();
@@ -39,10 +74,17 @@ export function NovalisEditor({
   onUploadImage,
   resolveImageSrc,
   onWikiLinkClick,
+  serializeMs,
+  spellCheck,
+  labels,
 }: NovalisEditorProps) {
+  const lbl = { ...DEFAULT_LABELS, ...labels };
   // Latest onChange, without re-creating the editor when it changes.
   const onChangeRef = useRef(onChange);
   onChangeRef.current = onChange;
+  // Latest serialize debounce, read at flush time so changes apply live.
+  const serializeMsRef = useRef(serializeMs ?? 200);
+  serializeMsRef.current = serializeMs ?? 200;
   // Debounce full-document markdown serialization. `getMarkdown` walks and
   // serializes the entire document; doing it on every keystroke is the main
   // typing lag on large notes. Serialize at most every ~200ms and flush on
@@ -87,7 +129,7 @@ export function NovalisEditor({
       TaskItem.configure({ nested: true }),
       Link.configure({ openOnClick: false, autolink: true }),
       VaultImage,
-      Placeholder.configure({ placeholder: placeholder ?? "Start writing…" }),
+      Placeholder.configure({ placeholder: placeholder ?? lbl.placeholder }),
       WikiLink.configure({ onClick: onWikiLinkClick }),
     ],
     content: value,
@@ -97,7 +139,7 @@ export function NovalisEditor({
       serializeTimer.current = window.setTimeout(() => {
         serializeTimer.current = null;
         onChangeRef.current?.(getMarkdown(editor));
-      }, 200);
+      }, serializeMsRef.current);
     },
     editorProps: {
       handlePaste(view, event) {
@@ -134,48 +176,57 @@ export function NovalisEditor({
     };
   }, [editor]);
 
+  // Reflect the spellcheck preference on the contenteditable, live.
+  useEffect(() => {
+    if (editor) editor.view.dom.setAttribute("spellcheck", String(spellCheck ?? true));
+  }, [editor, spellCheck]);
+
   if (!editor) return null;
 
   return (
     <div className="nv-editor">
-      {editable && <Toolbar editor={editor} />}
+      {editable && <Toolbar editor={editor} labels={lbl} />}
       <EditorContent editor={editor} className="nv-editor-content" />
     </div>
   );
 }
 
-function Toolbar({ editor }: { editor: Editor }) {
+function Toolbar({ editor, labels }: { editor: Editor; labels: NovalisEditorLabels }) {
   const Btn = ({
-    label,
+    glyph,
+    title,
     onClick,
     active = false,
   }: {
-    label: string;
+    glyph: string;
+    title: string;
     onClick: () => void;
     active?: boolean;
   }) => (
     <button
       type="button"
+      title={title}
+      aria-label={title}
       className={`nv-tb-btn${active ? " is-active" : ""}`}
       onMouseDown={(e) => {
         e.preventDefault();
         onClick();
       }}
     >
-      {label}
+      {glyph}
     </button>
   );
 
   return (
     <div className="nv-toolbar">
-      <Btn label="B" onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} />
-      <Btn label="I" onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} />
-      <Btn label="H1" onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} />
-      <Btn label="H2" onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} />
-      <Btn label="List" onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} />
-      <Btn label="Tasks" onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive("taskList")} />
-      <Btn label="Code" onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive("codeBlock")} />
-      <Btn label="Quote" onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} />
+      <Btn glyph="B" title={labels.bold} onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} />
+      <Btn glyph="I" title={labels.italic} onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} />
+      <Btn glyph="H1" title={labels.heading1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} />
+      <Btn glyph="H2" title={labels.heading2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} />
+      <Btn glyph={labels.bulletList} title={labels.bulletList} onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} />
+      <Btn glyph={labels.taskList} title={labels.taskList} onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive("taskList")} />
+      <Btn glyph={labels.codeBlock} title={labels.codeBlock} onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive("codeBlock")} />
+      <Btn glyph={labels.blockquote} title={labels.blockquote} onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} />
     </div>
   );
 }

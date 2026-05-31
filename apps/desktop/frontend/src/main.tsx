@@ -1,6 +1,7 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import "@fontsource-variable/inter";
+import "./lib/i18n"; // initialize i18next before any component renders
 import App from "./App";
 import "@novalis/editor/styles.css";
 import "./styles.css";

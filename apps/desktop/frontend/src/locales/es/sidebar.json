@@ -1,0 +1,42 @@
+{
+  "blankNote": "Nota en blanco",
+  "cloudOnly": "Solo en línea – se descarga al abrir",
+  "collapseAll": "Contraer todas las carpetas",
+  "confirm": {
+    "deleteEmptyFolder": "¿Eliminar la carpeta vacía «{{name}}»?",
+    "trashFolder": "¿Mover la carpeta «{{name}}» y todo su contenido a la papelera?",
+    "trashNote": "¿Mover «{{title}}» a la papelera?"
+  },
+  "filterPlaceholder": "Filtrar notas…",
+  "folderNamePlaceholder": "Nombre de la carpeta",
+  "inFolder": "en /{{target}}",
+  "menu": {
+    "delete": "Eliminar",
+    "duplicate": "Duplicar",
+    "newNoteHere": "Nueva nota aquí",
+    "newSubfolder": "Nueva subcarpeta",
+    "open": "Abrir",
+    "pin": "Fijar",
+    "rename": "Renombrar",
+    "setColor": "Establecer color…",
+    "unpin": "Dejar de fijar"
+  },
+  "newFolder": "Nueva carpeta",
+  "newNote": "Nueva nota",
+  "newNoteIn": "Nueva nota en {{target}}",
+  "noColor": "Sin color",
+  "notesHeading": "Notas",
+  "pinned": "Fijadas",
+  "recent": "Recientes",
+  "refreshFromDisk": "Recargar desde el disco",
+  "searchShortcut": "Buscar (⌘K)",
+  "settings": "Ajustes",
+  "sort": {
+    "created": "Creadas recientemente",
+    "manual": "Manual (arrastrar para ordenar)",
+    "modified": "Modificadas recientemente",
+    "nameAsc": "Nombre (A–Z)",
+    "nameDesc": "Nombre (Z–A)"
+  },
+  "sortTitle": "Orden: {{mode}}"
+}

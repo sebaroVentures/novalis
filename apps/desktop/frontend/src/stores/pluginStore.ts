@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import i18n from "../lib/i18n";
 import { api, type PluginManifest } from "../ipc/api";
 
 export interface PluginCommand {
@@ -96,7 +97,7 @@ export const usePlugins = create<PluginState>((set, get) => ({
         worker.onerror = (e) => get().notify(`[${p.manifest.id}] ${e.message}`);
         workers.set(p.manifest.id, worker);
       } catch (e) {
-        get().notify(`Failed to load plugin ${p.manifest.id}: ${String(e)}`);
+        get().notify(i18n.t("settings:plugins.loadFailed", { id: p.manifest.id, error: String(e) }));
       }
     }
   },

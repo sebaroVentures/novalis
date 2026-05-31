@@ -1,18 +1,83 @@
 @import "tailwindcss";
 
-/* Design tokens. Exposed to Tailwind utilities (font-sans, the accent palette)
-   and reused by the editor via the --nv-* variables below. */
+/* Design tokens. Exposed to Tailwind utilities (font-sans, the semantic color
+   palette) and reused by the editor via the --nv-* variables below. */
 @theme {
   --font-sans:
     "Inter Variable", system-ui, -apple-system, "Segoe UI", Roboto, Helvetica,
     Arial, sans-serif;
 }
 
-:root {
+/* Semantic color tokens → Tailwind utilities (bg-app, text-fg, border-border,
+   bg-accent, …). `inline` makes the generated utilities reference
+   `var(--color-*)` directly instead of copying the value, so swapping the
+   underlying `--app` / `--fg` / … variables per theme re-themes the whole app
+   with no class changes. The accent is overridable at runtime (accent picker). */
+@theme inline {
+  --color-app: var(--app);
+  --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
+  --color-border: var(--border);
+  --color-border-strong: var(--border-strong);
+  --color-fg: var(--fg);
+  --color-fg-muted: var(--fg-muted);
+  --color-fg-subtle: var(--fg-subtle);
+  --color-fg-faint: var(--fg-faint);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
+  --color-overlay: var(--overlay);
+  --color-accent: var(--accent);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-fg: var(--accent-fg);
+  --color-danger: var(--danger);
+}
+
+/* Dark theme (default). Values mirror the previous hardcoded neutral / indigo
+   palette so dark looks unchanged after the token sweep. */
+:root,
+:root[data-theme="dark"] {
   color-scheme: dark;
-  /* Accent (indigo) — single source for selection/focus and the editor. */
+  --app: #0a0a0a; /* neutral-950 */
+  --surface: #171717; /* neutral-900 */
+  --surface-2: #262626; /* neutral-800 */
+  --border: #262626; /* neutral-800 */
+  --border-strong: #404040; /* neutral-700 */
+  --fg: #f5f5f5; /* neutral-100 */
+  --fg-muted: #a3a3a3; /* neutral-400 */
+  --fg-subtle: #737373; /* neutral-500 */
+  --fg-faint: #525252; /* neutral-600 */
+  --hover: rgba(255, 255, 255, 0.05);
+  --active: rgba(255, 255, 255, 0.1);
+  --overlay: rgba(0, 0, 0, 0.5);
   --accent: #818cf8;
-  --accent-soft: rgba(129, 140, 248, 0.18);
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
+  --danger: #f87171; /* red-400 */
+  --scrollbar: rgba(255, 255, 255, 0.12);
+  --scrollbar-hover: rgba(255, 255, 255, 0.22);
+}
+
+/* Light theme. */
+:root[data-theme="light"] {
+  color-scheme: light;
+  --app: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5; /* zinc-100 */
+  --border: #e5e5e5; /* neutral-200 */
+  --border-strong: #d4d4d4; /* neutral-300 */
+  --fg: #171717; /* neutral-900 */
+  --fg-muted: #525252; /* neutral-600 */
+  --fg-subtle: #737373; /* neutral-500 */
+  --fg-faint: #a3a3a3; /* neutral-400 */
+  --hover: rgba(0, 0, 0, 0.04);
+  --active: rgba(0, 0, 0, 0.07);
+  --overlay: rgba(0, 0, 0, 0.25);
+  --accent: #6366f1; /* indigo-500 — a touch deeper for light-bg contrast */
+  --accent-fg: #ffffff;
+  --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
+  --danger: #dc2626; /* red-600 */
+  --scrollbar: rgba(0, 0, 0, 0.18);
+  --scrollbar-hover: rgba(0, 0, 0, 0.32);
 }
 
 html,
@@ -31,28 +96,34 @@ body {
   letter-spacing: -0.006em;
 }
 
-/* Match the editor's accent to the app accent. */
+/* Match the editor's variables to the app theme so it follows light/dark and
+   the accent picker. */
 .nv-editor {
+  --nv-editor-fg: var(--fg);
+  --nv-editor-muted: var(--fg-subtle);
   --nv-editor-accent: var(--accent);
+  --nv-editor-border: var(--border);
+  --nv-editor-code-bg: var(--surface-2);
+  --nv-editor-hover: var(--hover);
 }
 
 /* Subtle, modern scrollbars — the OS default is heavy on a dark surface. */
 * {
   scrollbar-width: thin;
-  scrollbar-color: rgba(255, 255, 255, 0.14) transparent;
+  scrollbar-color: var(--scrollbar) transparent;
 }
 *::-webkit-scrollbar {
   width: 11px;
   height: 11px;
 }
 *::-webkit-scrollbar-thumb {
-  background: rgba(255, 255, 255, 0.12);
+  background: var(--scrollbar);
   border-radius: 9999px;
   border: 3px solid transparent;
   background-clip: padding-box;
 }
 *::-webkit-scrollbar-thumb:hover {
-  background: rgba(255, 255, 255, 0.22);
+  background: var(--scrollbar-hover);
   background-clip: padding-box;
 }
 
@@ -70,4 +141,28 @@ body {
 }
 button:focus:not(:focus-visible) {
   outline: none;
+}
+
+/* Settings dialog: subtle enter animation when switching category panels. */
+@keyframes nv-fade-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.nv-panel-enter {
+  animation: nv-fade-in 140ms ease-out;
+}
+
+/* Compact density tightens the editor reading area (the highest-value density
+   surface for a notes app); comfortable is the default in editor.css. */
+[data-density="compact"] .nv-editor-content {
+  padding: 12px 24px;
+}
+[data-density="compact"] .nv-editor-content .ProseMirror {
+  line-height: 1.55;
 }

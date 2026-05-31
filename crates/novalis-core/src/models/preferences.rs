@@ -10,6 +10,14 @@ pub struct Preferences {
     pub task_view: TaskViewPrefs,
     #[serde(default)]
     pub file_tree: FileTreePrefs,
+    #[serde(default)]
+    pub appearance: AppearancePrefs,
+    #[serde(default)]
+    pub editor: EditorPrefs,
+    #[serde(default)]
+    pub calendar: CalendarPrefs,
+    #[serde(default)]
+    pub general: GeneralPrefs,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
@@ -79,6 +87,65 @@ pub struct FileTreePrefs {
     pub item_order: HashMap<String, Vec<String>>,
 }
 
+/// Appearance / theming. `theme` and `density` are applied at runtime by the
+/// frontend (CSS variables / `data-*` on the document element); `accent` is a
+/// color token shared with the folder-color palette.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct AppearancePrefs {
+    /// `"dark"` | `"light"` | `"system"`.
+    #[serde(default = "default_theme")]
+    pub theme: String,
+    /// Accent color token (e.g. `"indigo"`), shared with the folder palette.
+    #[serde(default = "default_accent")]
+    pub accent: String,
+    /// Base UI font size in px.
+    #[serde(default = "default_font_size")]
+    pub font_size: u8,
+    /// `"comfortable"` | `"compact"`.
+    #[serde(default = "default_density")]
+    pub density: String,
+}
+
+/// Editor behavior. Debounce values are milliseconds.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct EditorPrefs {
+    /// Autosave debounce after the last keystroke.
+    #[serde(default = "default_autosave_ms")]
+    pub autosave_ms: u32,
+    /// Internal serialize/typing-responsiveness debounce (advanced).
+    #[serde(default = "default_serialize_ms")]
+    pub serialize_ms: u32,
+    /// Browser spellcheck in the editor.
+    #[serde(default = "default_spellcheck")]
+    pub spellcheck: bool,
+}
+
+/// Calendar display preferences.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct CalendarPrefs {
+    /// `"monday"` | `"sunday"`.
+    #[serde(default = "default_week_start")]
+    pub week_start: String,
+    /// Default duration (minutes) for a newly created event.
+    #[serde(default = "default_event_minutes")]
+    pub default_event_minutes: u32,
+    /// `"24h"` | `"12h"`.
+    #[serde(default = "default_time_format")]
+    pub time_format: String,
+}
+
+/// General / startup behavior.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct GeneralPrefs {
+    /// View shown on launch: `"notes"` | `"tasks"` | `"calendar"`.
+    #[serde(default = "default_app_view")]
+    pub default_app_view: String,
+}
+
 fn default_task_mode() -> String {
     "list".to_string()
 }
@@ -97,6 +164,50 @@ fn default_sort_by() -> String {
 
 fn default_sort_dir() -> String {
     "asc".to_string()
+}
+
+fn default_theme() -> String {
+    "dark".to_string()
+}
+
+fn default_accent() -> String {
+    "indigo".to_string()
+}
+
+fn default_font_size() -> u8 {
+    16
+}
+
+fn default_density() -> String {
+    "comfortable".to_string()
+}
+
+fn default_autosave_ms() -> u32 {
+    600
+}
+
+fn default_serialize_ms() -> u32 {
+    200
+}
+
+fn default_spellcheck() -> bool {
+    true
+}
+
+fn default_week_start() -> String {
+    "monday".to_string()
+}
+
+fn default_event_minutes() -> u32 {
+    60
+}
+
+fn default_time_format() -> String {
+    "24h".to_string()
+}
+
+fn default_app_view() -> String {
+    "notes".to_string()
 }
 
 fn default_kanban_columns() -> Vec<KanbanColumnDef> {
@@ -154,6 +265,45 @@ impl Default for FileTreePrefs {
     }
 }
 
+impl Default for AppearancePrefs {
+    fn default() -> Self {
+        Self {
+            theme: default_theme(),
+            accent: default_accent(),
+            font_size: default_font_size(),
+            density: default_density(),
+        }
+    }
+}
+
+impl Default for EditorPrefs {
+    fn default() -> Self {
+        Self {
+            autosave_ms: default_autosave_ms(),
+            serialize_ms: default_serialize_ms(),
+            spellcheck: default_spellcheck(),
+        }
+    }
+}
+
+impl Default for CalendarPrefs {
+    fn default() -> Self {
+        Self {
+            week_start: default_week_start(),
+            default_event_minutes: default_event_minutes(),
+            time_format: default_time_format(),
+        }
+    }
+}
+
+impl Default for GeneralPrefs {
+    fn default() -> Self {
+        Self {
+            default_app_view: default_app_view(),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -197,5 +347,61 @@ mod tests {
             inbox_path: "_Inbox.md".to_string(),
         };
         assert_eq!(prefs.resolve(None, day()), "_Inbox.md");
+    }
+
+    #[test]
+    fn preferences_default_has_expected_new_block_values() {
+        let p = Preferences::default();
+        assert_eq!(p.appearance.theme, "dark");
+        assert_eq!(p.appearance.accent, "indigo");
+        assert_eq!(p.appearance.font_size, 16);
+        assert_eq!(p.appearance.density, "comfortable");
+        assert_eq!(p.editor.autosave_ms, 600);
+        assert_eq!(p.editor.serialize_ms, 200);
+        assert!(p.editor.spellcheck);
+        assert_eq!(p.calendar.week_start, "monday");
+        assert_eq!(p.calendar.default_event_minutes, 60);
+        assert_eq!(p.calendar.time_format, "24h");
+        assert_eq!(p.general.default_app_view, "notes");
+    }
+
+    #[test]
+    fn deserialize_empty_object_yields_all_defaults() {
+        let prefs: Preferences = serde_json::from_str("{}").unwrap();
+        assert_eq!(prefs.appearance.theme, "dark");
+        assert_eq!(prefs.editor.autosave_ms, 600);
+        assert_eq!(prefs.calendar.week_start, "monday");
+        assert_eq!(prefs.general.default_app_view, "notes");
+    }
+
+    #[test]
+    fn deserialize_legacy_config_backfills_new_blocks() {
+        // A config.json written before appearance/editor/calendar/general existed
+        // must still parse, backfilling the new blocks with defaults.
+        let legacy = r#"{
+            "taskView": { "defaultMode": "kanban" },
+            "fileTree": { "sortBy": "modified" }
+        }"#;
+        let prefs: Preferences = serde_json::from_str(legacy).unwrap();
+        assert_eq!(prefs.task_view.default_mode, "kanban");
+        assert_eq!(prefs.file_tree.sort_by, "modified");
+        assert_eq!(prefs.appearance.theme, "dark");
+        assert_eq!(prefs.calendar.week_start, "monday");
+        assert_eq!(prefs.general.default_app_view, "notes");
+    }
+
+    #[test]
+    fn appearance_roundtrips_through_json() {
+        let mut p = Preferences::default();
+        p.appearance.theme = "light".to_string();
+        p.appearance.accent = "emerald".to_string();
+        p.appearance.font_size = 17;
+        p.calendar.time_format = "12h".to_string();
+        let json = serde_json::to_string(&p).unwrap();
+        let back: Preferences = serde_json::from_str(&json).unwrap();
+        assert_eq!(back.appearance.theme, "light");
+        assert_eq!(back.appearance.accent, "emerald");
+        assert_eq!(back.appearance.font_size, 17);
+        assert_eq!(back.calendar.time_format, "12h");
     }
 }

@@ -1,0 +1,19 @@
+{
+  "appName": "Novalis",
+  "chooseHint": "Choose a folder of Markdown files (e.g. your OneDrive NexusNotes folder). Novalis reads and writes plain <1>.md</1> files — nothing leaves your device.",
+  "cloudHint": "This vault is in a {{provider}} folder. Notes kept <b>online-only</b> download on first open, which can cause a brief delay. For instant access, right-click the folder in Finder and choose <b>“Always keep on this device.”</b>",
+  "cmdCore": "core",
+  "cmdEmpty": "No matching commands.",
+  "cmdNewNote": "New note",
+  "cmdPlaceholder": "Run a command…",
+  "cmdReindex": "Reindex vault",
+  "dismiss": "Dismiss",
+  "error": {
+    "folderExists": "\"{{name}}\" already exists.",
+    "itemExistsHere": "\"{{name}}\" already exists in this folder.",
+    "itemExistsTarget": "\"{{name}}\" already exists in the target folder."
+  },
+  "openVault": "Open a vault…",
+  "searchPlaceholder": "Search notes by title…",
+  "tagline": "Local-first notes, tasks & calendar"
+}

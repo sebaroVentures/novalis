@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 
 import { Cloud, X } from "lucide-react";
+import { Trans, useTranslation } from "react-i18next";
 
 import { useVault } from "../stores/vaultStore";
 
@@ -22,6 +23,7 @@ const dismissKey = (path: string) => `novalis:cloudHintDismissed:${path}`;
 /** One-time, dismissible notice for cloud-synced vaults explaining that
  *  "online-only" files download on first open and how to make them instant. */
 export function CloudHint() {
+  const { t } = useTranslation("vault");
   const vaultPath = useVault((s) => s.vaultPath);
   const provider = cloudProvider(vaultPath);
   const [dismissed, setDismissed] = useState(true);
@@ -43,15 +45,17 @@ export function CloudHint() {
     <div className="flex items-start gap-2.5 border-b border-amber-500/20 bg-amber-500/10 px-4 py-2 text-xs text-amber-200/90">
       <Cloud size={15} className="mt-0.5 shrink-0 text-amber-300/80" />
       <p className="min-w-0 flex-1 leading-relaxed">
-        This vault is in a {provider} folder. Notes kept{" "}
-        <span className="font-medium">online-only</span> download on first open, which can cause a
-        brief delay. For instant access, right-click the folder in Finder and choose{" "}
-        <span className="font-medium">“Always keep on this device.”</span>
+        <Trans
+          i18nKey="cloudHint"
+          ns="vault"
+          values={{ provider }}
+          components={{ b: <span className="font-medium" /> }}
+        />
       </p>
       <button
         onClick={dismiss}
-        title="Dismiss"
-        className="shrink-0 rounded p-0.5 text-amber-300/70 transition-colors hover:bg-white/10 hover:text-amber-100"
+        title={t("dismiss")}
+        className="shrink-0 rounded p-0.5 text-amber-300/70 transition-colors hover:bg-active hover:text-amber-100"
       >
         <X size={14} />
       </button>

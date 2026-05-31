@@ -1,0 +1,28 @@
+{
+  "addPlaceholder": "Add a task…  (e.g. Ship release @due(2026-06-01) @priority(high))",
+  "agenda": {
+    "noDate": "No date",
+    "overdue": "Overdue",
+    "today": "Today",
+    "upcoming": "Upcoming"
+  },
+  "empty": "No tasks. Add one above, or write <1>- [ ] something</1> in a note.",
+  "filter": {
+    "all": "All",
+    "completed": "Completed",
+    "open": "Open"
+  },
+  "kanban": {
+    "backlog": "Backlog",
+    "done": "Done",
+    "inProgress": "In Progress",
+    "review": "Review",
+    "todo": "To Do"
+  },
+  "priority": {
+    "high": "High",
+    "low": "Low",
+    "medium": "Medium",
+    "urgent": "Urgent"
+  }
+}

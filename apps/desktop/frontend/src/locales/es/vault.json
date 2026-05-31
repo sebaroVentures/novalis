@@ -1,0 +1,19 @@
+{
+  "appName": "Novalis",
+  "chooseHint": "Elegir una carpeta de archivos Markdown (p. ej. la carpeta NexusNotes de OneDrive). Novalis lee y escribe archivos <1>.md</1> sencillos – nada sale del dispositivo.",
+  "cloudHint": "Este Vault está en una carpeta de {{provider}}. Las notas que se mantienen <b>solo en línea</b> se descargan al abrirlas por primera vez, lo que puede causar un breve retraso. Para un acceso instantáneo, hacer clic derecho en la carpeta en el Finder y elegir <b>«Conservar siempre en este dispositivo».</b>",
+  "cmdCore": "Integrado",
+  "cmdEmpty": "No hay comandos coincidentes.",
+  "cmdNewNote": "Nueva nota",
+  "cmdPlaceholder": "Ejecutar un comando…",
+  "cmdReindex": "Reindexar el Vault",
+  "dismiss": "Ocultar",
+  "error": {
+    "folderExists": "«{{name}}» ya existe.",
+    "itemExistsHere": "«{{name}}» ya existe en esta carpeta.",
+    "itemExistsTarget": "«{{name}}» ya existe en la carpeta de destino."
+  },
+  "openVault": "Abrir un Vault…",
+  "searchPlaceholder": "Buscar notas por título…",
+  "tagline": "Local-first: notas, tareas y calendario"
+}
