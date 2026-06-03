@@ -3,6 +3,7 @@
   "blockquote": "Cita",
   "bold": "Negrita",
   "bulletList": "Lista",
+  "callout": "Llamada",
   "codeBlock": "Código",
   "deleteNote": "Eliminar nota",
   "export": "Exportar",
@@ -13,6 +14,8 @@
   "externalReload": "Recargar",
   "heading1": "Encabezado 1",
   "heading2": "Encabezado 2",
+  "heading3": "Encabezado 3",
+  "horizontalRule": "Línea horizontal",
   "italic": "Cursiva",
   "noteOpen": "No hay ninguna nota abierta",
   "placeholder": "Empezar a escribir…",
@@ -20,6 +23,7 @@
   "saved": "Guardado",
   "saving": "Guardando…",
   "selectHint": "Seleccionar una nota en la barra lateral o crear una nueva.",
+  "strike": "Tachado",
   "taskList": "Tareas",
   "unsaved": "Sin guardar"
 }

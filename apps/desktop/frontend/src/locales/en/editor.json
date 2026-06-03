@@ -3,6 +3,7 @@
   "blockquote": "Quote",
   "bold": "Bold",
   "bulletList": "List",
+  "callout": "Callout",
   "codeBlock": "Code",
   "deleteNote": "Delete note",
   "export": "Export",
@@ -13,6 +14,8 @@
   "externalReload": "Reload",
   "heading1": "Heading 1",
   "heading2": "Heading 2",
+  "heading3": "Heading 3",
+  "horizontalRule": "Horizontal rule",
   "italic": "Italic",
   "noteOpen": "No note open",
   "placeholder": "Start writing…",
@@ -20,6 +23,7 @@
   "saveFailed": "Save failed — retry",
   "saving": "Saving…",
   "selectHint": "Select a note from the sidebar, or create a new one.",
+  "strike": "Strikethrough",
   "taskList": "Tasks",
   "unsaved": "Unsaved"
 }

@@ -355,12 +355,16 @@ export function EditorPane() {
               placeholder: t("placeholder"),
               bold: t("bold"),
               italic: t("italic"),
+              strike: t("strike"),
               heading1: t("heading1"),
               heading2: t("heading2"),
+              heading3: t("heading3"),
               bulletList: t("bulletList"),
               taskList: t("taskList"),
               codeBlock: t("codeBlock"),
               blockquote: t("blockquote"),
+              callout: t("callout"),
+              horizontalRule: t("horizontalRule"),
             }}
           />
         </div>

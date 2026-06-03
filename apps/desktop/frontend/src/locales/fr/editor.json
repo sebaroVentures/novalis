@@ -3,6 +3,7 @@
   "blockquote": "Citation",
   "bold": "Gras",
   "bulletList": "Liste",
+  "callout": "Encadré",
   "codeBlock": "Code",
   "deleteNote": "Supprimer la note",
   "export": "Exporter",
@@ -13,6 +14,8 @@
   "externalReload": "Recharger",
   "heading1": "Titre 1",
   "heading2": "Titre 2",
+  "heading3": "Titre 3",
+  "horizontalRule": "Ligne horizontale",
   "italic": "Italique",
   "noteOpen": "Aucune note ouverte",
   "placeholder": "Commencer à écrire…",
@@ -20,6 +23,7 @@
   "saved": "Enregistré",
   "saving": "Enregistrement…",
   "selectHint": "Sélectionner une note dans la barre latérale ou en créer une nouvelle.",
+  "strike": "Barré",
   "taskList": "Tâches",
   "unsaved": "Non enregistré"
 }

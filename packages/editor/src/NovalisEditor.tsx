@@ -56,6 +56,10 @@ export interface NovalisEditorLabels {
   taskList: string;
   codeBlock: string;
   blockquote: string;
+  heading3: string;
+  strike: string;
+  horizontalRule: string;
+  callout: string;
 }
 
 const DEFAULT_LABELS: NovalisEditorLabels = {
@@ -68,6 +72,10 @@ const DEFAULT_LABELS: NovalisEditorLabels = {
   taskList: "Tasks",
   codeBlock: "Code",
   blockquote: "Quote",
+  heading3: "Heading 3",
+  strike: "Strikethrough",
+  horizontalRule: "Horizontal rule",
+  callout: "Callout",
 };
 
 function getMarkdown(editor: Editor): string {
@@ -237,12 +245,24 @@ function Toolbar({ editor, labels }: { editor: Editor; labels: NovalisEditorLabe
     <div className="nv-toolbar">
       <Btn glyph="B" title={labels.bold} onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} />
       <Btn glyph="I" title={labels.italic} onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} />
+      <Btn glyph={"S̶"} title={labels.strike} onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} />
       <Btn glyph="H1" title={labels.heading1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} />
       <Btn glyph="H2" title={labels.heading2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} />
+      <Btn glyph="H3" title={labels.heading3} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive("heading", { level: 3 })} />
       <Btn glyph={labels.bulletList} title={labels.bulletList} onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} />
       <Btn glyph={labels.taskList} title={labels.taskList} onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive("taskList")} />
       <Btn glyph={labels.codeBlock} title={labels.codeBlock} onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive("codeBlock")} />
       <Btn glyph={labels.blockquote} title={labels.blockquote} onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} />
+      <Btn
+        glyph={labels.callout}
+        title={labels.callout}
+        onClick={() => {
+          const c = editor.chain().focus();
+          if (!editor.isActive("blockquote")) c.toggleBlockquote();
+          c.insertContent("[!NOTE] ").run();
+        }}
+      />
+      <Btn glyph="—" title={labels.horizontalRule} onClick={() => editor.chain().focus().setHorizontalRule().run()} />
     </div>
   );
 }
