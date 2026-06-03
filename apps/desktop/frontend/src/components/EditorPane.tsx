@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
-import { NovalisEditor } from "@novalis/editor";
+import { NovalisEditor, extractHeadings, type Editor, type OutlineItem } from "@novalis/editor";
 import { convertFileSrc } from "@tauri-apps/api/core";
 import {
   AlertTriangle,
@@ -10,6 +10,7 @@ import {
   FileText,
   History,
   Link2,
+  ListTree,
   Loader2,
   Trash2,
 } from "lucide-react";
@@ -20,22 +21,26 @@ import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
 import { useVault, type SaveState } from "../stores/vaultStore";
 import { LinksPanel } from "./LinksPanel";
+import { OutlinePanel } from "./OutlinePanel";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { VersionHistoryModal } from "./VersionHistoryModal";
 import { WikiLinkHoverCard, type HoverTarget } from "./WikiLinkHoverCard";
 
-// Device-local toggle for the links panel, persisted across sessions.
-const LINKS_PANEL_KEY = "nv:linksPanelOpen";
-function loadLinksOpen(): boolean {
+// Device-local right-rail selection (links / outline / closed), persisted.
+const RIGHT_PANEL_KEY = "nv:rightPanel";
+type RightPanel = "none" | "links" | "outline";
+function loadRightPanel(): RightPanel {
   try {
-    return localStorage.getItem(LINKS_PANEL_KEY) !== "0"; // default open
+    const v = localStorage.getItem(RIGHT_PANEL_KEY);
+    if (v === "none" || v === "outline") return v;
+    return "links"; // default open on linked references
   } catch {
-    return true;
+    return "links";
   }
 }
-function saveLinksOpen(open: boolean): void {
+function saveRightPanel(panel: RightPanel): void {
   try {
-    localStorage.setItem(LINKS_PANEL_KEY, open ? "1" : "0");
+    localStorage.setItem(RIGHT_PANEL_KEY, panel);
   } catch {
     /* ignore */
   }
@@ -75,16 +80,48 @@ export function EditorPane() {
   const [exportOpen, setExportOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
-  const [linksOpen, setLinksOpen] = useState(loadLinksOpen);
+  const [rightPanel, setRightPanel] = useState<RightPanel>(loadRightPanel);
+  const [editor, setEditorInstance] = useState<Editor | null>(null);
+  const [headings, setHeadings] = useState<OutlineItem[]>([]);
   const [hovered, setHovered] = useState<HoverTarget | null>(null);
   const hoverTimer = useRef<number | null>(null);
   const { t } = useTranslation(["editor", "common", "trash", "versions", "links"]);
 
-  const toggleLinks = () =>
-    setLinksOpen((v) => {
-      saveLinksOpen(!v);
-      return !v;
+  const togglePanel = (panel: "links" | "outline") =>
+    setRightPanel((cur) => {
+      const next = cur === panel ? "none" : panel;
+      saveRightPanel(next);
+      return next;
     });
+
+  const handleEditorReady = useCallback((ed: Editor) => setEditorInstance(ed), []);
+
+  const jumpToHeading = useCallback(
+    (pos: number) => {
+      if (!editor) return;
+      editor.chain().focus().setTextSelection(pos + 1).scrollIntoView().run();
+    },
+    [editor],
+  );
+
+  // Rebuild the document outline (debounced) whenever the editor's doc changes.
+  useEffect(() => {
+    if (!editor) {
+      setHeadings([]);
+      return;
+    }
+    let htimer = 0;
+    const recompute = () => {
+      window.clearTimeout(htimer);
+      htimer = window.setTimeout(() => setHeadings(extractHeadings(editor.state.doc)), 250);
+    };
+    recompute();
+    editor.on("update", recompute);
+    return () => {
+      window.clearTimeout(htimer);
+      editor.off("update", recompute);
+    };
+  }, [editor]);
 
   const split = useMemo(
     () => (activeNote ? splitFrontmatter(activeNote.content) : null),
@@ -265,14 +302,24 @@ export function EditorPane() {
         <div className="flex items-center gap-1.5">
           <SaveStatus state={saveState} onRetry={() => void flushPending()} />
           <button
-            onClick={toggleLinks}
-            title={linksOpen ? t("links:hide") : t("links:show")}
-            aria-pressed={linksOpen}
+            onClick={() => togglePanel("links")}
+            title={rightPanel === "links" ? t("links:hide") : t("links:show")}
+            aria-pressed={rightPanel === "links"}
             className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
-              linksOpen ? "bg-active text-fg" : "text-fg-muted"
+              rightPanel === "links" ? "bg-active text-fg" : "text-fg-muted"
             }`}
           >
             <Link2 size={15} />
+          </button>
+          <button
+            onClick={() => togglePanel("outline")}
+            title={rightPanel === "outline" ? t("links:hideOutline") : t("links:showOutline")}
+            aria-pressed={rightPanel === "outline"}
+            className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
+              rightPanel === "outline" ? "bg-active text-fg" : "text-fg-muted"
+            }`}
+          >
+            <ListTree size={15} />
           </button>
           <button
             onClick={() => setHistoryOpen(true)}
@@ -349,6 +396,7 @@ export function EditorPane() {
             onSearchLinkTargets={searchLinkTargets}
             onWikiLinkHover={onWikiLinkHover}
             onWikiLinkHoverEnd={onWikiLinkHoverEnd}
+            onEditorReady={handleEditorReady}
             serializeMs={editorPrefs?.serializeMs ?? 200}
             spellCheck={editorPrefs?.spellcheck ?? true}
             labels={{
@@ -368,11 +416,18 @@ export function EditorPane() {
             }}
           />
         </div>
-        {linksOpen && (
+        {rightPanel === "links" && (
           <LinksPanel
             title={activeNote.title}
             path={activePath}
-            onClose={toggleLinks}
+            onClose={() => togglePanel("links")}
+          />
+        )}
+        {rightPanel === "outline" && (
+          <OutlinePanel
+            headings={headings}
+            onJump={jumpToHeading}
+            onClose={() => togglePanel("outline")}
           />
         )}
       </div>

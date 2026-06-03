@@ -3,14 +3,18 @@
   "emptyNote": "Nota vacía",
   "graph": "Grafo",
   "hide": "Ocultar enlaces",
+  "hideOutline": "Ocultar esquema",
   "link": "Enlazar",
   "linkFailed": "No se pudo enlazar esa mención: puede haber cambiado.",
   "linkTitle": "Enlazar esta mención",
   "mentions": "Menciones sin enlazar",
   "noBacklinks": "Aún ninguna nota enlaza aquí.",
   "noGraph": "Esta nota aún no tiene enlaces.",
+  "noHeadings": "Aún no hay encabezados.",
   "noMentions": "No hay menciones sin enlazar.",
   "notCreated": "Aún no creada",
+  "outline": "Esquema",
   "show": "Mostrar enlaces",
+  "showOutline": "Mostrar esquema",
   "title": "Enlaces"
 }

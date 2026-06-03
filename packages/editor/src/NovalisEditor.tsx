@@ -39,6 +39,9 @@ export interface NovalisEditorProps {
   onWikiLinkHover?: (title: string, rect: DOMRect) => void;
   /** Pointer left the hovered wikilink. */
   onWikiLinkHoverEnd?: () => void;
+  /** Called once the underlying TipTap editor instance exists, and again if it
+   *  is recreated. The host uses it to read the outline and scroll to headings. */
+  onEditorReady?: (editor: Editor) => void;
   /** Debounce (ms) for full-document markdown serialization. Default 200. */
   serializeMs?: number;
   /** Browser spellcheck in the editable area. Default true. */
@@ -99,6 +102,7 @@ export function NovalisEditor({
   onSearchLinkTargets,
   onWikiLinkHover,
   onWikiLinkHoverEnd,
+  onEditorReady,
   serializeMs,
   spellCheck,
   labels,
@@ -110,6 +114,8 @@ export function NovalisEditor({
   // Latest serialize debounce, read at flush time so changes apply live.
   const serializeMsRef = useRef(serializeMs ?? 200);
   serializeMsRef.current = serializeMs ?? 200;
+  const onEditorReadyRef = useRef(onEditorReady);
+  onEditorReadyRef.current = onEditorReady;
   // Debounce full-document markdown serialization. `getMarkdown` walks and
   // serializes the entire document; doing it on every keystroke is the main
   // typing lag on large notes. Serialize at most every ~200ms and flush on
@@ -214,6 +220,11 @@ export function NovalisEditor({
   useEffect(() => {
     if (editor) editor.view.dom.setAttribute("spellcheck", String(spellCheck ?? true));
   }, [editor, spellCheck]);
+
+  // Hand the editor instance to the host once it exists (outline / find/replace).
+  useEffect(() => {
+    if (editor) onEditorReadyRef.current?.(editor);
+  }, [editor]);
 
   if (!editor) return null;
 

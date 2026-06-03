@@ -8,7 +8,10 @@
 
 export { NovalisEditor } from "./NovalisEditor";
 export type { NovalisEditorProps } from "./NovalisEditor";
+export { extractHeadings } from "./outline";
+export type { OutlineItem } from "./outline";
 export { WikiLink } from "./WikiLink";
 export type { WikiLinkOptions } from "./WikiLink";
+export type { Editor } from "@tiptap/react";
 
 export const EDITOR_PACKAGE_NAME = "@novalis/editor";

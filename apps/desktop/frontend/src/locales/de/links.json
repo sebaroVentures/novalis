@@ -3,14 +3,18 @@
   "emptyNote": "Leere Notiz",
   "graph": "Graph",
   "hide": "Verknüpfungen ausblenden",
+  "hideOutline": "Gliederung ausblenden",
   "link": "Verknüpfen",
   "linkFailed": "Erwähnung konnte nicht verknüpft werden — sie hat sich möglicherweise geändert.",
   "linkTitle": "Diese Erwähnung verknüpfen",
   "mentions": "Unverknüpfte Erwähnungen",
   "noBacklinks": "Noch verweist keine Notiz hierauf.",
   "noGraph": "Diese Notiz hat noch keine Verknüpfungen.",
+  "noHeadings": "Noch keine Überschriften.",
   "noMentions": "Keine unverknüpften Erwähnungen.",
   "notCreated": "Noch nicht erstellt",
+  "outline": "Gliederung",
   "show": "Verknüpfungen anzeigen",
+  "showOutline": "Gliederung anzeigen",
   "title": "Verknüpfungen"
 }

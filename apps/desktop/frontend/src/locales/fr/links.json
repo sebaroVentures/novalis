@@ -3,14 +3,18 @@
   "emptyNote": "Note vide",
   "graph": "Graphe",
   "hide": "Masquer les liens",
+  "hideOutline": "Masquer le plan",
   "link": "Lier",
   "linkFailed": "Impossible de lier cette mention — elle a peut-être changé.",
   "linkTitle": "Lier cette mention",
   "mentions": "Mentions non liées",
   "noBacklinks": "Aucune note ne pointe ici pour l'instant.",
   "noGraph": "Cette note n'a pas encore de liens.",
+  "noHeadings": "Aucun titre pour l'instant.",
   "noMentions": "Aucune mention non liée.",
   "notCreated": "Pas encore créée",
+  "outline": "Plan",
   "show": "Afficher les liens",
+  "showOutline": "Afficher le plan",
   "title": "Liens"
 }

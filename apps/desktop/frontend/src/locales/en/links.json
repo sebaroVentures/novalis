@@ -3,14 +3,18 @@
   "emptyNote": "Empty note",
   "graph": "Graph",
   "hide": "Hide links",
+  "hideOutline": "Hide outline",
   "link": "Link",
   "linkFailed": "Couldn't link that mention — it may have changed.",
   "linkTitle": "Link this mention",
   "mentions": "Unlinked mentions",
   "noBacklinks": "No notes link here yet.",
   "noGraph": "This note has no links yet.",
+  "noHeadings": "No headings yet.",
   "noMentions": "No unlinked mentions.",
   "notCreated": "Not created yet",
+  "outline": "Outline",
   "show": "Show links",
+  "showOutline": "Show outline",
   "title": "Links"
 }
