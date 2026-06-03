@@ -12,6 +12,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
 import { Markdown } from "tiptap-markdown";
 
+import { Find } from "./Find";
 import { WikiLink } from "./WikiLink";
 import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
 
@@ -42,6 +43,8 @@ export interface NovalisEditorProps {
   /** Called once the underlying TipTap editor instance exists, and again if it
    *  is recreated. The host uses it to read the outline and scroll to headings. */
   onEditorReady?: (editor: Editor) => void;
+  /** Open the in-note find/replace bar (host renders it). Wired to Cmd/Ctrl+F. */
+  onFindToggle?: () => void;
   /** Debounce (ms) for full-document markdown serialization. Default 200. */
   serializeMs?: number;
   /** Browser spellcheck in the editable area. Default true. */
@@ -103,6 +106,7 @@ export function NovalisEditor({
   onWikiLinkHover,
   onWikiLinkHoverEnd,
   onEditorReady,
+  onFindToggle,
   serializeMs,
   spellCheck,
   labels,
@@ -116,6 +120,8 @@ export function NovalisEditor({
   serializeMsRef.current = serializeMs ?? 200;
   const onEditorReadyRef = useRef(onEditorReady);
   onEditorReadyRef.current = onEditorReady;
+  const onFindToggleRef = useRef(onFindToggle);
+  onFindToggleRef.current = onFindToggle;
   // Debounce full-document markdown serialization. `getMarkdown` walks and
   // serializes the entire document; doing it on every keystroke is the main
   // typing lag on large notes. Serialize at most every ~200ms and flush on
@@ -171,6 +177,7 @@ export function NovalisEditor({
         onHoverEnd: onWikiLinkHoverEnd,
       }),
       WikiLinkSuggestion.configure({ onSearch: onSearchLinkTargets }),
+      Find,
     ],
     content: value,
     onUpdate: ({ editor }) => {
@@ -182,6 +189,14 @@ export function NovalisEditor({
       }, serializeMsRef.current);
     },
     editorProps: {
+      handleKeyDown(_view, event) {
+        if ((event.metaKey || event.ctrlKey) && !event.shiftKey && event.key.toLowerCase() === "f") {
+          event.preventDefault();
+          onFindToggleRef.current?.();
+          return true;
+        }
+        return false;
+      },
       handlePaste(view, event) {
         const file = firstImage(event.clipboardData?.files);
         if (!file || !onUploadImage) return false;

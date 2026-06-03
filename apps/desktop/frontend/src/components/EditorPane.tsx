@@ -20,6 +20,7 @@ import { api } from "../ipc/api";
 import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
 import { useVault, type SaveState } from "../stores/vaultStore";
+import { FindBar } from "./FindBar";
 import { LinksPanel } from "./LinksPanel";
 import { OutlinePanel } from "./OutlinePanel";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
@@ -83,6 +84,7 @@ export function EditorPane() {
   const [rightPanel, setRightPanel] = useState<RightPanel>(loadRightPanel);
   const [editor, setEditorInstance] = useState<Editor | null>(null);
   const [headings, setHeadings] = useState<OutlineItem[]>([]);
+  const [findOpen, setFindOpen] = useState(false);
   const [hovered, setHovered] = useState<HoverTarget | null>(null);
   const hoverTimer = useRef<number | null>(null);
   const { t } = useTranslation(["editor", "common", "trash", "versions", "links"]);
@@ -164,6 +166,7 @@ export function EditorPane() {
       }
       pending.current = null;
       setHovered(null);
+      setFindOpen(false);
     },
     [activePath],
   );
@@ -384,6 +387,7 @@ export function EditorPane() {
           </div>
         </div>
       )}
+      {findOpen && editor && <FindBar editor={editor} onClose={() => setFindOpen(false)} />}
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <NovalisEditor
@@ -397,6 +401,7 @@ export function EditorPane() {
             onWikiLinkHover={onWikiLinkHover}
             onWikiLinkHoverEnd={onWikiLinkHoverEnd}
             onEditorReady={handleEditorReady}
+            onFindToggle={() => setFindOpen(true)}
             serializeMs={editorPrefs?.serializeMs ?? 200}
             spellCheck={editorPrefs?.spellcheck ?? true}
             labels={{

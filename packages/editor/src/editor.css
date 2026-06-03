@@ -163,6 +163,16 @@
   background: color-mix(in srgb, var(--nv-accent) 14%, transparent);
 }
 
+/* In-note find: all matches get a soft accent wash; the active match a
+   stronger one. Decorations only — the document text is untouched. */
+.nv-editor-content .nv-find-match {
+  background: color-mix(in srgb, var(--nv-accent) 24%, transparent);
+  border-radius: 2px;
+}
+.nv-editor-content .nv-find-current {
+  background: color-mix(in srgb, var(--nv-accent) 55%, transparent);
+}
+
 /* `[[` autocomplete popover. Attached to `.nv-editor`, so the theme variables
    above are in scope; positioned `fixed` to escape the content's overflow. */
 .nv-suggest {
