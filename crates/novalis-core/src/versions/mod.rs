@@ -35,6 +35,56 @@ pub struct VersionMeta {
     pub size: u32,
 }
 
+/// One line of a unified line-diff between a snapshot and the current note.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct DiffLine {
+    /// `"equal"`, `"insert"`, or `"delete"`.
+    pub kind: String,
+    pub content: String,
+}
+
+/// Cap a string to ~1 MiB on a char boundary, so a huge note can't hang the diff.
+fn cap(s: &str) -> String {
+    const MAX: usize = 1024 * 1024;
+    if s.len() <= MAX {
+        return s.to_string();
+    }
+    let mut end = MAX;
+    while !s.is_char_boundary(end) {
+        end -= 1;
+    }
+    s[..end].to_string()
+}
+
+/// Line-diff a stored snapshot (old) against the current on-disk note (new) —
+/// i.e. "what changed since this version". A missing current file diffs against
+/// empty. Inputs are capped to keep the modal responsive.
+pub fn diff(
+    data_dir: &Path,
+    vault: &Path,
+    relative: &str,
+    version_id: &str,
+) -> CoreResult<Vec<DiffLine>> {
+    let old = cap(&read_version(data_dir, relative, version_id)?);
+    let new = cap(&std::fs::read_to_string(vault.join(relative)).unwrap_or_default());
+
+    let text_diff = similar::TextDiff::from_lines(&old, &new);
+    let mut out = Vec::new();
+    for change in text_diff.iter_all_changes() {
+        let kind = match change.tag() {
+            similar::ChangeTag::Equal => "equal",
+            similar::ChangeTag::Insert => "insert",
+            similar::ChangeTag::Delete => "delete",
+        };
+        out.push(DiffLine {
+            kind: kind.to_string(),
+            content: change.value().trim_end_matches('\n').to_string(),
+        });
+    }
+    Ok(out)
+}
+
 /// Encode a vault-relative note path into one filesystem-safe directory name.
 /// `%`→`%25`, `/`→`%2F`, `\`→`%5C` — separator-free and collision-free. We never
 /// decode it; we only need a stable key. (Very long paths could in theory exceed
@@ -212,6 +262,28 @@ mod tests {
         let v = list_versions(&data, "n.md").unwrap();
         assert_eq!(v.len(), 1);
         assert_eq!(read_version(&data, "n.md", &v[0].id).unwrap(), "ORIGINAL");
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn diff_reports_inserts_deletes_and_equals() {
+        let (vault, data) = dirs();
+        seed_snapshot(&data, "n.md", "20200101_000000_000", "alpha\nbeta\n");
+        std::fs::write(vault.join("n.md"), "alpha\ngamma\n").unwrap();
+        let d = diff(&data, &vault, "n.md", "20200101_000000_000").unwrap();
+        assert!(d.iter().any(|l| l.kind == "equal" && l.content == "alpha"));
+        assert!(d.iter().any(|l| l.kind == "delete" && l.content == "beta"));
+        assert!(d.iter().any(|l| l.kind == "insert" && l.content == "gamma"));
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn diff_identical_is_all_equal() {
+        let (vault, data) = dirs();
+        seed_snapshot(&data, "n.md", "20200101_000000_000", "same\n");
+        std::fs::write(vault.join("n.md"), "same\n").unwrap();
+        let d = diff(&data, &vault, "n.md", "20200101_000000_000").unwrap();
+        assert!(!d.is_empty() && d.iter().all(|l| l.kind == "equal"));
         std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }
 

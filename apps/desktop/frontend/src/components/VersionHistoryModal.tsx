@@ -4,7 +4,7 @@ import { History, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { formatDateTime } from "../lib/datetime";
-import { api, type VersionMeta } from "../ipc/api";
+import { api, type DiffLine, type VersionMeta } from "../ipc/api";
 import { useVault } from "../stores/vaultStore";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 
@@ -20,7 +20,7 @@ export function VersionHistoryModal({
   const { t } = useTranslation(["versions", "common"]);
   const [versions, setVersions] = useState<VersionMeta[]>([]);
   const [selected, setSelected] = useState<VersionMeta | null>(null);
-  const [preview, setPreview] = useState("");
+  const [diff, setDiff] = useState<DiffLine[]>([]);
   const [confirmOpen, setConfirmOpen] = useState(false);
   const reloadActive = useVault((s) => s.reloadActive);
 
@@ -39,14 +39,14 @@ export function VersionHistoryModal({
 
   useEffect(() => {
     if (!path || !selected) {
-      setPreview("");
+      setDiff([]);
       return;
     }
     let cancelled = false;
     void api
-      .readVersion(path, selected.id)
-      .then((c) => !cancelled && setPreview(c))
-      .catch(() => !cancelled && setPreview(""));
+      .diffVersion(path, selected.id)
+      .then((d) => !cancelled && setDiff(d))
+      .catch(() => !cancelled && setDiff([]));
     return () => {
       cancelled = true;
     };
@@ -110,9 +110,31 @@ export function VersionHistoryModal({
               ))}
             </ul>
             <div className="flex min-h-0 flex-1 flex-col">
-              <pre className="min-h-0 flex-1 overflow-auto whitespace-pre-wrap px-4 py-3 font-mono text-[11px] leading-relaxed text-fg-muted">
-                {preview}
-              </pre>
+              {diff.some((l) => l.kind !== "equal") ? (
+                <div className="min-h-0 flex-1 overflow-auto px-3 py-3 font-mono text-[11px] leading-relaxed">
+                  {diff.map((line, i) => (
+                    <div
+                      key={i}
+                      className={`whitespace-pre-wrap ${
+                        line.kind === "insert"
+                          ? "bg-emerald-500/10 text-emerald-300"
+                          : line.kind === "delete"
+                            ? "bg-red-500/10 text-red-300"
+                            : "text-fg-muted"
+                      }`}
+                    >
+                      <span className="select-none text-fg-faint">
+                        {line.kind === "insert" ? "+ " : line.kind === "delete" ? "- " : "  "}
+                      </span>
+                      {line.content || " "}
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="flex min-h-0 flex-1 items-center justify-center px-4 text-xs text-fg-faint">
+                  {t("identical")}
+                </div>
+              )}
               <div className="flex justify-end border-t border-border px-4 py-3">
                 <button
                   disabled={!selected}

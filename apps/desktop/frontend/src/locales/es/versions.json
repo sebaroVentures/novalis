@@ -1,5 +1,6 @@
 {
   "empty": "Aún no hay versiones anteriores.",
+  "identical": "Sin cambios en esta versión.",
   "open": "Historial de versiones",
   "restore": "Restaurar",
   "restoreConfirmBody": "¿Reemplazar la nota actual por esta versión? El contenido actual se guarda primero en el historial y se puede recuperar.",

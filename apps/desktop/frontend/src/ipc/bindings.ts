@@ -115,6 +115,8 @@ export const commands = {
 	emptyTrash: () => typedError<number, CommandError>(__TAURI_INVOKE("empty_trash")),
 	listVersions: (path: string) => typedError<VersionMeta[], CommandError>(__TAURI_INVOKE("list_versions", { path })),
 	readVersion: (path: string, versionId: string) => typedError<string, CommandError>(__TAURI_INVOKE("read_version", { path, versionId })),
+	/**  Line-diff a snapshot against the current note ("what changed since this version"). */
+	diffVersion: (path: string, versionId: string) => typedError<DiffLine[], CommandError>(__TAURI_INVOKE("diff_version", { path, versionId })),
 	restoreVersion: (path: string, versionId: string) => typedError<Note, CommandError>(__TAURI_INVOKE("restore_version", { path, versionId })),
 	getPreferences: () => typedError<Preferences, CommandError>(__TAURI_INVOKE("get_preferences")),
 	setPreferences: (prefs: Preferences) => typedError<null, CommandError>(__TAURI_INVOKE("set_preferences", { prefs })),
@@ -312,6 +314,13 @@ export type CreateTaskRequest = {
 	dueDate: string | null,
 	/**  Explicit destination note (overrides the preference-based strategy). */
 	notePath: string | null,
+};
+
+/**  One line of a unified line-diff between a snapshot and the current note. */
+export type DiffLine = {
+	/**  `"equal"`, `"insert"`, or `"delete"`. */
+	kind: string,
+	content: string,
 };
 
 /**  Editor behavior. Debounce values are milliseconds. */

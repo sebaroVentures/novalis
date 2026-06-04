@@ -1,5 +1,6 @@
 {
   "empty": "No earlier versions yet.",
+  "identical": "No changes in this version.",
   "open": "Version history",
   "restore": "Restore",
   "restoreConfirmBody": "Replace the current note with this version? The current content is saved to history first, so this can be undone.",

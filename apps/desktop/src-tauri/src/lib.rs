@@ -84,6 +84,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::empty_trash,
             commands::list_versions,
             commands::read_version,
+            commands::diff_version,
             commands::restore_version,
             commands::get_preferences,
             commands::set_preferences,

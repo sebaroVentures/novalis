@@ -59,6 +59,8 @@ export const api = {
     unwrap(commands.search(query, folder ?? null, tag ?? null)),
   quickSearch: (query: string) => unwrap(commands.quickSearch(query)),
   listTags: () => unwrap(commands.listTags()),
+  diffVersion: (path: string, versionId: string) =>
+    unwrap(commands.diffVersion(path, versionId)),
 
   // Linked writing
   backlinks: (title: string) => unwrap(commands.backlinks(title)),

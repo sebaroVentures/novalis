@@ -1,5 +1,6 @@
 {
   "empty": "Noch keine früheren Versionen.",
+  "identical": "Keine Änderungen in dieser Version.",
   "open": "Versionsverlauf",
   "restore": "Wiederherstellen",
   "restoreConfirmBody": "Die aktuelle Notiz durch diese Version ersetzen? Der aktuelle Inhalt wird zuerst im Verlauf gespeichert und kann wiederhergestellt werden.",

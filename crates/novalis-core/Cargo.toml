@@ -24,6 +24,7 @@ pulldown-cmark = "0.12"
 docx-rs = "0.4"
 icalendar = "0.17"
 rrule = "0.14"
+similar = "2"
 uuid = { workspace = true }
 
 [dev-dependencies]

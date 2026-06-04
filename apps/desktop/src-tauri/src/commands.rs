@@ -18,7 +18,7 @@ use novalis_core::models::{
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
 use novalis_core::vault::{config, frontmatter, fs as vault_fs, stats};
-use novalis_core::versions::VersionMeta;
+use novalis_core::versions::{DiffLine, VersionMeta};
 use novalis_core::{calendar, export, media, templates, AppInfo, CoreError};
 
 use crate::engine::{AppEngine, CommandError, Engine};
@@ -503,6 +503,17 @@ pub fn read_version(
     version_id: String,
 ) -> CmdResult<String> {
     state.with(|e| novalis_core::versions::read_version(&e.data_dir, &path, &version_id))
+}
+
+/// Line-diff a snapshot against the current note ("what changed since this version").
+#[tauri::command]
+#[specta::specta]
+pub fn diff_version(
+    state: State<AppEngine>,
+    path: String,
+    version_id: String,
+) -> CmdResult<Vec<DiffLine>> {
+    state.with(|e| novalis_core::versions::diff(&e.data_dir, &e.vault_path, &path, &version_id))
 }
 
 #[tauri::command]
