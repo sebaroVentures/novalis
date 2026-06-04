@@ -199,6 +199,15 @@ export function TaskCardMenu() {
           />
         </Row>
 
+        <Row label={t("detail.remind")}>
+          <input
+            type="datetime-local"
+            value={task.remind ?? ""}
+            onChange={(e) => void updateField(task.id, "remind", e.target.value || null)}
+            className={selectCls}
+          />
+        </Row>
+
         {task.tags.length > 0 && (
           <Row label={t("detail.tags")}>
             <div className="flex flex-wrap gap-1.5">

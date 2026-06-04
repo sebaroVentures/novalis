@@ -95,7 +95,11 @@ export const api = {
     ),
   toggleTask: (id: string) => unwrap(commands.toggleTask(id)),
   setTaskStatus: (id: string, status: string) => unwrap(commands.setTaskStatus(id, status)),
-  updateTask: (id: string, field: "project" | "epic" | "priority" | "due" | "start", value: string | null) =>
+  updateTask: (
+    id: string,
+    field: "project" | "epic" | "priority" | "due" | "start" | "remind",
+    value: string | null,
+  ) =>
     unwrap(commands.updateTask(id, field, value)),
   deleteTask: (id: string) => unwrap(commands.deleteTask(id)),
 

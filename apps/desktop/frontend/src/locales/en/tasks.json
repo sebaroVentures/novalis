@@ -18,6 +18,7 @@
     "openNote": "Open note",
     "priority": "Priority",
     "project": "Project",
+    "remind": "Remind",
     "start": "Start",
     "status": "Status",
     "subtasks": "Subtasks {{done}}/{{total}}",

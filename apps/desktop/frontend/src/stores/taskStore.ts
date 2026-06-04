@@ -173,7 +173,7 @@ interface TaskState {
   setStatus: (id: string, status: string) => Promise<void>;
   updateField: (
     id: string,
-    field: "project" | "epic" | "priority" | "due" | "start",
+    field: "project" | "epic" | "priority" | "due" | "start" | "remind",
     value: string | null,
   ) => Promise<void>;
   deleteTask: (id: string) => Promise<void>;
