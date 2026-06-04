@@ -7,6 +7,7 @@ import {
   ArrowLeft,
   Check,
   ChevronDown,
+  ChevronRight,
   FileText,
   History,
   Link2,
@@ -56,6 +57,19 @@ function splitFrontmatter(raw: string): { fm: string; body: string } {
   return m ? { fm: m[1], body: m[2] } : { fm: "", body: raw };
 }
 
+/** Clickable folder segments leading to a note (root-first; excludes the file). */
+function folderCrumbs(path: string): { label: string; path: string }[] {
+  const parts = path.split("/");
+  parts.pop();
+  const out: { label: string; path: string }[] = [];
+  let acc = "";
+  for (const p of parts) {
+    acc = acc ? `${acc}/${p}` : p;
+    out.push({ label: p, path: acc });
+  }
+  return out;
+}
+
 export function EditorPane() {
   const activeNote = useVault((s) => s.activeNote);
   const activePath = useVault((s) => s.activePath);
@@ -63,6 +77,7 @@ export function EditorPane() {
   const vaultPath = useVault((s) => s.vaultPath);
   const saveNote = useVault((s) => s.saveNote);
   const openNote = useVault((s) => s.openNote);
+  const revealPath = useVault((s) => s.revealPath);
   const refreshTree = useVault((s) => s.refreshTree);
   const deleteActive = useVault((s) => s.deleteActive);
   const registerFlush = useVault((s) => s.registerFlush);
@@ -299,7 +314,23 @@ export function EditorPane() {
           )}
           <div className="min-w-0">
             <h2 className="truncate text-sm font-medium text-fg">{activeNote.title}</h2>
-            <p className="truncate text-xs text-fg-faint">{activePath}</p>
+            {folderCrumbs(activePath).length > 0 ? (
+              <div className="flex items-center gap-0.5 truncate text-xs text-fg-faint">
+                {folderCrumbs(activePath).map((c, i) => (
+                  <span key={c.path} className="flex items-center gap-0.5">
+                    {i > 0 && <ChevronRight size={11} className="shrink-0 text-fg-faint/60" />}
+                    <button
+                      onClick={() => revealPath(c.path)}
+                      className="truncate transition-colors hover:text-fg-muted"
+                    >
+                      {c.label}
+                    </button>
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <p className="truncate text-xs text-fg-faint">{activePath}</p>
+            )}
           </div>
         </div>
         <div className="flex items-center gap-1.5">

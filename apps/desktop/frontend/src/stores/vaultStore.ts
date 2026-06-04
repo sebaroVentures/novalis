@@ -28,6 +28,10 @@ const lastRequest = new Map<string, string>();
 // closing the silent data-loss path on sidebar/search/palette navigation.
 let pendingFlush: (() => Promise<void>) | null = null;
 
+// Set while stepping through back/forward history, so openNote doesn't record
+// the navigation as a new history entry.
+let navigatingHistory = false;
+
 /** Save lifecycle for the active note, surfaced as a status indicator. */
 export type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
 
@@ -150,6 +154,9 @@ interface VaultState {
   collapsed: Set<string>;
   selectedFolder: string | null;
   recent: string[];
+  /** Back/forward navigation history of opened note paths + the current index. */
+  history: string[];
+  historyIndex: number;
   // Folder appearance / order (vault-synced via Preferences).
   folderColors: Record<string, string>;
   itemOrder: Record<string, string[]>;
@@ -162,6 +169,9 @@ interface VaultState {
   openVault: (path: string) => Promise<void>;
   refreshTree: () => Promise<void>;
   openNote: (path: string) => Promise<void>;
+  /** Step back/forward through the navigation history. */
+  navBack: () => Promise<void>;
+  navForward: () => Promise<void>;
   /** Warm the cache (and OneDrive hydration) for a note, e.g. on hover. */
   prefetchNote: (path: string) => void;
   /** Drop a cached note (e.g. on external change/delete) so it re-reads. */
@@ -250,6 +260,8 @@ export const useVault = create<VaultState>((set, get) => ({
   collapsed: new Set<string>(),
   selectedFolder: null,
   recent: [],
+  history: [],
+  historyIndex: -1,
   folderColors: {},
   itemOrder: {},
   sortBy: "name",
@@ -287,6 +299,8 @@ export const useVault = create<VaultState>((set, get) => ({
         collapsed: new Set<string>(),
         selectedFolder: null,
         recent: [],
+        history: [],
+        historyIndex: -1,
         folderColors: {},
         itemOrder: {},
       });
@@ -349,11 +363,19 @@ export const useVault = create<VaultState>((set, get) => ({
     const collapsed = new Set(get().collapsed);
     for (const a of ancestorsOf(path)) collapsed.delete(a);
     const recent = [path, ...get().recent.filter((p) => p !== path)].slice(0, getRecentLimit());
+    // Record navigation history, unless stepping through it via back/forward.
+    let { history, historyIndex } = get();
+    if (!navigatingHistory && history[historyIndex] !== path) {
+      history = [...history.slice(0, historyIndex + 1), path];
+      historyIndex = history.length - 1;
+    }
     set({
       activePath: path,
       selectedFolder: null,
       collapsed,
       recent,
+      history,
+      historyIndex,
       saveState: "idle",
       saveError: null,
       externalChange: null,
@@ -373,6 +395,30 @@ export const useVault = create<VaultState>((set, get) => ({
       if (get().activePath === path) set({ activeNote: note });
     } catch (e) {
       if (get().activePath === path) set({ error: displayError(e) });
+    }
+  },
+
+  navBack: async () => {
+    const { history, historyIndex } = get();
+    if (historyIndex <= 0) return;
+    navigatingHistory = true;
+    try {
+      await get().openNote(history[historyIndex - 1]);
+      set({ historyIndex: historyIndex - 1 });
+    } finally {
+      navigatingHistory = false;
+    }
+  },
+
+  navForward: async () => {
+    const { history, historyIndex } = get();
+    if (historyIndex >= history.length - 1) return;
+    navigatingHistory = true;
+    try {
+      await get().openNote(history[historyIndex + 1]);
+      set({ historyIndex: historyIndex + 1 });
+    } finally {
+      navigatingHistory = false;
     }
   },
 

@@ -114,6 +114,8 @@ export default function App() {
         "new-note": () =>
           void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
         cheatsheet: () => setCheatsheetOpen((v) => !v),
+        "nav-back": () => void useVault.getState().navBack(),
+        "nav-forward": () => void useVault.getState().navForward(),
       };
       const handler = handlers[action];
       if (handler) {
