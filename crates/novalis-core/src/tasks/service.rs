@@ -60,9 +60,13 @@ pub fn toggle(db: &Connection, vault: &Path, id: &str) -> CoreResult<bool> {
         let note = vault_fs::read_note(vault, &note_path)?;
         let tasks = index::extract_tasks(&note.content, &note_path);
         if let Some(t) = tasks.iter().find(|t| t.source_line == line) {
-            if let (Some(repeat), Some(due)) = (t.repeat.as_deref(), t.due_date.as_deref()) {
+            if let Some(due) = t.due_date.as_deref() {
                 if let Ok(date) = chrono::NaiveDate::parse_from_str(due, "%Y-%m-%d") {
-                    if let Some(next) = index::next_due(date, repeat) {
+                    // Prefer an explicit @rrule; fall back to the simple @repeat interval.
+                    let next = index::task_rrule(&t.text)
+                        .and_then(|rr| index::next_rrule(date, &rr))
+                        .or_else(|| t.repeat.as_deref().and_then(|r| index::next_due(date, r)));
+                    if let Some(next) = next {
                         let next_text =
                             t.text
                                 .replacen(&format!("@due({due})"), &format!("@due({next})"), 1);
@@ -370,6 +374,34 @@ mod tests {
         assert!(after
             .iter()
             .any(|t| !t.completed && t.due_date.as_deref() == Some("2026-05-25")));
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn completing_rrule_task_spawns_next() {
+        let c = ctx();
+        create(
+            &c.db,
+            &c.vault,
+            CreateTaskRequest {
+                text: "Standup @rrule(FREQ=WEEKLY;BYDAY=MO) @due(2026-06-01)".to_string(),
+                status: None,
+                priority: None,
+                due_date: None,
+                note_path: Some("_Inbox.md".to_string()),
+            },
+        )
+        .unwrap();
+
+        let id = list(&c.db, &TaskQuery::default()).unwrap()[0].id.clone();
+        toggle(&c.db, &c.vault, &id).unwrap();
+
+        // The next weekly occurrence (the following Monday) should be spawned.
+        let after = list(&c.db, &TaskQuery::default()).unwrap();
+        assert!(after
+            .iter()
+            .any(|t| !t.completed && t.due_date.as_deref() == Some("2026-06-08")));
 
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }

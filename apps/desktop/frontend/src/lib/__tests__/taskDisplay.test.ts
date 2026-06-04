@@ -5,7 +5,7 @@ import { displayText, noteTitleFromPath, topFolderFromPath } from "../taskDispla
 describe("displayText", () => {
   it("strips every inline annotation (incl. @project/@epic) and #tags", () => {
     const raw =
-      "Ship release @due(2026-06-01) @priority(high) @status(todo) @repeat(weekly) @project(work) @epic(q3) #urgent";
+      "Ship release @start(2026-05-28) @due(2026-06-01) @priority(high) @status(todo) @repeat(weekly) @rrule(FREQ=WEEKLY;BYDAY=MO) @project(work) @epic(q3) #urgent";
     expect(displayText(raw)).toBe("Ship release");
   });
 

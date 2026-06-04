@@ -179,6 +179,33 @@ pub fn next_due(date: chrono::NaiveDate, repeat: &str) -> Option<chrono::NaiveDa
     }
 }
 
+/// Extract a task's `@rrule(...)` iCal recurrence string, if present.
+pub fn task_rrule(text: &str) -> Option<String> {
+    Regex::new(r"@rrule\(([^)]+)\)")
+        .unwrap()
+        .captures(text)
+        .map(|c| c.get(1).unwrap().as_str().to_string())
+}
+
+/// The first occurrence strictly after `date` for an iCal RRULE string (e.g.
+/// `FREQ=WEEKLY;BYDAY=MO`), or `None` if the rule is invalid or never recurs.
+/// Times are treated as UTC, matching the calendar's recurrence expansion.
+pub fn next_rrule(date: chrono::NaiveDate, rrule: &str) -> Option<chrono::NaiveDate> {
+    use chrono::{Datelike, TimeZone};
+    let dtstart = format!(
+        "{:04}{:02}{:02}T000000Z",
+        date.year(),
+        date.month(),
+        date.day()
+    );
+    let set: rrule::RRuleSet = format!("DTSTART:{dtstart}\nRRULE:{rrule}").parse().ok()?;
+    let after = rrule::Tz::UTC
+        .with_ymd_and_hms(date.year(), date.month(), date.day(), 23, 59, 59)
+        .single()?;
+    let next = set.after(after).all(1).dates.into_iter().next()?;
+    chrono::NaiveDate::from_ymd_opt(next.year(), next.month(), next.day())
+}
+
 /// Deterministic task ID from note path + line number.
 fn make_task_id(note_path: &str, line: usize) -> String {
     let mut hasher = Sha256::new();
@@ -564,6 +591,27 @@ mod tests {
         assert_eq!(next_due(d, "monthly"), NaiveDate::from_ymd_opt(2026, 6, 24));
         assert_eq!(next_due(d, "yearly"), NaiveDate::from_ymd_opt(2027, 5, 24));
         assert_eq!(next_due(d, "bogus"), None);
+    }
+
+    #[test]
+    fn next_rrule_advances_to_next_occurrence() {
+        use chrono::NaiveDate;
+        // 2026-06-01 is a Monday; weekly-on-Monday → the next Monday.
+        let mon = NaiveDate::from_ymd_opt(2026, 6, 1).unwrap();
+        assert_eq!(
+            next_rrule(mon, "FREQ=WEEKLY;BYDAY=MO"),
+            NaiveDate::from_ymd_opt(2026, 6, 8)
+        );
+        assert_eq!(next_rrule(mon, "not-a-rule"), None);
+    }
+
+    #[test]
+    fn task_rrule_extracts_the_rule() {
+        assert_eq!(
+            task_rrule("Standup @rrule(FREQ=WEEKLY;BYDAY=MO) @due(2026-06-01)").as_deref(),
+            Some("FREQ=WEEKLY;BYDAY=MO")
+        );
+        assert_eq!(task_rrule("No rule here @due(2026-06-01)"), None);
     }
 
     #[test]
