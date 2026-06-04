@@ -2,6 +2,7 @@
   "blankNote": "Note vierge",
   "cloudOnly": "En ligne uniquement – téléchargée à l'ouverture",
   "collapseAll": "Réduire tous les dossiers",
+  "collapseSidebar": "Réduire la barre latérale",
   "confirm": {
     "deleteEmptyFolder": "Supprimer le dossier vide « {{name}} » ?",
     "trashFolder": "Mettre le dossier « {{name}} » et tout son contenu à la corbeille ?",

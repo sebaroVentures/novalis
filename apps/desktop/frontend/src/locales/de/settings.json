@@ -122,7 +122,8 @@
     "reset": "Auf Standard zurücksetzen",
     "search": "Suchen",
     "settings": "Einstellungen",
-    "title": "Tastenkürzel"
+    "title": "Tastenkürzel",
+    "toggleSidebar": "Seitenleiste umschalten"
   },
   "language": {
     "hint": "Gilt für dieses Gerät. Änderungen werden sofort wirksam.",

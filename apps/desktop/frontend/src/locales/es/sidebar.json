@@ -2,6 +2,7 @@
   "blankNote": "Nota en blanco",
   "cloudOnly": "Solo en línea – se descarga al abrir",
   "collapseAll": "Contraer todas las carpetas",
+  "collapseSidebar": "Contraer barra lateral",
   "confirm": {
     "deleteEmptyFolder": "¿Eliminar la carpeta vacía «{{name}}»?",
     "trashFolder": "¿Mover la carpeta «{{name}}» y todo su contenido a la papelera?",

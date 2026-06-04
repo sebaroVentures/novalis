@@ -122,7 +122,8 @@
     "reset": "Reset to defaults",
     "search": "Search",
     "settings": "Settings",
-    "title": "Keyboard shortcuts"
+    "title": "Keyboard shortcuts",
+    "toggleSidebar": "Toggle sidebar"
   },
   "language": {
     "hint": "Applies to this device. Changes take effect immediately.",

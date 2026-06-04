@@ -7,6 +7,7 @@
   "refresh": "Actualiser",
   "remove": "Retirer",
   "save": "Enregistrer",
+  "showSidebar": "Afficher la barre latérale",
   "taskModes": {
     "agenda": "Agenda",
     "kanban": "Kanban",

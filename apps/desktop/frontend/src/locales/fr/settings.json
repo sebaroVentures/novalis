@@ -122,7 +122,8 @@
     "reset": "Réinitialiser",
     "search": "Rechercher",
     "settings": "Paramètres",
-    "title": "Raccourcis clavier"
+    "title": "Raccourcis clavier",
+    "toggleSidebar": "Basculer la barre latérale"
   },
   "language": {
     "hint": "S'applique à cet appareil. Les modifications prennent effet immédiatement.",

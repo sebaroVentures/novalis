@@ -7,6 +7,7 @@
   "refresh": "Aktualisieren",
   "remove": "Entfernen",
   "save": "Speichern",
+  "showSidebar": "Seitenleiste anzeigen",
   "taskModes": {
     "agenda": "Agenda",
     "kanban": "Kanban",

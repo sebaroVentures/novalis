@@ -2,6 +2,7 @@
   "blankNote": "Leere Notiz",
   "cloudOnly": "Nur online – wird beim Öffnen heruntergeladen",
   "collapseAll": "Alle Ordner einklappen",
+  "collapseSidebar": "Seitenleiste einklappen",
   "confirm": {
     "deleteEmptyFolder": "Leeren Ordner „{{name}}“ löschen?",
     "trashFolder": "Ordner „{{name}}“ und seinen gesamten Inhalt in den Papierkorb verschieben?",

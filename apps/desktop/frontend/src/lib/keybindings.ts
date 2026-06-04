@@ -14,7 +14,8 @@ export type ActionId =
   | "view-calendar"
   | "nav-back"
   | "nav-forward"
-  | "cheatsheet";
+  | "cheatsheet"
+  | "toggle-sidebar";
 
 export const ACTION_IDS: ActionId[] = [
   "search",
@@ -28,6 +29,7 @@ export const ACTION_IDS: ActionId[] = [
   "nav-back",
   "nav-forward",
   "cheatsheet",
+  "toggle-sidebar",
 ];
 
 /** A chord string like "mod+shift+p", "mod+,", "mod+[". */
@@ -45,6 +47,7 @@ export const DEFAULT_KEYMAP: Record<ActionId, Chord> = {
   "nav-back": "mod+[",
   "nav-forward": "mod+]",
   cheatsheet: "mod+/",
+  "toggle-sidebar": "mod+\\",
 };
 
 interface ParsedChord {

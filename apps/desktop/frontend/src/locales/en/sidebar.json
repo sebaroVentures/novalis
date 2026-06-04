@@ -2,6 +2,7 @@
   "blankNote": "Blank note",
   "cloudOnly": "Online only — downloads on open",
   "collapseAll": "Collapse all folders",
+  "collapseSidebar": "Collapse sidebar",
   "confirm": {
     "deleteEmptyFolder": "Delete empty folder \"{{name}}\"?",
     "trashFolder": "Move folder \"{{name}}\" and all its contents to trash?",

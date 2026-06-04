@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Menu, X } from "lucide-react";
+import { Menu, PanelLeftOpen, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { CalendarView } from "./components/CalendarView";
@@ -21,6 +21,14 @@ import { applyAppearance, watchSystemTheme } from "./lib/appearance";
 import { applyLanguage } from "./lib/i18n";
 import { actionForEvent } from "./lib/keybindings";
 import { getLanguage } from "./lib/language";
+import {
+  getSidebarWidth,
+  loadSidebarCollapsed,
+  saveSidebarCollapsed,
+  saveSidebarWidth,
+  SIDEBAR_MAX_WIDTH,
+  SIDEBAR_MIN_WIDTH,
+} from "./lib/uiPrefs";
 import { checkReminders, resetReminderBaseline } from "./lib/reminderScheduler";
 import { useNovalisEvents } from "./lib/useNovalisEvents";
 import { useConflicts } from "./stores/conflictStore";
@@ -42,6 +50,8 @@ export default function App() {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
+  const [sidebarCollapsed, setSidebarCollapsed] = useState(loadSidebarCollapsed);
+  const [sidebarWidth, setSidebarWidth] = useState(getSidebarWidth);
   const [conflictsOpen, setConflictsOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false);
@@ -126,6 +136,12 @@ export default function App() {
         cheatsheet: () => setCheatsheetOpen((v) => !v),
         "nav-back": () => void useVault.getState().navBack(),
         "nav-forward": () => void useVault.getState().navForward(),
+        "toggle-sidebar": () =>
+          setSidebarCollapsed((v) => {
+            const n = !v;
+            saveSidebarCollapsed(n);
+            return n;
+          }),
       };
       const handler = handlers[action];
       if (handler) {
@@ -180,11 +196,12 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-app text-fg">
-      {/* Sidebar: static from md up, slide-in drawer below md. */}
+      {/* Sidebar: static from md up, slide-in drawer below md. Collapses out on
+          desktop (md+) when collapsed; the mobile drawer is unaffected. */}
       <div
         className={`fixed inset-y-0 left-0 z-40 transition-transform md:static md:z-auto md:translate-x-0 ${
           navOpen ? "translate-x-0" : "-translate-x-full"
-        }`}
+        } ${sidebarCollapsed ? "md:hidden" : ""}`}
       >
         <Sidebar
           view={view}
@@ -192,8 +209,43 @@ export default function App() {
           onOpenSearch={() => setSearchOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenTrash={() => setTrashOpen(true)}
+          width={sidebarWidth}
+          onCollapse={() => {
+            setSidebarCollapsed(true);
+            saveSidebarCollapsed(true);
+          }}
         />
       </div>
+      {/* Draggable width divider (desktop only; hidden when collapsed). */}
+      {!sidebarCollapsed && (
+        <div
+          role="separator"
+          aria-orientation="vertical"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            const startX = e.clientX;
+            const startW = sidebarWidth;
+            let latest = startW;
+            document.body.style.userSelect = "none";
+            const onMove = (ev: PointerEvent) => {
+              latest = Math.max(
+                SIDEBAR_MIN_WIDTH,
+                Math.min(SIDEBAR_MAX_WIDTH, startW + (ev.clientX - startX)),
+              );
+              setSidebarWidth(latest);
+            };
+            const onUp = () => {
+              window.removeEventListener("pointermove", onMove);
+              window.removeEventListener("pointerup", onUp);
+              document.body.style.userSelect = "";
+              saveSidebarWidth(latest);
+            };
+            window.addEventListener("pointermove", onMove);
+            window.addEventListener("pointerup", onUp);
+          }}
+          className="hidden w-1 shrink-0 cursor-col-resize transition-colors hover:bg-accent/40 md:block"
+        />
+      )}
       {navOpen && (
         <div
           className="fixed inset-0 z-30 bg-overlay md:hidden"
@@ -202,14 +254,30 @@ export default function App() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div className="flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
+        <div
+          className={`flex items-center gap-2 border-b border-border px-3 py-2 ${
+            sidebarCollapsed ? "" : "md:hidden"
+          }`}
+        >
           <button
             onClick={() => setNavOpen(true)}
             title={t("menu")}
-            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active"
+            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active md:hidden"
           >
             <Menu size={18} />
           </button>
+          {sidebarCollapsed && (
+            <button
+              onClick={() => {
+                setSidebarCollapsed(false);
+                saveSidebarCollapsed(false);
+              }}
+              title={t("showSidebar")}
+              className="hidden rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg md:inline-flex"
+            >
+              <PanelLeftOpen size={18} />
+            </button>
+          )}
           <span className="text-sm font-medium capitalize text-fg-muted">{viewLabels[view]}</span>
         </div>
         <CloudHint />

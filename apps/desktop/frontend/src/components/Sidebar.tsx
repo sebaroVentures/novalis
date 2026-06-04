@@ -12,6 +12,7 @@ import {
   FolderOpen,
   FolderPlus,
   Hash,
+  PanelLeftClose,
   Pin,
   Plus,
   RefreshCw,
@@ -75,12 +76,18 @@ export function Sidebar({
   onOpenSearch,
   onOpenSettings,
   onOpenTrash,
+  width,
+  onCollapse,
 }: {
   view: MainView;
   onViewChange: (v: MainView) => void;
   onOpenSearch: () => void;
   onOpenSettings: () => void;
   onOpenTrash: () => void;
+  /** Explicit rail width in px (device pref). Falls back to a default. */
+  width?: number;
+  /** Collapse the rail on desktop (hidden via the host); shown only when set. */
+  onCollapse?: () => void;
 }) {
   const tree = useVault((s) => s.tree);
   const vaultPath = useVault((s) => s.vaultPath);
@@ -158,7 +165,10 @@ export function Sidebar({
   };
 
   return (
-    <aside className="flex h-full w-64 shrink-0 flex-col border-r border-border/80 bg-surface/40">
+    <aside
+      style={{ width: width ?? 256 }}
+      className="flex h-full shrink-0 flex-col border-r border-border/80 bg-surface/40"
+    >
       <div className="flex items-center justify-between gap-2 border-b border-border/80 px-3 py-2.5">
         <button
           onClick={openVaultMenu}
@@ -178,6 +188,15 @@ export function Sidebar({
           <button title={t("settings")} onClick={onOpenSettings} className={iconBtn}>
             <Settings size={16} />
           </button>
+          {onCollapse && (
+            <button
+              title={t("collapseSidebar")}
+              onClick={onCollapse}
+              className={`${iconBtn} hidden md:inline-flex`}
+            >
+              <PanelLeftClose size={16} />
+            </button>
+          )}
         </div>
       </div>
 

@@ -122,7 +122,8 @@
     "reset": "Restablecer",
     "search": "Buscar",
     "settings": "Ajustes",
-    "title": "Atajos de teclado"
+    "title": "Atajos de teclado",
+    "toggleSidebar": "Alternar barra lateral"
   },
   "language": {
     "hint": "Se aplica a este dispositivo. Los cambios surten efecto de inmediato.",
