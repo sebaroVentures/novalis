@@ -1,4 +1,7 @@
 {
+  "addAlias": "Alias hinzufügen…",
+  "addTag": "Tag hinzufügen…",
+  "aliases": "Aliase",
   "backToTasks": "Zurück zu Aufgaben",
   "blockquote": "Zitat",
   "bold": "Fett",
@@ -40,6 +43,7 @@
   "slashMath": "Mathe-Block",
   "slashMermaid": "Mermaid-Diagramm",
   "strike": "Durchgestrichen",
+  "tags": "Tags",
   "taskList": "Aufgaben",
   "unsaved": "Nicht gespeichert",
   "wikiCreateNew": "„{{query}}“ erstellen"

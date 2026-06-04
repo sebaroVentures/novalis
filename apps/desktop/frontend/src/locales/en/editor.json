@@ -1,4 +1,7 @@
 {
+  "addAlias": "Add alias…",
+  "addTag": "Add tag…",
+  "aliases": "Aliases",
   "backToTasks": "Back to tasks",
   "blockquote": "Quote",
   "bold": "Bold",
@@ -40,6 +43,7 @@
   "slashMath": "Math block",
   "slashMermaid": "Mermaid diagram",
   "strike": "Strikethrough",
+  "tags": "Tags",
   "taskList": "Tasks",
   "unsaved": "Unsaved",
   "wikiCreateNew": "Create \"{{query}}\""

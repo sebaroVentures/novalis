@@ -1,4 +1,7 @@
 {
+  "addAlias": "Ajouter un alias…",
+  "addTag": "Ajouter une étiquette…",
+  "aliases": "Alias",
   "backToTasks": "Retour aux tâches",
   "blockquote": "Citation",
   "bold": "Gras",
@@ -40,6 +43,7 @@
   "slashMath": "Bloc de formule",
   "slashMermaid": "Diagramme Mermaid",
   "strike": "Barré",
+  "tags": "Étiquettes",
   "taskList": "Tâches",
   "unsaved": "Non enregistré",
   "wikiCreateNew": "Créer « {{query}} »"

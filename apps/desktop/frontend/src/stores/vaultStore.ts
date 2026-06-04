@@ -213,6 +213,7 @@ interface VaultState {
   setSortMode: (sortBy: SortBy, sortDir?: "asc" | "desc") => void;
   createFolder: (parent: string | null, name: string) => Promise<void>;
   renameItem: (path: string, kind: "note" | "folder", newName: string) => Promise<void>;
+  setNoteMeta: (path: string, meta: { tags?: string[]; aliases?: string[] }) => Promise<void>;
   deleteFolder: (path: string) => Promise<void>;
   duplicateNote: (path: string) => Promise<void>;
   togglePin: (path: string, pinned: boolean) => Promise<void>;
@@ -744,6 +745,27 @@ export const useVault = create<VaultState>((set, get) => ({
       } else {
         set({ error: displayError(e) });
       }
+    }
+  },
+
+  // Update a note's frontmatter tags/aliases. Like the note-rename branch, this
+  // updates `activeNote` without bumping `activeNoteVersion`, so the open editor
+  // keeps its cursor/scroll (no remount). Passing an empty array clears the
+  // field; omitting it leaves the field unchanged.
+  setNoteMeta: async (path, meta) => {
+    try {
+      const updated = await api.updateNoteMeta({
+        path,
+        title: null,
+        tags: meta.tags ?? null,
+        pinned: null,
+        aliases: meta.aliases ?? null,
+      });
+      noteCache.set(path, updated);
+      if (get().activePath === path) set({ activeNote: updated });
+      await get().refreshTree();
+    } catch (e) {
+      set({ error: displayError(e) });
     }
   },
 

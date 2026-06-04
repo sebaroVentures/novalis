@@ -25,6 +25,7 @@ import { useVault, type SaveState } from "../stores/vaultStore";
 import { FindBar } from "./FindBar";
 import { LinksPanel } from "./LinksPanel";
 import { OutlinePanel } from "./OutlinePanel";
+import { ChipInput } from "./ui/ChipInput";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { VersionHistoryModal } from "./VersionHistoryModal";
 import { WikiLinkHoverCard, type HoverTarget } from "./WikiLinkHoverCard";
@@ -87,6 +88,7 @@ export function EditorPane() {
   const reloadActive = useVault((s) => s.reloadActive);
   const dismissExternalChange = useVault((s) => s.dismissExternalChange);
   const saveState = useVault((s) => s.saveState);
+  const setNoteMeta = useVault((s) => s.setNoteMeta);
   const externalChange = useVault((s) => s.externalChange);
   const returnView = useUi((s) => s.returnView);
   const goBack = useUi((s) => s.goBack);
@@ -109,6 +111,7 @@ export function EditorPane() {
   const [headings, setHeadings] = useState<OutlineItem[]>([]);
   const [findOpen, setFindOpen] = useState(false);
   const [hovered, setHovered] = useState<HoverTarget | null>(null);
+  const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const hoverTimer = useRef<number | null>(null);
   const { t } = useTranslation(["editor", "common", "trash", "versions", "links"]);
 
@@ -124,6 +127,14 @@ export function EditorPane() {
   const toggleReadingMode = () => {
     void flushPending();
     setReadingMode((v) => !v);
+  };
+
+  // Write tags/aliases via the frontmatter path. Flush the pending body autosave
+  // first so it doesn't race the meta write on the same file.
+  const commitMeta = async (meta: { tags?: string[]; aliases?: string[] }) => {
+    if (!activePath) return;
+    await flushPending();
+    await setNoteMeta(activePath, meta);
   };
 
   const handleEditorReady = useCallback((ed: Editor) => setEditorInstance(ed), []);
@@ -205,6 +216,20 @@ export function EditorPane() {
   useEffect(() => {
     setReadingMode(readingDefault);
   }, [activePath, readingDefault]);
+
+  // Tag autocomplete source for the chip editor; refreshed per open note.
+  useEffect(() => {
+    let cancelled = false;
+    void api
+      .listTags()
+      .then((ts) => {
+        if (!cancelled) setTagSuggestions(ts.map((tc) => tc.tag));
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [activePath]);
 
   // NOTE: all hooks must stay above the early returns below, so the hook order
   // is identical across the loading → loaded transition (otherwise React throws
@@ -502,6 +527,32 @@ export function EditorPane() {
         </div>
       )}
       {findOpen && editor && <FindBar editor={editor} onClose={() => setFindOpen(false)} />}
+      <div className="flex flex-col gap-1 border-b border-border/60 px-4 py-1.5">
+        <div className="flex items-center gap-2">
+          <span className="w-12 shrink-0 text-[11px] uppercase tracking-wide text-fg-faint">
+            {t("tags")}
+          </span>
+          <ChipInput
+            values={activeNote.frontmatter.tags ?? []}
+            onChange={(next) => void commitMeta({ tags: next })}
+            suggestions={tagSuggestions}
+            placeholder={t("addTag")}
+            ariaLabel={t("tags")}
+            renderChip={(v) => `#${v}`}
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="w-12 shrink-0 text-[11px] uppercase tracking-wide text-fg-faint">
+            {t("aliases")}
+          </span>
+          <ChipInput
+            values={activeNote.frontmatter.aliases ?? []}
+            onChange={(next) => void commitMeta({ aliases: next })}
+            placeholder={t("addAlias")}
+            ariaLabel={t("aliases")}
+          />
+        </div>
+      </div>
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <NovalisEditor

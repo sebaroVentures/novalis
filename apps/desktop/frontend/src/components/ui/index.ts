@@ -6,3 +6,4 @@ export { NumberField } from "./NumberField";
 export { SettingRow } from "./SettingRow";
 export { SettingsSection } from "./SettingsSection";
 export { ColorSwatchPicker } from "./ColorSwatchPicker";
+export { ChipInput } from "./ChipInput";
