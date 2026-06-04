@@ -1,5 +1,6 @@
 {
   "allDay": "Ganztägig",
+  "day": "Tag",
   "editEvent": "Termin bearbeiten",
   "eventTitle": "Titel des Termins",
   "exportIcs": ".ics exportieren",
@@ -12,8 +13,10 @@
   },
   "importIcs": ".ics importieren",
   "location": "Ort",
+  "month": "Monat",
   "newEvent": "Neuer Termin",
   "nextMonth": "Nächster Monat",
   "prevMonth": "Voriger Monat",
-  "today": "Heute"
+  "today": "Heute",
+  "week": "Woche"
 }

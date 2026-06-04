@@ -1,5 +1,6 @@
 {
   "allDay": "Todo el día",
+  "day": "Día",
   "editEvent": "Editar evento",
   "eventTitle": "Título del evento",
   "exportIcs": "Exportar .ics",
@@ -12,8 +13,10 @@
   },
   "importIcs": "Importar .ics",
   "location": "Ubicación",
+  "month": "Mes",
   "newEvent": "Nuevo evento",
   "nextMonth": "Mes siguiente",
   "prevMonth": "Mes anterior",
-  "today": "Hoy"
+  "today": "Hoy",
+  "week": "Semana"
 }

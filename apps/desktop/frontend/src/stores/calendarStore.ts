@@ -3,6 +3,8 @@ import { create } from "zustand";
 import { api, type CalendarEvent } from "../ipc/api";
 import { useSettings } from "./settingsStore";
 
+export type CalMode = "month" | "week" | "day";
+
 export function isoDate(d: Date): string {
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(
     d.getDate(),
@@ -12,11 +14,21 @@ export function isoDate(d: Date): string {
 /** The 42-day (6-week) grid covering a month, honoring the week-start pref. */
 export function monthGrid(month: Date, weekStart: "monday" | "sunday" = "monday"): Date[] {
   const first = new Date(month.getFullYear(), month.getMonth(), 1);
-  const start = new Date(first);
   // Days to step back to reach the first cell (the configured week start).
   const offset = weekStart === "sunday" ? first.getDay() : (first.getDay() + 6) % 7;
-  start.setDate(1 - offset);
+  const start = new Date(first.getFullYear(), first.getMonth(), 1 - offset);
   return Array.from({ length: 42 }, (_, i) => {
+    const d = new Date(start);
+    d.setDate(start.getDate() + i);
+    return d;
+  });
+}
+
+/** The 7-day grid for the week containing `anchor`, honoring the week-start pref. */
+export function weekGrid(anchor: Date, weekStart: "monday" | "sunday" = "monday"): Date[] {
+  const offset = weekStart === "sunday" ? anchor.getDay() : (anchor.getDay() + 6) % 7;
+  const start = new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() - offset);
+  return Array.from({ length: 7 }, (_, i) => {
     const d = new Date(start);
     d.setDate(start.getDate() + i);
     return d;
@@ -28,27 +40,42 @@ export function currentWeekStart(): "monday" | "sunday" {
   return useSettings.getState().prefs?.calendar?.weekStart === "sunday" ? "sunday" : "monday";
 }
 
+/** The visible day grid for a calendar mode + anchor date. */
+export function gridFor(mode: CalMode, anchor: Date, weekStart: "monday" | "sunday"): Date[] {
+  if (mode === "month") return monthGrid(anchor, weekStart);
+  if (mode === "week") return weekGrid(anchor, weekStart);
+  return [anchor];
+}
+
 interface CalState {
-  month: Date;
+  mode: CalMode;
+  /** Any date within the visible period (month/week/day). */
+  anchor: Date;
   events: CalendarEvent[];
   loading: boolean;
   load: () => Promise<void>;
-  setMonth: (d: Date) => void;
+  setMode: (m: CalMode) => void;
   prev: () => void;
   next: () => void;
   today: () => void;
 }
 
-const firstOfMonth = (d: Date) => new Date(d.getFullYear(), d.getMonth(), 1);
+/** Shift the anchor by one period in the given direction. */
+function step(mode: CalMode, anchor: Date, dir: number): Date {
+  if (mode === "month") return new Date(anchor.getFullYear(), anchor.getMonth() + dir, 1);
+  const days = mode === "week" ? 7 : 1;
+  return new Date(anchor.getFullYear(), anchor.getMonth(), anchor.getDate() + dir * days);
+}
 
 export const useCalendar = create<CalState>((set, get) => ({
-  month: firstOfMonth(new Date()),
+  mode: "month",
+  anchor: new Date(),
   events: [],
   loading: false,
 
   load: async () => {
     set({ loading: true });
-    const grid = monthGrid(get().month, currentWeekStart());
+    const grid = gridFor(get().mode, get().anchor, currentWeekStart());
     const start = isoDate(grid[0]);
     const end = isoDate(grid[grid.length - 1]);
     try {
@@ -58,17 +85,20 @@ export const useCalendar = create<CalState>((set, get) => ({
     }
   },
 
-  setMonth: (month) => {
-    set({ month: firstOfMonth(month) });
+  setMode: (mode) => {
+    set({ mode });
     void get().load();
   },
   prev: () => {
-    const m = get().month;
-    get().setMonth(new Date(m.getFullYear(), m.getMonth() - 1, 1));
+    set({ anchor: step(get().mode, get().anchor, -1) });
+    void get().load();
   },
   next: () => {
-    const m = get().month;
-    get().setMonth(new Date(m.getFullYear(), m.getMonth() + 1, 1));
+    set({ anchor: step(get().mode, get().anchor, 1) });
+    void get().load();
   },
-  today: () => get().setMonth(new Date()),
+  today: () => {
+    set({ anchor: new Date() });
+    void get().load();
+  },
 }));

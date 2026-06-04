@@ -37,6 +37,11 @@ export function formatDayLong(date: Date): string {
   }).format(date);
 }
 
+/** Localized medium date, e.g. "Jun 4, 2026" — for compact range labels. */
+export function formatDateMedium(date: Date): string {
+  return new Intl.DateTimeFormat(activeLocale(), { dateStyle: "medium" }).format(date);
+}
+
 /** Localized date + time for an ISO/RFC 3339 string (raw value if unparseable). */
 export function formatDateTime(iso: string): string {
   const d = new Date(iso);

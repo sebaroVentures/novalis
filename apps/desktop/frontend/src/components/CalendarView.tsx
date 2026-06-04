@@ -4,8 +4,14 @@ import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, type CalendarEvent, type EventDraft } from "../ipc/api";
-import { formatTime, monthYearLabel, weekdayShortNames } from "../lib/datetime";
-import { isoDate, monthGrid, useCalendar } from "../stores/calendarStore";
+import {
+  formatDateMedium,
+  formatDayLong,
+  formatTime,
+  monthYearLabel,
+  weekdayShortNames,
+} from "../lib/datetime";
+import { type CalMode, gridFor, isoDate, useCalendar } from "../stores/calendarStore";
 import { useSettings } from "../stores/settingsStore";
 
 /** Add minutes to a `HH:MM` string, wrapping within a 24h day. */
@@ -24,7 +30,8 @@ const rruleToFreq = (r?: string | null) => {
 };
 
 export function CalendarView() {
-  const month = useCalendar((s) => s.month);
+  const mode = useCalendar((s) => s.mode);
+  const anchor = useCalendar((s) => s.anchor);
   const events = useCalendar((s) => s.events);
   const calPrefs = useSettings((s) => s.prefs?.calendar);
   const { t } = useTranslation(["calendar", "common"]);
@@ -39,11 +46,27 @@ export function CalendarView() {
     void useCalendar.getState().load();
   }, [weekStart]);
 
-  const grid = monthGrid(month, weekStart);
+  const grid = gridFor(mode, anchor, weekStart);
   const todayIso = isoDate(new Date());
-  const monthLabel = monthYearLabel(month);
+  const headerLabel =
+    mode === "month"
+      ? monthYearLabel(anchor)
+      : mode === "day"
+        ? formatDayLong(anchor)
+        : `${formatDateMedium(grid[0])} – ${formatDateMedium(grid[grid.length - 1])}`;
+  const modes: CalMode[] = ["month", "week", "day"];
+  // Static t() calls so i18next-parser keeps these keys (the toggle uses a
+  // dynamic key otherwise).
+  const modeLabels: Record<CalMode, string> = {
+    month: t("month"),
+    week: t("week"),
+    day: t("day"),
+  };
 
-  const eventsOn = (iso: string) => events.filter((e) => e.start.slice(0, 10) === iso);
+  const eventsOn = (iso: string) =>
+    events
+      .filter((e) => e.start.slice(0, 10) === iso)
+      .sort((a, b) => a.start.localeCompare(b.start));
 
   const newOn = (iso: string) =>
     setEditing({
@@ -68,12 +91,12 @@ export function CalendarView() {
 
   return (
     <section className="flex min-w-0 flex-1 flex-col">
-      <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
+      <header className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-4 py-2">
         <div className="flex items-center gap-2">
           <button onClick={() => useCalendar.getState().prev()} aria-label={t("prevMonth")} className="rounded px-2 py-1 text-fg-muted hover:bg-hover">
             <ChevronLeft size={16} />
           </button>
-          <span className="min-w-40 text-center text-sm font-medium text-fg">{monthLabel}</span>
+          <span className="min-w-40 text-center text-sm font-medium text-fg">{headerLabel}</span>
           <button onClick={() => useCalendar.getState().next()} aria-label={t("nextMonth")} className="rounded px-2 py-1 text-fg-muted hover:bg-hover">
             <ChevronRight size={16} />
           </button>
@@ -82,14 +105,24 @@ export function CalendarView() {
           </button>
         </div>
         <div className="flex items-center gap-1 text-xs">
+          <div className="mr-1 flex rounded-md ring-1 ring-border">
+            {modes.map((m) => (
+              <button
+                key={m}
+                onClick={() => useCalendar.getState().setMode(m)}
+                className={`px-2.5 py-1 transition-colors first:rounded-l-md last:rounded-r-md ${
+                  mode === m ? "bg-active text-fg" : "text-fg-muted hover:bg-hover"
+                }`}
+              >
+                {modeLabels[m]}
+              </button>
+            ))}
+          </div>
           <button onClick={() => void api.importIcs().then(() => useCalendar.getState().load())} className="rounded px-2 py-1 text-fg-muted hover:bg-hover">
             {t("importIcs")}
           </button>
           <button
-            onClick={() => {
-              const g = monthGrid(month, weekStart);
-              void api.exportIcs(isoDate(g[0]), isoDate(g[g.length - 1]));
-            }}
+            onClick={() => void api.exportIcs(isoDate(grid[0]), isoDate(grid[grid.length - 1]))}
             className="rounded px-2 py-1 text-fg-muted hover:bg-hover"
           >
             {t("exportIcs")}
@@ -100,56 +133,71 @@ export function CalendarView() {
         </div>
       </header>
 
-      <div className="grid grid-cols-7 border-b border-border text-xs text-fg-subtle">
-        {weekdays.map((d) => (
-          <div key={d} className="px-2 py-1 text-center">
-            {d}
+      {mode === "day" ? (
+        <div className="flex-1 overflow-y-auto">
+          <DayColumn
+            day={grid[0]}
+            isToday={isoDate(grid[0]) === todayIso}
+            events={eventsOn(isoDate(grid[0]))}
+            timeFormat={timeFormat}
+            onNew={newOn}
+            onEdit={edit}
+          />
+        </div>
+      ) : (
+        <>
+          <div className="grid grid-cols-7 border-b border-border text-xs text-fg-subtle">
+            {weekdays.map((d) => (
+              <div key={d} className="px-2 py-1 text-center">
+                {d}
+              </div>
+            ))}
           </div>
-        ))}
-      </div>
-
-      <div className="grid flex-1 grid-cols-7 grid-rows-6">
-        {grid.map((day) => {
-          const iso = isoDate(day);
-          const inMonth = day.getMonth() === month.getMonth();
-          const isToday = iso === todayIso;
-          return (
-            <div
-              key={iso}
-              onClick={() => newOn(iso)}
-              className={`min-h-0 cursor-pointer overflow-hidden border-b border-r border-border/60 p-1 ${
-                inMonth ? "" : "bg-app/60 text-fg-faint"
-              }`}
-            >
-              <div className={`mb-0.5 text-right text-xs ${isToday ? "font-bold text-accent" : "text-fg-subtle"}`}>
-                {day.getDate()}
-              </div>
-              <div className="space-y-0.5">
-                {eventsOn(iso).slice(0, 4).map((e) => (
-                  <button
-                    key={e.id}
-                    onClick={(ev) => {
-                      ev.stopPropagation();
-                      edit(e);
-                    }}
-                    className={`block w-full truncate rounded px-1 py-0.5 text-left text-[11px] ${
-                      e.sourceId === "local"
-                        ? "bg-accent-soft text-accent"
-                        : "bg-teal-500/20 text-teal-100"
-                    }`}
-                    title={e.title}
-                  >
-                    {!e.allDay && e.start.length >= 16
-                      ? `${formatTime(e.start.slice(11, 16), timeFormat)} `
-                      : ""}
-                    {e.title}
-                  </button>
-                ))}
-              </div>
+          {mode === "week" ? (
+            <div className="grid flex-1 grid-cols-7 overflow-y-auto">
+              {grid.map((day) => (
+                <DayColumn
+                  key={isoDate(day)}
+                  day={day}
+                  isToday={isoDate(day) === todayIso}
+                  events={eventsOn(isoDate(day))}
+                  timeFormat={timeFormat}
+                  onNew={newOn}
+                  onEdit={edit}
+                />
+              ))}
             </div>
-          );
-        })}
-      </div>
+          ) : (
+            <div className="grid flex-1 grid-cols-7 grid-rows-6">
+              {grid.map((day) => {
+                const iso = isoDate(day);
+                const inMonth = day.getMonth() === anchor.getMonth();
+                const isToday = iso === todayIso;
+                return (
+                  <div
+                    key={iso}
+                    onClick={() => newOn(iso)}
+                    className={`min-h-0 cursor-pointer overflow-hidden border-b border-r border-border/60 p-1 ${
+                      inMonth ? "" : "bg-app/60 text-fg-faint"
+                    }`}
+                  >
+                    <div className={`mb-0.5 text-right text-xs ${isToday ? "font-bold text-accent" : "text-fg-subtle"}`}>
+                      {day.getDate()}
+                    </div>
+                    <div className="space-y-0.5">
+                      {eventsOn(iso)
+                        .slice(0, 4)
+                        .map((e) => (
+                          <EventChip key={e.id} event={e} timeFormat={timeFormat} onEdit={edit} />
+                        ))}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          )}
+        </>
+      )}
 
       {editing && (
         <EventModal
@@ -162,6 +210,80 @@ export function CalendarView() {
         />
       )}
     </section>
+  );
+}
+
+/** A single event pill — used in month cells. */
+function EventChip({
+  event: e,
+  timeFormat,
+  onEdit,
+}: {
+  event: CalendarEvent;
+  timeFormat: "12h" | "24h";
+  onEdit: (e: CalendarEvent) => void;
+}) {
+  return (
+    <button
+      onClick={(ev) => {
+        ev.stopPropagation();
+        onEdit(e);
+      }}
+      className={`block w-full truncate rounded px-1 py-0.5 text-left text-[11px] ${
+        e.sourceId === "local" ? "bg-accent-soft text-accent" : "bg-teal-500/20 text-teal-100"
+      }`}
+      title={e.title}
+    >
+      {!e.allDay && e.start.length >= 16 ? `${formatTime(e.start.slice(11, 16), timeFormat)} ` : ""}
+      {e.title}
+    </button>
+  );
+}
+
+/** A scrollable single-day column listing its events (week & day views). */
+function DayColumn({
+  day,
+  isToday,
+  events,
+  timeFormat,
+  onNew,
+  onEdit,
+}: {
+  day: Date;
+  isToday: boolean;
+  events: CalendarEvent[];
+  timeFormat: "12h" | "24h";
+  onNew: (iso: string) => void;
+  onEdit: (e: CalendarEvent) => void;
+}) {
+  const iso = isoDate(day);
+  return (
+    <div
+      onClick={() => onNew(iso)}
+      className="min-h-40 cursor-pointer border-b border-r border-border/60 p-2"
+    >
+      <div className={`mb-1 text-xs font-medium ${isToday ? "text-accent" : "text-fg-subtle"}`}>
+        {day.getDate()}
+      </div>
+      <div className="space-y-1">
+        {events.map((e) => (
+          <button
+            key={e.id}
+            onClick={(ev) => {
+              ev.stopPropagation();
+              onEdit(e);
+            }}
+            className={`block w-full truncate rounded px-1.5 py-1 text-left text-xs ${
+              e.sourceId === "local" ? "bg-accent-soft text-accent" : "bg-teal-500/20 text-teal-100"
+            }`}
+            title={e.title}
+          >
+            {!e.allDay && e.start.length >= 16 ? `${formatTime(e.start.slice(11, 16), timeFormat)} ` : ""}
+            {e.title}
+          </button>
+        ))}
+      </div>
+    </div>
   );
 }
 
