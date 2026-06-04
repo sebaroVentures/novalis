@@ -14,6 +14,7 @@ import { Markdown } from "tiptap-markdown";
 
 import { Callout } from "./Callout";
 import { Find } from "./Find";
+import { MathExtension } from "./Math";
 import { WikiLink } from "./WikiLink";
 import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
 
@@ -180,6 +181,7 @@ export function NovalisEditor({
       WikiLinkSuggestion.configure({ onSearch: onSearchLinkTargets }),
       Find,
       Callout,
+      MathExtension,
     ],
     content: value,
     onUpdate: ({ editor }) => {

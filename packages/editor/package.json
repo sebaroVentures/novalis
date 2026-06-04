@@ -24,6 +24,7 @@
     "@tiptap/react": "^2.12.0",
     "@tiptap/starter-kit": "^2.12.0",
     "@tiptap/suggestion": "^2.12.0",
+    "katex": "^0.16.11",
     "lowlight": "^3.3.0",
     "tiptap-markdown": "^0.8.10"
   },

@@ -195,6 +195,11 @@
 .nv-editor-content blockquote.nv-callout-danger,
 .nv-editor-content blockquote.nv-callout-error { --nv-cal: #ef4444; }
 
+/* Math: the raw `$…$` source is hidden while a KaTeX widget is shown in its
+   place; block math is centered. The source reappears when the cursor enters. */
+.nv-editor-content .nv-math-src { display: none; }
+.nv-editor-content .nv-math-block { display: block; text-align: center; margin: 0.6em 0; }
+
 /* `[[` autocomplete popover. Attached to `.nv-editor`, so the theme variables
    above are in scope; positioned `fixed` to escape the content's overflow. */
 .nv-suggest {

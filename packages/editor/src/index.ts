@@ -13,6 +13,7 @@ export type { OutlineItem } from "./outline";
 export { Find, findInfo } from "./Find";
 export type { FindMatchInfo } from "./Find";
 export { findMatches } from "./findMatches";
+export { findMath } from "./mathMatches";
 export { parseCallout } from "./parseCallout";
 export { WikiLink } from "./WikiLink";
 export type { WikiLinkOptions } from "./WikiLink";

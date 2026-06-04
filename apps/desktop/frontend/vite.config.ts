@@ -21,5 +21,15 @@ export default defineConfig({
     target: "esnext",
     outDir: "dist",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        // Keep the heavy, lazily-loaded math/diagram libraries out of the main
+        // bundle — they load on demand only when a note actually uses them.
+        manualChunks(id) {
+          if (id.includes("/katex/")) return "katex";
+          if (id.includes("/mermaid/")) return "mermaid";
+        },
+      },
+    },
   },
 });
