@@ -173,6 +173,28 @@
   background: color-mix(in srgb, var(--nv-accent) 55%, transparent);
 }
 
+/* Callouts: a blockquote whose first line is `[!type] …` renders as a colored
+   admonition box. Decoration-only — the Markdown stays a plain blockquote. */
+.nv-editor-content blockquote.nv-callout {
+  --nv-cal: var(--nv-accent);
+  border-left-width: 4px;
+  border-left-color: var(--nv-cal);
+  border-radius: 4px;
+  padding: 6px 12px;
+  color: var(--nv-fg);
+  background: color-mix(in srgb, var(--nv-cal) 10%, transparent);
+}
+.nv-editor-content blockquote.nv-callout-note,
+.nv-editor-content blockquote.nv-callout-info { --nv-cal: #3b82f6; }
+.nv-editor-content blockquote.nv-callout-tip,
+.nv-editor-content blockquote.nv-callout-success { --nv-cal: #10b981; }
+.nv-editor-content blockquote.nv-callout-question { --nv-cal: #a855f7; }
+.nv-editor-content blockquote.nv-callout-warning,
+.nv-editor-content blockquote.nv-callout-caution,
+.nv-editor-content blockquote.nv-callout-important { --nv-cal: #f59e0b; }
+.nv-editor-content blockquote.nv-callout-danger,
+.nv-editor-content blockquote.nv-callout-error { --nv-cal: #ef4444; }
+
 /* `[[` autocomplete popover. Attached to `.nv-editor`, so the theme variables
    above are in scope; positioned `fixed` to escape the content's overflow. */
 .nv-suggest {

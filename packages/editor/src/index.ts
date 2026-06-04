@@ -13,6 +13,7 @@ export type { OutlineItem } from "./outline";
 export { Find, findInfo } from "./Find";
 export type { FindMatchInfo } from "./Find";
 export { findMatches } from "./findMatches";
+export { parseCallout } from "./parseCallout";
 export { WikiLink } from "./WikiLink";
 export type { WikiLinkOptions } from "./WikiLink";
 export type { Editor } from "@tiptap/react";

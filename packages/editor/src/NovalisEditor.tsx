@@ -12,6 +12,7 @@ import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
 import { Markdown } from "tiptap-markdown";
 
+import { Callout } from "./Callout";
 import { Find } from "./Find";
 import { WikiLink } from "./WikiLink";
 import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
@@ -178,6 +179,7 @@ export function NovalisEditor({
       }),
       WikiLinkSuggestion.configure({ onSearch: onSearchLinkTargets }),
       Find,
+      Callout,
     ],
     content: value,
     onUpdate: ({ editor }) => {
