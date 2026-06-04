@@ -18,9 +18,11 @@ import { TrashModal } from "./components/TrashModal";
 import { VaultGate } from "./components/VaultGate";
 import { applyAppearance, watchSystemTheme } from "./lib/appearance";
 import { applyLanguage } from "./lib/i18n";
+import { actionForEvent } from "./lib/keybindings";
 import { getLanguage } from "./lib/language";
 import { useNovalisEvents } from "./lib/useNovalisEvents";
 import { useConflicts } from "./stores/conflictStore";
+import { useKeymap } from "./stores/keymapStore";
 import { usePlugins } from "./stores/pluginStore";
 import { useSettings } from "./stores/settingsStore";
 import { useUi } from "./stores/uiStore";
@@ -95,16 +97,25 @@ export default function App() {
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      const mod = e.metaKey || e.ctrlKey;
-      if (mod && e.shiftKey && e.key.toLowerCase() === "p") {
+      // actionForEvent ignores modifier-less keystrokes, so ordinary typing
+      // (including in the editor/inputs) is never intercepted.
+      const action = actionForEvent(useKeymap.getState().keymap, e);
+      if (!action) return;
+      const handlers: Partial<Record<typeof action, () => void>> = {
+        search: () => setSearchOpen((v) => !v),
+        "command-palette": () => setPaletteOpen((v) => !v),
+        settings: () => setSettingsOpen((v) => !v),
+        "view-notes": () => useUi.getState().setView("notes"),
+        "view-today": () => useUi.getState().setView("today"),
+        "view-tasks": () => useUi.getState().setView("tasks"),
+        "view-calendar": () => useUi.getState().setView("calendar"),
+        "new-note": () =>
+          void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
+      };
+      const handler = handlers[action];
+      if (handler) {
         e.preventDefault();
-        setPaletteOpen((v) => !v);
-      } else if (mod && !e.shiftKey && e.key.toLowerCase() === "k") {
-        e.preventDefault();
-        setSearchOpen((v) => !v);
-      } else if (mod && e.key === ",") {
-        e.preventDefault();
-        setSettingsOpen((v) => !v);
+        handler();
       }
     };
     window.addEventListener("keydown", onKey);
