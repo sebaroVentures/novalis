@@ -21,6 +21,7 @@ import { applyAppearance, watchSystemTheme } from "./lib/appearance";
 import { applyLanguage } from "./lib/i18n";
 import { actionForEvent } from "./lib/keybindings";
 import { getLanguage } from "./lib/language";
+import { checkReminders, resetReminderBaseline } from "./lib/reminderScheduler";
 import { useNovalisEvents } from "./lib/useNovalisEvents";
 import { useConflicts } from "./stores/conflictStore";
 import { useKeymap } from "./stores/keymapStore";
@@ -91,6 +92,15 @@ export default function App() {
 
   // Re-apply theme when the OS color scheme changes (only matters for "system").
   useEffect(() => watchSystemTheme(() => useSettings.getState().prefs?.appearance), []);
+
+  // Poll for task reminders while a vault is open (in-app toast + best-effort OS
+  // notification). Past-due reminders aren't fired retroactively on open.
+  useEffect(() => {
+    if (!vaultPath) return;
+    resetReminderBaseline();
+    const id = window.setInterval(() => void checkReminders(), 30_000);
+    return () => window.clearInterval(id);
+  }, [vaultPath]);
 
   // Close the mobile nav drawer after navigating.
   useEffect(() => {

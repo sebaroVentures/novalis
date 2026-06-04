@@ -28,6 +28,9 @@ importers:
       '@tauri-apps/api':
         specifier: ^2
         version: 2.11.0
+      '@tauri-apps/plugin-notification':
+        specifier: ^2
+        version: 2.3.3
       i18next:
         specifier: ^26.3.0
         version: 26.3.0(typescript@5.8.3)
@@ -979,6 +982,9 @@ packages:
     resolution: {integrity: sha512-bk3HemqvGRoy+5D/dVMUQHKMYLglD0jVnMm/0iGMH6ufZ+p8r14m6BpIixwij3PBvZdvORUp1YifTD8QxVZ1Nw==}
     engines: {node: '>= 10'}
     hasBin: true
+
+  '@tauri-apps/plugin-notification@2.3.3':
+    resolution: {integrity: sha512-Zw+ZH18RJb41G4NrfHgIuofJiymusqN+q8fGUIIV7vyCH+5sSn5coqRv/MWB9qETsUs97vmU045q7OyseCV3Qg==}
 
   '@tiptap/core@2.27.2':
     resolution: {integrity: sha512-ABL1N6eoxzDzC1bYvkMbvyexHacszsKdVPYqhl5GwHLOvpZcv9VE9QaKwDILTyz5voCA0lGcAAXZp+qnXOk5lQ==}
@@ -3599,6 +3605,10 @@ snapshots:
       '@tauri-apps/cli-win32-arm64-msvc': 2.11.2
       '@tauri-apps/cli-win32-ia32-msvc': 2.11.2
       '@tauri-apps/cli-win32-x64-msvc': 2.11.2
+
+  '@tauri-apps/plugin-notification@2.3.3':
+    dependencies:
+      '@tauri-apps/api': 2.11.0
 
   '@tiptap/core@2.27.2(@tiptap/pm@2.27.2)':
     dependencies:

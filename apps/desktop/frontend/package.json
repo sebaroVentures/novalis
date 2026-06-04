@@ -17,6 +17,7 @@
     "@novalis/editor": "workspace:*",
     "@novalis/ui": "workspace:*",
     "@tauri-apps/api": "^2",
+    "@tauri-apps/plugin-notification": "^2",
     "i18next": "^26.3.0",
     "lucide-react": "^1.17.0",
     "react": "^19.1.0",
