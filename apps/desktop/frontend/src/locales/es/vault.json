@@ -14,6 +14,7 @@
     "itemExistsTarget": "«{{name}}» ya existe en la carpeta de destino."
   },
   "openVault": "Abrir un Vault…",
+  "searchAllFolders": "Todas las carpetas",
   "searchNoResults": "No hay notas coincidentes.",
   "searchPlaceholder": "Buscar notas…",
   "tagline": "Local-first: notas, tareas y calendario"

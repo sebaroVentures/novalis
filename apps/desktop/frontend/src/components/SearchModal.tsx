@@ -1,8 +1,8 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useTranslation } from "react-i18next";
 
-import { api, type SearchResult } from "../ipc/api";
+import { api, type FolderNode, type SearchResult } from "../ipc/api";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 
@@ -40,15 +40,30 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState(0);
+  const [folder, setFolder] = useState("");
   const openNote = useVault((s) => s.openNote);
   const setView = useUi((s) => s.setView);
+  const tree = useVault((s) => s.tree);
   const inputRef = useRef<HTMLInputElement>(null);
+
+  const folders = useMemo(() => {
+    const out: string[] = [];
+    const walk = (n: FolderNode) => {
+      for (const c of n.children) {
+        out.push(c.path);
+        walk(c);
+      }
+    };
+    if (tree) walk(tree);
+    return out.sort();
+  }, [tree]);
 
   useEffect(() => {
     if (open) {
       setQuery("");
       setResults([]);
       setSelected(0);
+      setFolder("");
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);
@@ -60,7 +75,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
     }
     let cancelled = false;
     void api
-      .search(query)
+      .search(query, folder || null)
       .then((r) => {
         if (!cancelled) {
           setResults(r);
@@ -71,7 +86,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
     return () => {
       cancelled = true;
     };
-  }, [query, open]);
+  }, [query, folder, open]);
 
   if (!open) return null;
 
@@ -113,6 +128,22 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
           className="w-full bg-transparent px-4 py-3 text-fg outline-none placeholder:text-fg-faint"
           onKeyDown={onKeyDown}
         />
+        {folders.length > 0 && (
+          <div className="flex items-center gap-2 border-t border-border px-3 py-1.5">
+            <select
+              value={folder}
+              onChange={(e) => setFolder(e.target.value)}
+              className="rounded-md bg-surface-2 px-2 py-1 text-xs text-fg outline-none ring-1 ring-border focus:ring-accent/50"
+            >
+              <option value="">{t("searchAllFolders")}</option>
+              {folders.map((f) => (
+                <option key={f} value={f}>
+                  {f}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
         {query.trim() && results.length === 0 && (
           <div className="border-t border-border px-4 py-3 text-xs text-fg-faint">
             {t("searchNoResults")}

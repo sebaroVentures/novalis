@@ -52,7 +52,8 @@ export const api = {
   deleteFolder: (path: string) => unwrap(commands.deleteFolder(path)),
   deleteFolderRecursive: (path: string) => unwrap(commands.deleteFolderRecursive(path)),
   moveFolder: (path: string, newPath: string) => unwrap(commands.moveFolder(path, newPath)),
-  search: (query: string) => unwrap(commands.search(query, null, null)),
+  search: (query: string, folder?: string | null, tag?: string | null) =>
+    unwrap(commands.search(query, folder ?? null, tag ?? null)),
   quickSearch: (query: string) => unwrap(commands.quickSearch(query)),
 
   // Linked writing
