@@ -282,6 +282,13 @@ export function NovalisEditor({
     if (editor) editor.view.dom.setAttribute("spellcheck", String(spellCheck ?? true));
   }, [editor, spellCheck]);
 
+  // `editable` is consumed at creation by useEditor; reflect later changes live
+  // so toggling reading mode doesn't require a remount (which would lose the
+  // cursor/scroll position).
+  useEffect(() => {
+    if (editor) editor.setEditable(editable);
+  }, [editor, editable]);
+
   // Hand the editor instance to the host once it exists (outline / find/replace).
   useEffect(() => {
     if (editor) onEditorReadyRef.current?.(editor);
@@ -290,7 +297,7 @@ export function NovalisEditor({
   if (!editor) return null;
 
   return (
-    <div className="nv-editor">
+    <div className={`nv-editor${editable ? "" : " nv-reading"}`}>
       {editable && <Toolbar editor={editor} labels={lbl} />}
       <EditorContent editor={editor} className="nv-editor-content" />
     </div>

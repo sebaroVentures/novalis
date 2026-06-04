@@ -5,6 +5,7 @@ import { convertFileSrc } from "@tauri-apps/api/core";
 import {
   AlertTriangle,
   ArrowLeft,
+  BookOpen,
   Check,
   ChevronDown,
   ChevronRight,
@@ -100,6 +101,10 @@ export function EditorPane() {
   // Non-null while the header title is being edited inline (holds the draft).
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [rightPanel, setRightPanel] = useState<RightPanel>(loadRightPanel);
+  const readingDefault = editorPrefs?.defaultReadingMode ?? false;
+  // Per-note, ephemeral: reading mode resets to the configured default on every
+  // note switch (never persisted per note — only the default is a preference).
+  const [readingMode, setReadingMode] = useState(readingDefault);
   const [editor, setEditorInstance] = useState<Editor | null>(null);
   const [headings, setHeadings] = useState<OutlineItem[]>([]);
   const [findOpen, setFindOpen] = useState(false);
@@ -113,6 +118,13 @@ export function EditorPane() {
       saveRightPanel(next);
       return next;
     });
+
+  // Flush any pending edit before entering reading mode (belt-and-suspenders;
+  // the editor's blur-flush also fires), then toggle the ephemeral state.
+  const toggleReadingMode = () => {
+    void flushPending();
+    setReadingMode((v) => !v);
+  };
 
   const handleEditorReady = useCallback((ed: Editor) => setEditorInstance(ed), []);
 
@@ -188,6 +200,11 @@ export function EditorPane() {
     },
     [activePath],
   );
+
+  // Reset reading mode to the configured default whenever the open note changes.
+  useEffect(() => {
+    setReadingMode(readingDefault);
+  }, [activePath, readingDefault]);
 
   // NOTE: all hooks must stay above the early returns below, so the hook order
   // is identical across the loading → loaded transition (otherwise React throws
@@ -392,6 +409,16 @@ export function EditorPane() {
         <div className="flex items-center gap-1.5">
           <SaveStatus state={saveState} onRetry={() => void flushPending()} />
           <button
+            onClick={toggleReadingMode}
+            title={t("readingMode")}
+            aria-pressed={readingMode}
+            className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
+              readingMode ? "bg-active text-fg" : "text-fg-muted"
+            }`}
+          >
+            <BookOpen size={15} />
+          </button>
+          <button
             onClick={() => togglePanel("links")}
             title={rightPanel === "links" ? t("links:hide") : t("links:show")}
             aria-pressed={rightPanel === "links"}
@@ -480,6 +507,7 @@ export function EditorPane() {
           <NovalisEditor
             key={`${activePath}:${activeNoteVersion}`}
             value={split.body}
+            editable={!readingMode}
             onChange={onChange}
             onUploadImage={onUploadImage}
             resolveImageSrc={resolveImageSrc}

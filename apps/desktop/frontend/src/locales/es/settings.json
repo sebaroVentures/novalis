@@ -62,6 +62,11 @@
       "desc": "Tiempo tras dejar de escribir antes de guardar la nota.",
       "label": "Retraso de guardado automático"
     },
+    "readingMode": {
+      "aria": "Modo lectura",
+      "desc": "Abrir las notas en una vista renderizada y de solo lectura por defecto.",
+      "label": "Modo lectura por defecto"
+    },
     "sectionAdvanced": "Avanzado",
     "sectionEditing": "Edición",
     "spellcheck": {

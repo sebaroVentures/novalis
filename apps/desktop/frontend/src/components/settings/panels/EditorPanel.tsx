@@ -40,6 +40,17 @@ export function EditorPanel() {
             />
           }
         />
+        <SettingRow
+          label={t("editor.readingMode.label")}
+          description={t("editor.readingMode.desc")}
+          control={
+            <Switch
+              checked={e.defaultReadingMode ?? false}
+              onChange={(v) => settings.setEditor({ defaultReadingMode: v })}
+              aria-label={t("editor.readingMode.aria")}
+            />
+          }
+        />
       </SettingsSection>
 
       <SettingsSection title={t("editor.sectionAdvanced")}>

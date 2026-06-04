@@ -62,6 +62,11 @@
       "desc": "Délai entre l'arrêt de la saisie et l'enregistrement de la note.",
       "label": "Délai d'enregistrement automatique"
     },
+    "readingMode": {
+      "aria": "Mode lecture",
+      "desc": "Ouvrir les notes dans une vue rendue et non modifiable par défaut.",
+      "label": "Mode lecture par défaut"
+    },
     "sectionAdvanced": "Avancé",
     "sectionEditing": "Édition",
     "spellcheck": {

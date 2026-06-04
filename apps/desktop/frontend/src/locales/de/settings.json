@@ -62,6 +62,11 @@
       "desc": "Wie lange nach der letzten Eingabe die Notiz gespeichert wird.",
       "label": "Verzögerung für automatisches Speichern"
     },
+    "readingMode": {
+      "aria": "Lesemodus",
+      "desc": "Notizen standardmäßig in einer gerenderten, schreibgeschützten Ansicht öffnen.",
+      "label": "Standardmäßig im Lesemodus"
+    },
     "sectionAdvanced": "Erweitert",
     "sectionEditing": "Bearbeitung",
     "spellcheck": {

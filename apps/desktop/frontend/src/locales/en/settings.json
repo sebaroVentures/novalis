@@ -62,6 +62,11 @@
       "desc": "How long after you stop typing the note is saved.",
       "label": "Autosave delay"
     },
+    "readingMode": {
+      "aria": "Reading mode",
+      "desc": "Open notes in a rendered, non-editable view by default.",
+      "label": "Reading mode by default"
+    },
     "sectionAdvanced": "Advanced",
     "sectionEditing": "Editing",
     "spellcheck": {

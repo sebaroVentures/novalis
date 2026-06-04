@@ -322,6 +322,8 @@ export type EditorPrefs = {
 	serializeMs?: number,
 	/**  Browser spellcheck in the editor. */
 	spellcheck?: boolean,
+	/**  Open notes in reading mode (rendered, non-editable) by default. */
+	defaultReadingMode?: boolean,
 };
 
 /**  Request to create/update an own event (written to a markdown note). */

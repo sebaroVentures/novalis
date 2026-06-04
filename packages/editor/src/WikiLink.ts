@@ -40,6 +40,10 @@ function buildDecorations(doc: { descendants: Function }, className: string) {
           "data-wiki-title": title,
         }),
       );
+      // Tag the `[[` and `]]` runs separately so reading mode can hide just the
+      // brackets (leaving the title text) via CSS. No effect outside reading mode.
+      decorations.push(Decoration.inline(start, start + 2, { class: "nv-wikilink-bracket" }));
+      decorations.push(Decoration.inline(end - 2, end, { class: "nv-wikilink-bracket" }));
     }
   });
   return DecorationSet.create(doc as any, decorations);

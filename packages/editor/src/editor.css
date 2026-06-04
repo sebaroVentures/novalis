@@ -266,3 +266,10 @@
   color: var(--nv-accent);
   font-style: italic;
 }
+
+/* Reading mode: a rendered, non-editable view (the toolbar is already hidden
+   when !editable). Hide the literal `[[ ]]` brackets so wikilinks read cleanly;
+   the title text keeps its `.nv-wikilink` styling. */
+.nv-editor.nv-reading .nv-wikilink-bracket {
+  display: none;
+}

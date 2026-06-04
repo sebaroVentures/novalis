@@ -124,6 +124,9 @@ pub struct EditorPrefs {
     /// Browser spellcheck in the editor.
     #[serde(default = "default_spellcheck")]
     pub spellcheck: bool,
+    /// Open notes in reading mode (rendered, non-editable) by default.
+    #[serde(default = "default_reading_mode")]
+    pub default_reading_mode: bool,
 }
 
 /// Calendar display preferences.
@@ -196,6 +199,10 @@ fn default_serialize_ms() -> u32 {
 
 fn default_spellcheck() -> bool {
     true
+}
+
+fn default_reading_mode() -> bool {
+    false
 }
 
 fn default_week_start() -> String {
@@ -287,6 +294,7 @@ impl Default for EditorPrefs {
             autosave_ms: default_autosave_ms(),
             serialize_ms: default_serialize_ms(),
             spellcheck: default_spellcheck(),
+            default_reading_mode: default_reading_mode(),
         }
     }
 }
@@ -364,6 +372,7 @@ mod tests {
         assert_eq!(p.editor.autosave_ms, 600);
         assert_eq!(p.editor.serialize_ms, 200);
         assert!(p.editor.spellcheck);
+        assert!(!p.editor.default_reading_mode);
         assert_eq!(p.calendar.week_start, "monday");
         assert_eq!(p.calendar.default_event_minutes, 60);
         assert_eq!(p.calendar.time_format, "24h");
