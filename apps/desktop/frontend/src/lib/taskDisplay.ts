@@ -2,7 +2,7 @@
 // raw task line for display, and derive a stable color from a tag string (used
 // by tag chips and the card accent stripe).
 
-const ANNOTATION = /@(due|start|priority|status|repeat|rrule|project|epic)\([^)]*\)/g;
+const ANNOTATION = /@(due|start|remind|priority|status|repeat|rrule|project|epic)\([^)]*\)/g;
 const TAG = /(^|\s)#\w+/g;
 
 /** The human-readable task title: the raw line text with @annotations and #tags

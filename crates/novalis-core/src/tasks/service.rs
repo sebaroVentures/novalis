@@ -100,7 +100,8 @@ pub fn set_status(db: &Connection, vault: &Path, id: &str, status: &str) -> Core
 /// Set or clear an annotation on a task in its source markdown (the annotation
 /// key equals `field`). `value = None` removes it. Supported fields and their
 /// value rules: `project`/`epic` → slug `[a-z0-9-]+`; `priority` →
-/// `urgent|high|medium|low`; `due`/`start` → `YYYY-MM-DD`.
+/// `urgent|high|medium|low`; `due`/`start` → `YYYY-MM-DD`; `remind` →
+/// `YYYY-MM-DDTHH:MM`.
 pub fn update_task(
     db: &Connection,
     vault: &Path,
@@ -108,7 +109,10 @@ pub fn update_task(
     field: &str,
     value: Option<&str>,
 ) -> CoreResult<()> {
-    if !matches!(field, "project" | "epic" | "priority" | "due" | "start") {
+    if !matches!(
+        field,
+        "project" | "epic" | "priority" | "due" | "start" | "remind"
+    ) {
         return Err(CoreError::BadRequest(format!(
             "Unsupported task field: {field}"
         )));
@@ -118,6 +122,7 @@ pub fn update_task(
             "project" | "epic" => is_slug(v),
             "priority" => matches!(v, "urgent" | "high" | "medium" | "low"),
             "due" | "start" => chrono::NaiveDate::parse_from_str(v, "%Y-%m-%d").is_ok(),
+            "remind" => chrono::NaiveDateTime::parse_from_str(v, "%Y-%m-%dT%H:%M").is_ok(),
             _ => false,
         };
         if !ok {

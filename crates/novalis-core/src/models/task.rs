@@ -14,6 +14,9 @@ pub struct Task {
     /// `@start(YYYY-MM-DD)` — the scheduled "do" date (distinct from due).
     #[serde(default)]
     pub start_date: Option<String>,
+    /// `@remind(YYYY-MM-DDTHH:MM)` — an absolute (local) reminder datetime.
+    #[serde(default)]
+    pub remind: Option<String>,
     pub status: Option<String>,
     pub source_note: String,
     pub source_line: usize,

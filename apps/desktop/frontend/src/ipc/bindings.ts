@@ -530,6 +530,8 @@ export type Task = {
 	dueDate: string | null,
 	/**  `@start(YYYY-MM-DD)` — the scheduled "do" date (distinct from due). */
 	startDate?: string | null,
+	/**  `@remind(YYYY-MM-DDTHH:MM)` — an absolute (local) reminder datetime. */
+	remind?: string | null,
 	status: string | null,
 	sourceNote: string,
 	sourceLine: number,
