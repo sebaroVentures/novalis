@@ -30,6 +30,10 @@
   --color-accent-soft: var(--accent-soft);
   --color-accent-fg: var(--accent-fg);
   --color-danger: var(--danger);
+  --color-diff-add: var(--diff-add);
+  --color-diff-add-soft: var(--diff-add-soft);
+  --color-diff-del: var(--danger);
+  --color-diff-del-soft: var(--diff-del-soft);
 }
 
 /* Dark theme (default). Values mirror the previous hardcoded neutral / indigo
@@ -53,6 +57,9 @@
   --accent-fg: #ffffff;
   --accent-soft: color-mix(in srgb, var(--accent) 18%, transparent);
   --danger: #f87171; /* red-400 */
+  --diff-add: #4ade80; /* green-400 */
+  --diff-add-soft: color-mix(in srgb, var(--diff-add) 14%, transparent);
+  --diff-del-soft: color-mix(in srgb, var(--danger) 14%, transparent);
   --scrollbar: rgba(255, 255, 255, 0.12);
   --scrollbar-hover: rgba(255, 255, 255, 0.22);
 }
@@ -76,6 +83,9 @@
   --accent-fg: #ffffff;
   --accent-soft: color-mix(in srgb, var(--accent) 14%, transparent);
   --danger: #dc2626; /* red-600 */
+  --diff-add: #16a34a; /* green-600 */
+  --diff-add-soft: color-mix(in srgb, var(--diff-add) 12%, transparent);
+  --diff-del-soft: color-mix(in srgb, var(--danger) 12%, transparent);
   --scrollbar: rgba(0, 0, 0, 0.18);
   --scrollbar-hover: rgba(0, 0, 0, 0.32);
 }

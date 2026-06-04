@@ -268,8 +268,12 @@
 }
 
 /* Reading mode: a rendered, non-editable view (the toolbar is already hidden
-   when !editable). Hide the literal `[[ ]]` brackets so wikilinks read cleanly;
-   the title text keeps its `.nv-wikilink` styling. */
+   when !editable). Hide the literal `[[ ]]` brackets so wikilinks read cleanly
+   (the title text keeps its `.nv-wikilink` styling) and dim the `[!TYPE]`
+   callout marker so the box reads as a callout rather than raw syntax. */
 .nv-editor.nv-reading .nv-wikilink-bracket {
   display: none;
+}
+.nv-editor.nv-reading .nv-callout-marker {
+  opacity: 0.4;
 }

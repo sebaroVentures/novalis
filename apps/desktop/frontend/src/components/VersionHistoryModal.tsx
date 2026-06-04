@@ -117,9 +117,9 @@ export function VersionHistoryModal({
                       key={i}
                       className={`whitespace-pre-wrap ${
                         line.kind === "insert"
-                          ? "bg-emerald-500/10 text-emerald-300"
+                          ? "bg-diff-add-soft text-diff-add"
                           : line.kind === "delete"
-                            ? "bg-red-500/10 text-red-300"
+                            ? "bg-diff-del-soft text-diff-del"
                             : "text-fg-muted"
                       }`}
                     >

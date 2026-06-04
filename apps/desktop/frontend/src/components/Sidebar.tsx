@@ -577,15 +577,21 @@ function RecentSection() {
   );
 }
 
+type TagNode =
+  | { kind: "leaf"; tag: string; count: number }
+  | { kind: "group"; name: string; count: number; children: { tag: string; count: number }[] };
+
 /** Tag browser: distinct tags (frontmatter + inline `#tags`) with note counts,
- *  derived from the loaded tree. Selecting a tag expands the notes carrying it. */
+ *  derived from the loaded tree. Tags are grouped by their first `/` segment
+ *  into a two-level tree; selecting a leaf expands the notes carrying it. */
 function TagsSection() {
   const tree = useVault((s) => s.tree);
   const { t } = useTranslation("sidebar");
   const [open, setOpen] = useState(true);
   const [selected, setSelected] = useState<string | null>(null);
+  const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set());
 
-  const { tags, notesByTag } = useMemo(() => {
+  const { nodes, notesByTag } = useMemo(() => {
     const all: NoteSummary[] = [];
     if (tree) flattenNotes(tree, all);
     const counts = new Map<string, number>();
@@ -598,13 +604,47 @@ function TagsSection() {
         else byTag.set(tag, [n]);
       }
     }
-    const sorted = [...counts.entries()].sort(
-      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
-    );
-    return { tags: sorted, notesByTag: byTag };
+    // Group by the segment before the first "/". Tags without "/" stay as
+    // standalone top-level leaves.
+    const groups = new Map<string, { tag: string; count: number }[]>();
+    const standalone: { tag: string; count: number }[] = [];
+    for (const [tag, count] of counts) {
+      const slash = tag.indexOf("/");
+      if (slash > 0) {
+        const head = tag.slice(0, slash);
+        const arr = groups.get(head);
+        if (arr) arr.push({ tag, count });
+        else groups.set(head, [{ tag, count }]);
+      } else {
+        standalone.push({ tag, count });
+      }
+    }
+    const built: TagNode[] = [
+      ...standalone.map((s): TagNode => ({ kind: "leaf", tag: s.tag, count: s.count })),
+      ...[...groups.entries()].map(([name, children]): TagNode => ({
+        kind: "group",
+        name,
+        count: children.reduce((acc, c) => acc + c.count, 0),
+        children: children.sort((a, b) => b.count - a.count || a.tag.localeCompare(b.tag)),
+      })),
+    ].sort((a, b) => {
+      const an = a.kind === "leaf" ? a.tag : a.name;
+      const bn = b.kind === "leaf" ? b.tag : b.name;
+      return b.count - a.count || an.localeCompare(bn);
+    });
+    return { nodes: built, notesByTag: byTag };
   }, [tree]);
 
-  if (tags.length === 0) return null;
+  if (nodes.length === 0) return null;
+
+  const toggleSel = (tag: string) => setSelected((s) => (s === tag ? null : tag));
+  const toggleGroup = (name: string) =>
+    setCollapsedGroups((s) => {
+      const next = new Set(s);
+      if (next.has(name)) next.delete(name);
+      else next.add(name);
+      return next;
+    });
 
   return (
     <SidebarSection
@@ -613,36 +653,102 @@ function TagsSection() {
       open={open}
       onToggle={() => setOpen((v) => !v)}
     >
-      {tags.map(([tag, count]) => (
-        <div key={tag}>
-          <button
-            onClick={() => setSelected((s) => (s === tag ? null : tag))}
-            title={`#${tag}`}
-            className={`flex w-full items-center gap-1.5 rounded-md py-1 pl-3 pr-2 text-left text-sm transition-colors ${
-              selected === tag
-                ? "bg-accent-soft font-medium text-accent"
-                : "text-fg-muted hover:bg-hover hover:text-fg"
-            }`}
-          >
-            <span
-              className="h-1.5 w-1.5 shrink-0 rounded-full"
-              style={{ background: `hsl(${tagHue(tag)} 60% 60%)` }}
-            />
-            <span className="truncate">#{tag}</span>
-            <span className="ml-auto shrink-0 text-[10px] tabular-nums text-fg-faint">
-              {count}
-            </span>
-          </button>
-          {selected === tag && (
-            <div className="mb-1 ml-3 border-l border-border/60 pl-1">
-              {(notesByTag.get(tag) ?? []).map((n) => (
-                <FlatNoteRow key={n.path} note={n} />
-              ))}
-            </div>
-          )}
-        </div>
-      ))}
+      {nodes.map((node) =>
+        node.kind === "leaf" ? (
+          <TagRow
+            key={node.tag}
+            tag={node.tag}
+            display={`#${node.tag}`}
+            count={node.count}
+            selected={selected === node.tag}
+            onSelect={() => toggleSel(node.tag)}
+            notes={notesByTag.get(node.tag) ?? []}
+          />
+        ) : (
+          <div key={`g:${node.name}`}>
+            <button
+              onClick={() => toggleGroup(node.name)}
+              title={`#${node.name}/…`}
+              className="flex w-full items-center gap-1 rounded-md py-1 pl-1.5 pr-2 text-left text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+            >
+              {collapsedGroups.has(node.name) ? (
+                <ChevronRight size={12} className="shrink-0 text-fg-subtle" />
+              ) : (
+                <ChevronDown size={12} className="shrink-0 text-fg-subtle" />
+              )}
+              <span
+                className="h-1.5 w-1.5 shrink-0 rounded-full"
+                style={{ background: `hsl(${tagHue(node.name)} 60% 60%)` }}
+              />
+              <span className="truncate">#{node.name}</span>
+              <span className="ml-auto shrink-0 text-[10px] tabular-nums text-fg-faint">
+                {node.count}
+              </span>
+            </button>
+            {!collapsedGroups.has(node.name) && (
+              <div className="ml-3">
+                {node.children.map((c) => (
+                  <TagRow
+                    key={c.tag}
+                    tag={c.tag}
+                    display={c.tag.slice(node.name.length + 1)}
+                    count={c.count}
+                    selected={selected === c.tag}
+                    onSelect={() => toggleSel(c.tag)}
+                    notes={notesByTag.get(c.tag) ?? []}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ),
+      )}
     </SidebarSection>
+  );
+}
+
+/** One selectable tag row (standalone or a group child); expands to its notes. */
+function TagRow({
+  tag,
+  display,
+  count,
+  selected,
+  onSelect,
+  notes,
+}: {
+  tag: string;
+  display: string;
+  count: number;
+  selected: boolean;
+  onSelect: () => void;
+  notes: NoteSummary[];
+}) {
+  return (
+    <div>
+      <button
+        onClick={onSelect}
+        title={`#${tag}`}
+        className={`flex w-full items-center gap-1.5 rounded-md py-1 pl-3 pr-2 text-left text-sm transition-colors ${
+          selected
+            ? "bg-accent-soft font-medium text-accent"
+            : "text-fg-muted hover:bg-hover hover:text-fg"
+        }`}
+      >
+        <span
+          className="h-1.5 w-1.5 shrink-0 rounded-full"
+          style={{ background: `hsl(${tagHue(tag)} 60% 60%)` }}
+        />
+        <span className="truncate">{display}</span>
+        <span className="ml-auto shrink-0 text-[10px] tabular-nums text-fg-faint">{count}</span>
+      </button>
+      {selected && (
+        <div className="mb-1 ml-3 border-l border-border/60 pl-1">
+          {notes.map((n) => (
+            <FlatNoteRow key={n.path} note={n} />
+          ))}
+        </div>
+      )}
+    </div>
   );
 }
 

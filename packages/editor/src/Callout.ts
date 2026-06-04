@@ -10,6 +10,8 @@ const calloutKey = new PluginKey("nvCallout");
 /** Decorate every blockquote whose first line is `[!type] …` as a callout box.
  *  Decoration-only: the document stays a plain blockquote, so the `> [!NOTE]`
  *  Markdown round-trips untouched (mirrors the WikiLink approach). */
+const MARKER_RE = /^\[![^\]\n]*\]/;
+
 function build(doc: ProseMirrorNode): DecorationSet {
   const decos: Decoration[] = [];
   doc.descendants((node, pos) => {
@@ -23,6 +25,13 @@ function build(doc: ProseMirrorNode): DecorationSet {
         }),
       );
     }
+  });
+  // Tag the `[!TYPE]` marker (the run at a text node's start) so reading mode can
+  // dim it via CSS — same position approach as WikiLink. No effect while editing.
+  doc.descendants((node, pos) => {
+    if (!node.isText) return;
+    const m = MARKER_RE.exec(node.text ?? "");
+    if (m) decos.push(Decoration.inline(pos, pos + m[0].length, { class: "nv-callout-marker" }));
   });
   return DecorationSet.create(doc, decos);
 }
