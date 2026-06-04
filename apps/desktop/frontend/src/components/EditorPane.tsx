@@ -30,21 +30,31 @@ import { ConfirmDialog } from "./ui/ConfirmDialog";
 import { VersionHistoryModal } from "./VersionHistoryModal";
 import { WikiLinkHoverCard, type HoverTarget } from "./WikiLinkHoverCard";
 
-// Device-local right-rail selection (links / outline / closed), persisted.
+// Device-local right-rail panels (links / outline shown independently), persisted.
 const RIGHT_PANEL_KEY = "nv:rightPanel";
-type RightPanel = "none" | "links" | "outline";
-function loadRightPanel(): RightPanel {
+interface RightPanels {
+  links: boolean;
+  outline: boolean;
+}
+function loadRightPanels(): RightPanels {
   try {
     const v = localStorage.getItem(RIGHT_PANEL_KEY);
-    if (v === "none" || v === "outline") return v;
-    return "links"; // default open on linked references
+    // Back-compat with the old mutually-exclusive string value.
+    if (v === "links") return { links: true, outline: false };
+    if (v === "outline") return { links: false, outline: true };
+    if (v === "none") return { links: false, outline: false };
+    if (v) {
+      const p = JSON.parse(v) as Partial<RightPanels>;
+      return { links: !!p.links, outline: !!p.outline };
+    }
+    return { links: true, outline: false }; // default open on linked references
   } catch {
-    return "links";
+    return { links: true, outline: false };
   }
 }
-function saveRightPanel(panel: RightPanel): void {
+function saveRightPanels(p: RightPanels): void {
   try {
-    localStorage.setItem(RIGHT_PANEL_KEY, panel);
+    localStorage.setItem(RIGHT_PANEL_KEY, JSON.stringify(p));
   } catch {
     /* ignore */
   }
@@ -102,7 +112,7 @@ export function EditorPane() {
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Non-null while the header title is being edited inline (holds the draft).
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
-  const [rightPanel, setRightPanel] = useState<RightPanel>(loadRightPanel);
+  const [panels, setPanels] = useState<RightPanels>(loadRightPanels);
   const readingDefault = editorPrefs?.defaultReadingMode ?? false;
   // Per-note, ephemeral: reading mode resets to the configured default on every
   // note switch (never persisted per note — only the default is a preference).
@@ -116,9 +126,9 @@ export function EditorPane() {
   const { t } = useTranslation(["editor", "common", "trash", "versions", "links"]);
 
   const togglePanel = (panel: "links" | "outline") =>
-    setRightPanel((cur) => {
-      const next = cur === panel ? "none" : panel;
-      saveRightPanel(next);
+    setPanels((cur) => {
+      const next = { ...cur, [panel]: !cur[panel] };
+      saveRightPanels(next);
       return next;
     });
 
@@ -445,20 +455,20 @@ export function EditorPane() {
           </button>
           <button
             onClick={() => togglePanel("links")}
-            title={rightPanel === "links" ? t("links:hide") : t("links:show")}
-            aria-pressed={rightPanel === "links"}
+            title={panels.links ? t("links:hide") : t("links:show")}
+            aria-pressed={panels.links}
             className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
-              rightPanel === "links" ? "bg-active text-fg" : "text-fg-muted"
+              panels.links ? "bg-active text-fg" : "text-fg-muted"
             }`}
           >
             <Link2 size={15} />
           </button>
           <button
             onClick={() => togglePanel("outline")}
-            title={rightPanel === "outline" ? t("links:hideOutline") : t("links:showOutline")}
-            aria-pressed={rightPanel === "outline"}
+            title={panels.outline ? t("links:hideOutline") : t("links:showOutline")}
+            aria-pressed={panels.outline}
             className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
-              rightPanel === "outline" ? "bg-active text-fg" : "text-fg-muted"
+              panels.outline ? "bg-active text-fg" : "text-fg-muted"
             }`}
           >
             <ListTree size={15} />
@@ -593,19 +603,26 @@ export function EditorPane() {
             }}
           />
         </div>
-        {rightPanel === "links" && (
-          <LinksPanel
-            title={activeNote.title}
-            path={activePath}
-            onClose={() => togglePanel("links")}
-          />
-        )}
-        {rightPanel === "outline" && (
-          <OutlinePanel
-            headings={headings}
-            onJump={jumpToHeading}
-            onClose={() => togglePanel("outline")}
-          />
+        {(panels.links || panels.outline) && (
+          <div className="flex w-72 shrink-0 flex-col border-l border-border">
+            {panels.outline && (
+              <OutlinePanel
+                headings={headings}
+                onJump={jumpToHeading}
+                onClose={() => togglePanel("outline")}
+                stacked
+              />
+            )}
+            {panels.outline && panels.links && <div className="border-t border-border" />}
+            {panels.links && (
+              <LinksPanel
+                title={activeNote.title}
+                path={activePath}
+                onClose={() => togglePanel("links")}
+                stacked
+              />
+            )}
+          </div>
         )}
       </div>
       <WikiLinkHoverCard target={hovered} />

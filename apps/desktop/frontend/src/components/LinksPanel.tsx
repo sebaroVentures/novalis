@@ -13,13 +13,15 @@ interface LinksPanelProps {
   /** Path of the open note, excluded from its own "unlinked mentions". */
   path: string;
   onClose: () => void;
+  /** When stacked in a shared rail, the parent owns the width/left border. */
+  stacked?: boolean;
 }
 
 /** Right-hand panel showing notes that link to the open note ("linked
  *  references") and notes that name it without linking ("unlinked mentions"),
  *  each with the line where it occurs. Backed by the same wikilink index the
  *  editor writes on every save. */
-export function LinksPanel({ title, path, onClose }: LinksPanelProps) {
+export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
   const { t } = useTranslation(["links", "common"]);
   const openNote = useVault((s) => s.openNote);
   const invalidateNote = useVault((s) => s.invalidateNote);
@@ -72,7 +74,13 @@ export function LinksPanel({ title, path, onClose }: LinksPanelProps) {
   };
 
   return (
-    <aside className="flex w-72 shrink-0 flex-col border-l border-border bg-surface">
+    <aside
+      className={
+        stacked
+          ? "flex min-h-0 flex-1 flex-col overflow-hidden bg-surface"
+          : "flex w-72 shrink-0 flex-col border-l border-border bg-surface"
+      }
+    >
       <header className="flex items-center justify-between border-b border-border px-3 py-2">
         <span className="flex items-center gap-1.5 text-xs font-medium text-fg-muted">
           <Link2 size={14} />
