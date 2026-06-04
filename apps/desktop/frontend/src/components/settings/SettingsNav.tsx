@@ -5,6 +5,7 @@ import {
   FileText,
   Info,
   KanbanSquare,
+  Keyboard,
   Languages,
   Palette,
   PenLine,
@@ -20,6 +21,7 @@ export type CategoryId =
   | "editor"
   | "tasks"
   | "calendar"
+  | "keybindings"
   | "templates"
   | "plugins"
   | "about";
@@ -33,6 +35,7 @@ export const CATEGORIES: { id: CategoryId; icon: IconType }[] = [
   { id: "editor", icon: PenLine },
   { id: "tasks", icon: KanbanSquare },
   { id: "calendar", icon: CalendarDays },
+  { id: "keybindings", icon: Keyboard },
   { id: "templates", icon: FileText },
   { id: "plugins", icon: Puzzle },
   { id: "about", icon: Info },
@@ -49,6 +52,7 @@ export function useCategoryLabels(): Record<CategoryId, string> {
     editor: t("nav.editor"),
     tasks: t("nav.tasks"),
     calendar: t("nav.calendar"),
+    keybindings: t("nav.keybindings"),
     templates: t("nav.templates"),
     plugins: t("nav.plugins"),
     about: t("nav.about"),

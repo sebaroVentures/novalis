@@ -108,6 +108,17 @@
       "title": "Task creation"
     }
   },
+  "keybindings": {
+    "cheatsheet": "Shortcuts cheatsheet",
+    "commandPalette": "Command palette",
+    "navBack": "Back",
+    "navForward": "Forward",
+    "pressKeys": "Press keys…",
+    "reset": "Reset to defaults",
+    "search": "Search",
+    "settings": "Settings",
+    "title": "Keyboard shortcuts"
+  },
   "language": {
     "hint": "Applies to this device. Changes take effect immediately.",
     "label": "Display language",
@@ -124,6 +135,7 @@
     "editor": "Editor",
     "general": "General",
     "heading": "Settings",
+    "keybindings": "Keybindings",
     "language": "Language",
     "plugins": "Plugins",
     "tasks": "Tasks & Kanban",

@@ -108,6 +108,17 @@
       "title": "Creación de tareas"
     }
   },
+  "keybindings": {
+    "cheatsheet": "Resumen de atajos",
+    "commandPalette": "Paleta de comandos",
+    "navBack": "Atrás",
+    "navForward": "Adelante",
+    "pressKeys": "Pulsa las teclas…",
+    "reset": "Restablecer",
+    "search": "Buscar",
+    "settings": "Ajustes",
+    "title": "Atajos de teclado"
+  },
   "language": {
     "hint": "Se aplica a este dispositivo. Los cambios surten efecto de inmediato.",
     "label": "Idioma de la interfaz",
@@ -124,6 +135,7 @@
     "editor": "Editor",
     "general": "General",
     "heading": "Ajustes",
+    "keybindings": "Atajos",
     "language": "Idioma",
     "plugins": "Plugins",
     "tasks": "Tareas y Kanban",

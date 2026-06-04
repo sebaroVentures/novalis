@@ -5,6 +5,7 @@ import { Menu, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { CalendarView } from "./components/CalendarView";
+import { Cheatsheet } from "./components/Cheatsheet";
 import { CloudHint } from "./components/CloudHint";
 import { CommandPalette } from "./components/CommandPalette";
 import { ConflictModal } from "./components/ConflictModal";
@@ -42,6 +43,7 @@ export default function App() {
   const [navOpen, setNavOpen] = useState(false);
   const [conflictsOpen, setConflictsOpen] = useState(false);
   const [trashOpen, setTrashOpen] = useState(false);
+  const [cheatsheetOpen, setCheatsheetOpen] = useState(false);
   const conflicts = useConflicts((s) => s.conflicts);
   const [notice, setNotice] = useState<string | null>(null);
   const initialViewVault = useRef<string | null>(null);
@@ -111,6 +113,7 @@ export default function App() {
         "view-calendar": () => useUi.getState().setView("calendar"),
         "new-note": () =>
           void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
+        cheatsheet: () => setCheatsheetOpen((v) => !v),
       };
       const handler = handlers[action];
       if (handler) {
@@ -225,6 +228,7 @@ export default function App() {
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <ConflictModal open={conflictsOpen} onClose={() => setConflictsOpen(false)} />
       <TrashModal open={trashOpen} onClose={() => setTrashOpen(false)} />
+      <Cheatsheet open={cheatsheetOpen} onClose={() => setCheatsheetOpen(false)} />
       {notice && (
         <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-xl border border-border-strong/80 bg-surface/90 px-4 py-2.5 text-sm text-fg shadow-xl backdrop-blur">
           {notice}

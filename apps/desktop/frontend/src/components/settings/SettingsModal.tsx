@@ -10,6 +10,7 @@ import { AppearancePanel } from "./panels/AppearancePanel";
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { EditorPanel } from "./panels/EditorPanel";
 import { GeneralPanel } from "./panels/GeneralPanel";
+import { KeybindingsPanel } from "./panels/KeybindingsPanel";
 import { LanguagePanel } from "./panels/LanguagePanel";
 import { PluginsPanel } from "./panels/PluginsPanel";
 import { TasksPanel } from "./panels/TasksPanel";
@@ -112,6 +113,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
             {active === "editor" && <EditorPanel />}
             {active === "tasks" && <TasksPanel />}
             {active === "calendar" && <CalendarPanel />}
+            {active === "keybindings" && <KeybindingsPanel />}
             {active === "templates" && <TemplatesPanel />}
             {active === "plugins" && <PluginsPanel />}
             {active === "about" && <AboutPanel />}

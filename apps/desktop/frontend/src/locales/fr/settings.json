@@ -108,6 +108,17 @@
       "title": "Création de tâches"
     }
   },
+  "keybindings": {
+    "cheatsheet": "Aide-mémoire",
+    "commandPalette": "Palette de commandes",
+    "navBack": "Précédent",
+    "navForward": "Suivant",
+    "pressKeys": "Appuyer sur les touches…",
+    "reset": "Réinitialiser",
+    "search": "Rechercher",
+    "settings": "Paramètres",
+    "title": "Raccourcis clavier"
+  },
   "language": {
     "hint": "S'applique à cet appareil. Les modifications prennent effet immédiatement.",
     "label": "Langue d'affichage",
@@ -124,6 +135,7 @@
     "editor": "Éditeur",
     "general": "Général",
     "heading": "Paramètres",
+    "keybindings": "Raccourcis",
     "language": "Langue",
     "plugins": "Plugins",
     "tasks": "Tâches et Kanban",

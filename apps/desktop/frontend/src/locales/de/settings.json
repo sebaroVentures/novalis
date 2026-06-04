@@ -108,6 +108,17 @@
       "title": "Aufgabenerstellung"
     }
   },
+  "keybindings": {
+    "cheatsheet": "Kürzelübersicht",
+    "commandPalette": "Befehlspalette",
+    "navBack": "Zurück",
+    "navForward": "Vor",
+    "pressKeys": "Tasten drücken…",
+    "reset": "Auf Standard zurücksetzen",
+    "search": "Suchen",
+    "settings": "Einstellungen",
+    "title": "Tastenkürzel"
+  },
   "language": {
     "hint": "Gilt für dieses Gerät. Änderungen werden sofort wirksam.",
     "label": "Anzeigesprache",
@@ -124,6 +135,7 @@
     "editor": "Editor",
     "general": "Allgemein",
     "heading": "Einstellungen",
+    "keybindings": "Tastenkürzel",
     "language": "Sprache",
     "plugins": "Plugins",
     "tasks": "Aufgaben & Kanban",
