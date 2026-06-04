@@ -39,6 +39,7 @@
     "nameDesc": "Nom (Z–A)"
   },
   "sortTitle": "Tri : {{mode}}",
+  "tags": "Étiquettes",
   "vaultMenu": {
     "openAnother": "Ouvrir un autre Vault…",
     "settings": "Paramètres du Vault…"

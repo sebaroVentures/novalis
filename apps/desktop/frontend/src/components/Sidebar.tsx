@@ -11,6 +11,7 @@ import {
   Folder,
   FolderOpen,
   FolderPlus,
+  Hash,
   Pin,
   Plus,
   RefreshCw,
@@ -251,6 +252,7 @@ export function Sidebar({
         <Ctx.Provider value={ctx}>
           <PinnedSection />
           <RecentSection />
+          <TagsSection />
           {newFolderParent === null && <NewFolderInput parent={null} />}
           {tree ? (
             <TreeChildren node={tree} depth={0} />
@@ -551,6 +553,75 @@ function RecentSection() {
     <SidebarSection title={t("recent")} icon={<Clock size={11} />} open={open} onToggle={() => setOpen((v) => !v)}>
       {items.map((n) => (
         <FlatNoteRow key={n.path} note={n} />
+      ))}
+    </SidebarSection>
+  );
+}
+
+/** Tag browser: distinct tags (frontmatter + inline `#tags`) with note counts,
+ *  derived from the loaded tree. Selecting a tag expands the notes carrying it. */
+function TagsSection() {
+  const tree = useVault((s) => s.tree);
+  const { t } = useTranslation("sidebar");
+  const [open, setOpen] = useState(true);
+  const [selected, setSelected] = useState<string | null>(null);
+
+  const { tags, notesByTag } = useMemo(() => {
+    const all: NoteSummary[] = [];
+    if (tree) flattenNotes(tree, all);
+    const counts = new Map<string, number>();
+    const byTag = new Map<string, NoteSummary[]>();
+    for (const n of all) {
+      for (const tag of n.tags) {
+        counts.set(tag, (counts.get(tag) ?? 0) + 1);
+        const arr = byTag.get(tag);
+        if (arr) arr.push(n);
+        else byTag.set(tag, [n]);
+      }
+    }
+    const sorted = [...counts.entries()].sort(
+      (a, b) => b[1] - a[1] || a[0].localeCompare(b[0]),
+    );
+    return { tags: sorted, notesByTag: byTag };
+  }, [tree]);
+
+  if (tags.length === 0) return null;
+
+  return (
+    <SidebarSection
+      title={t("tags")}
+      icon={<Hash size={11} />}
+      open={open}
+      onToggle={() => setOpen((v) => !v)}
+    >
+      {tags.map(([tag, count]) => (
+        <div key={tag}>
+          <button
+            onClick={() => setSelected((s) => (s === tag ? null : tag))}
+            title={`#${tag}`}
+            className={`flex w-full items-center gap-1.5 rounded-md py-1 pl-3 pr-2 text-left text-sm transition-colors ${
+              selected === tag
+                ? "bg-accent-soft font-medium text-accent"
+                : "text-fg-muted hover:bg-hover hover:text-fg"
+            }`}
+          >
+            <span
+              className="h-1.5 w-1.5 shrink-0 rounded-full"
+              style={{ background: `hsl(${tagHue(tag)} 60% 60%)` }}
+            />
+            <span className="truncate">#{tag}</span>
+            <span className="ml-auto shrink-0 text-[10px] tabular-nums text-fg-faint">
+              {count}
+            </span>
+          </button>
+          {selected === tag && (
+            <div className="mb-1 ml-3 border-l border-border/60 pl-1">
+              {(notesByTag.get(tag) ?? []).map((n) => (
+                <FlatNoteRow key={n.path} note={n} />
+              ))}
+            </div>
+          )}
+        </div>
       ))}
     </SidebarSection>
   );
