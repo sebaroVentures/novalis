@@ -14,6 +14,7 @@
     "itemExistsTarget": "« {{name}} » existe déjà dans le dossier de destination."
   },
   "openVault": "Ouvrir un Vault…",
-  "searchPlaceholder": "Rechercher des notes par titre…",
+  "searchNoResults": "Aucune note correspondante.",
+  "searchPlaceholder": "Rechercher des notes…",
   "tagline": "Local-first : notes, tâches et calendrier"
 }
