@@ -23,6 +23,8 @@
   "horizontalRule": "Línea horizontal",
   "italic": "Cursiva",
   "matchCase": "Distinguir mayúsculas",
+  "mermaidShowDiagram": "Mostrar diagrama",
+  "mermaidShowSource": "Mostrar código fuente",
   "noMatches": "Sin coincidencias",
   "noteOpen": "No hay ninguna nota abierta",
   "placeholder": "Empezar a escribir…",

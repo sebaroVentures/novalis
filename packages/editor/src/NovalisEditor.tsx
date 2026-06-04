@@ -1,6 +1,5 @@
 import { useEffect, useRef } from "react";
 import { mergeAttributes } from "@tiptap/core";
-import CodeBlockLowlight from "@tiptap/extension-code-block-lowlight";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -15,6 +14,7 @@ import { Markdown } from "tiptap-markdown";
 import { Callout } from "./Callout";
 import { Find } from "./Find";
 import { MathExtension } from "./Math";
+import { MermaidCodeBlock } from "./MermaidCodeBlock";
 import { WikiLink } from "./WikiLink";
 import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
 
@@ -74,6 +74,8 @@ export interface NovalisEditorLabels {
   strike: string;
   horizontalRule: string;
   callout: string;
+  mermaidShowSource: string;
+  mermaidShowDiagram: string;
 }
 
 const DEFAULT_LABELS: NovalisEditorLabels = {
@@ -90,6 +92,8 @@ const DEFAULT_LABELS: NovalisEditorLabels = {
   strike: "Strikethrough",
   horizontalRule: "Horizontal rule",
   callout: "Callout",
+  mermaidShowSource: "Show source",
+  mermaidShowDiagram: "Show diagram",
 };
 
 function getMarkdown(editor: Editor): string {
@@ -161,7 +165,11 @@ export function NovalisEditor({
       // (same `codeBlock` node name + `language` attr, so Markdown round-trip
       // via tiptap-markdown is unchanged).
       StarterKit.configure({ codeBlock: false }),
-      CodeBlockLowlight.configure({ lowlight }),
+      MermaidCodeBlock.configure({
+        lowlight,
+        mermaidShowSource: lbl.mermaidShowSource,
+        mermaidShowDiagram: lbl.mermaidShowDiagram,
+      }),
       Markdown.configure({
         html: false,
         linkify: true,

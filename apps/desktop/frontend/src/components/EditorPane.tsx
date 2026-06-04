@@ -418,6 +418,8 @@ export function EditorPane() {
               blockquote: t("blockquote"),
               callout: t("callout"),
               horizontalRule: t("horizontalRule"),
+              mermaidShowSource: t("mermaidShowSource"),
+              mermaidShowDiagram: t("mermaidShowDiagram"),
             }}
           />
         </div>

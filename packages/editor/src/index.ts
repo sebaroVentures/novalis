@@ -3,8 +3,9 @@
 // A standalone, app-agnostic Markdown editor built on TipTap. The host passes
 // markdown in and receives markdown out; it has no knowledge of Novalis's IPC
 // or stores. `[[wikilinks]]` are decorated as clickable spans (see WikiLink)
-// but stored as plain text — round-trip stays trivial. Math/Mermaid/callouts
-// are still planned for a later pass.
+// but stored as plain text — round-trip stays trivial. Math, Mermaid and
+// callouts render via decorations / a code-block NodeView while keeping the
+// Markdown plain, so round-trip stays trivial too.
 
 export { NovalisEditor } from "./NovalisEditor";
 export type { NovalisEditorProps } from "./NovalisEditor";

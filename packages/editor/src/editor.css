@@ -200,6 +200,32 @@
 .nv-editor-content .nv-math-src { display: none; }
 .nv-editor-content .nv-math-block { display: block; text-align: center; margin: 0.6em 0; }
 
+/* Mermaid: a ```mermaid block renders the diagram with a raw/rendered toggle. */
+.nv-editor-content .nv-mermaid-block { position: relative; margin: 0.75em 0; }
+.nv-editor-content .nv-mermaid { text-align: center; padding: 8px 0; }
+.nv-editor-content .nv-mermaid svg { max-width: 100%; height: auto; }
+.nv-editor-content .nv-mermaid-error {
+  color: #ef4444;
+  font-size: 0.85em;
+  text-align: left;
+  white-space: pre-wrap;
+}
+.nv-editor-content .nv-mermaid-toggle {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 1;
+  font: inherit;
+  font-size: 11px;
+  color: var(--nv-muted);
+  background: var(--nv-code-bg);
+  border: 1px solid var(--nv-border);
+  border-radius: 6px;
+  padding: 2px 8px;
+  cursor: pointer;
+}
+.nv-editor-content .nv-mermaid-toggle:hover { color: var(--nv-fg); }
+
 /* `[[` autocomplete popover. Attached to `.nv-editor`, so the theme variables
    above are in scope; positioned `fixed` to escape the content's overflow. */
 .nv-suggest {

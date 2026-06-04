@@ -23,6 +23,8 @@
   "horizontalRule": "Horizontal rule",
   "italic": "Italic",
   "matchCase": "Match case",
+  "mermaidShowDiagram": "Show diagram",
+  "mermaidShowSource": "Show source",
   "noMatches": "No matches",
   "noteOpen": "No note open",
   "placeholder": "Start writing…",
