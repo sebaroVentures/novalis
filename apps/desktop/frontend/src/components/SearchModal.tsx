@@ -2,7 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 
 import { useTranslation } from "react-i18next";
 
-import { api, type FolderNode, type SearchResult } from "../ipc/api";
+import { api, type FolderNode, type SearchResult, type TagCount } from "../ipc/api";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 
@@ -41,6 +41,8 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
   const [results, setResults] = useState<SearchResult[]>([]);
   const [selected, setSelected] = useState(0);
   const [folder, setFolder] = useState("");
+  const [tag, setTag] = useState("");
+  const [tags, setTags] = useState<TagCount[]>([]);
   const openNote = useVault((s) => s.openNote);
   const setView = useUi((s) => s.setView);
   const tree = useVault((s) => s.tree);
@@ -64,6 +66,8 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
       setResults([]);
       setSelected(0);
       setFolder("");
+      setTag("");
+      void api.listTags().then(setTags).catch(() => setTags([]));
       setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);
@@ -75,7 +79,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
     }
     let cancelled = false;
     void api
-      .search(query, folder || null)
+      .search(query, folder || null, tag || null)
       .then((r) => {
         if (!cancelled) {
           setResults(r);
@@ -86,7 +90,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
     return () => {
       cancelled = true;
     };
-  }, [query, folder, open]);
+  }, [query, folder, tag, open]);
 
   if (!open) return null;
 
@@ -128,20 +132,36 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
           className="w-full bg-transparent px-4 py-3 text-fg outline-none placeholder:text-fg-faint"
           onKeyDown={onKeyDown}
         />
-        {folders.length > 0 && (
+        {(folders.length > 0 || tags.length > 0) && (
           <div className="flex items-center gap-2 border-t border-border px-3 py-1.5">
-            <select
-              value={folder}
-              onChange={(e) => setFolder(e.target.value)}
-              className="rounded-md bg-surface-2 px-2 py-1 text-xs text-fg outline-none ring-1 ring-border focus:ring-accent/50"
-            >
-              <option value="">{t("searchAllFolders")}</option>
-              {folders.map((f) => (
-                <option key={f} value={f}>
-                  {f}
-                </option>
-              ))}
-            </select>
+            {folders.length > 0 && (
+              <select
+                value={folder}
+                onChange={(e) => setFolder(e.target.value)}
+                className="rounded-md bg-surface-2 px-2 py-1 text-xs text-fg outline-none ring-1 ring-border focus:ring-accent/50"
+              >
+                <option value="">{t("searchAllFolders")}</option>
+                {folders.map((f) => (
+                  <option key={f} value={f}>
+                    {f}
+                  </option>
+                ))}
+              </select>
+            )}
+            {tags.length > 0 && (
+              <select
+                value={tag}
+                onChange={(e) => setTag(e.target.value)}
+                className="rounded-md bg-surface-2 px-2 py-1 text-xs text-fg outline-none ring-1 ring-border focus:ring-accent/50"
+              >
+                <option value="">{t("searchAllTags")}</option>
+                {tags.map((tc) => (
+                  <option key={tc.tag} value={tc.tag}>
+                    #{tc.tag} ({tc.count})
+                  </option>
+                ))}
+              </select>
+            )}
           </div>
         )}
         {query.trim() && results.length === 0 && (

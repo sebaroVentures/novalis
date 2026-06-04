@@ -140,8 +140,10 @@ pub fn search(
         ));
     }
     if let Some(tag_filter) = tag {
+        // Anchored on both quotes so the tag matches exactly within the stored
+        // JSON array — `work` must not also match `workout`.
         conditions.push(format!(
-            "f.tags LIKE '%\"{}%'",
+            "f.tags LIKE '%\"{}\"%'",
             tag_filter.replace('\'', "''")
         ));
     }
@@ -308,6 +310,21 @@ mod tests {
     fn list_tags_empty_vault_is_empty() {
         let db = mem_db();
         assert!(list_tags(&db).unwrap().is_empty());
+    }
+
+    #[test]
+    fn search_tag_filter_is_exact_not_prefix() {
+        let db = mem_db();
+        let mut a = summary("a.md", "Alpha");
+        a.tags = vec!["work".into()];
+        let mut b = summary("b.md", "Beta");
+        b.tags = vec!["workout".into()];
+        index_note(&db, &a, "shared body text").unwrap();
+        index_note(&db, &b, "shared body text").unwrap();
+
+        let hits = search(&db, "shared", None, Some("work")).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "a.md");
     }
 
     #[test]
