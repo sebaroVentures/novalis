@@ -11,8 +11,10 @@ use rusqlite::Connection;
 
 use crate::error::CoreResult;
 
-/// Bump this whenever the table layout below changes.
-pub const SCHEMA_VERSION: i64 = 6;
+/// Bump this whenever the table layout below changes — or when a column that
+/// already exists starts being populated (v7: `note_meta.aliases` is now written
+/// and queried), so existing caches rebuild and backfill it.
+pub const SCHEMA_VERSION: i64 = 7;
 
 /// Open (or create) the index database at `path`, ensuring the schema matches
 /// [`SCHEMA_VERSION`]. On mismatch the tables are dropped and recreated.

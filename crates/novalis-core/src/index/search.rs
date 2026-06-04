@@ -6,7 +6,7 @@ use rusqlite::{params, Connection};
 
 use crate::error::CoreResult;
 use crate::index::links;
-use crate::models::{NoteSummary, SearchResult};
+use crate::models::{NoteSummary, SearchResult, TagCount};
 use crate::vault::{frontmatter, fs as vault_fs};
 
 /// Full scan of the vault to (re)build the search index.
@@ -46,13 +46,16 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
 /// Upsert a single note into `note_meta`, the FTS index, and the link graph.
 pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> CoreResult<()> {
     let tags_json = serde_json::to_string(&summary.tags).unwrap_or_else(|_| "[]".to_string());
+    let aliases_json =
+        serde_json::to_string(&summary.aliases).unwrap_or_else(|_| "[]".to_string());
     let (fm, body) = frontmatter::parse_frontmatter(content);
 
     db.execute(
-        "INSERT INTO note_meta (path, title, folder, tags, created, modified, size, word_count, pinned, task_total, task_completed, cloud_only)
-         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12)
+        "INSERT INTO note_meta (path, title, folder, tags, aliases, created, modified, size, word_count, pinned, task_total, task_completed, cloud_only)
+         VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10, ?11, ?12, ?13)
          ON CONFLICT(path) DO UPDATE SET
             title=excluded.title, folder=excluded.folder, tags=excluded.tags,
+            aliases=excluded.aliases,
             created=excluded.created, modified=excluded.modified, size=excluded.size,
             word_count=excluded.word_count, pinned=excluded.pinned,
             task_total=excluded.task_total, task_completed=excluded.task_completed,
@@ -62,6 +65,7 @@ pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> Core
             summary.title,
             summary.folder,
             tags_json,
+            aliases_json,
             summary.created,
             summary.modified,
             content.len() as i64,
@@ -171,14 +175,42 @@ pub fn quick_search(db: &Connection, query: &str) -> CoreResult<Vec<NoteSummary>
     let pattern = format!("%{}%", query.replace('%', "\\%"));
 
     let mut stmt = db.prepare(
-        "SELECT path, title, folder, tags, created, modified, pinned, word_count, task_total, task_completed, cloud_only
+        "SELECT path, title, folder, tags, created, modified, pinned, word_count, task_total, task_completed, cloud_only, aliases
          FROM note_meta
-         WHERE title LIKE ?1 OR path LIKE ?1
+         WHERE title LIKE ?1 OR path LIKE ?1 OR aliases LIKE ?1
          ORDER BY modified DESC
          LIMIT 20",
     )?;
 
     crate::index::rows_to_summaries(&mut stmt, params![pattern])
+}
+
+/// All distinct note tags with the number of notes carrying each, sorted by
+/// count (descending) then tag (ascending, case-insensitive). Tags are stored as
+/// a JSON array per `note_meta` row, so aggregation happens in Rust rather than
+/// via SQL `GROUP BY` (which would conflate e.g. `work` and `work-trip`).
+pub fn list_tags(db: &Connection) -> CoreResult<Vec<TagCount>> {
+    let mut stmt = db.prepare("SELECT tags FROM note_meta")?;
+    let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+
+    let mut counts: std::collections::HashMap<String, u32> = std::collections::HashMap::new();
+    for row in rows.filter_map(|r| r.ok()) {
+        let tags: Vec<String> = serde_json::from_str(&row).unwrap_or_default();
+        for tag in tags {
+            *counts.entry(tag).or_insert(0) += 1;
+        }
+    }
+
+    let mut out: Vec<TagCount> = counts
+        .into_iter()
+        .map(|(tag, count)| TagCount { tag, count })
+        .collect();
+    out.sort_by(|a, b| {
+        b.count
+            .cmp(&a.count)
+            .then_with(|| a.tag.to_lowercase().cmp(&b.tag.to_lowercase()))
+    });
+    Ok(out)
 }
 
 #[cfg(test)]
@@ -198,6 +230,7 @@ mod tests {
             title: title.to_string(),
             folder: String::new(),
             tags: vec![],
+            aliases: vec![],
             created: String::new(),
             modified: String::new(),
             pinned: false,
@@ -252,5 +285,42 @@ mod tests {
         index_note(&db, &summary("a.md", "A"), "hello world").unwrap();
         remove_note(&db, "a.md").unwrap();
         assert!(search(&db, "hello", None, None).unwrap().is_empty());
+    }
+
+    #[test]
+    fn list_tags_aggregates_and_sorts() {
+        let db = mem_db();
+        let mut a = summary("a.md", "A");
+        a.tags = vec!["work".into(), "idea".into()];
+        let mut b = summary("b.md", "B");
+        b.tags = vec!["work".into()];
+        index_note(&db, &a, "body").unwrap();
+        index_note(&db, &b, "body").unwrap();
+
+        let tags = list_tags(&db).unwrap();
+        // count DESC, then tag ASC
+        assert_eq!(tags.len(), 2);
+        assert_eq!((tags[0].tag.as_str(), tags[0].count), ("work", 2));
+        assert_eq!((tags[1].tag.as_str(), tags[1].count), ("idea", 1));
+    }
+
+    #[test]
+    fn list_tags_empty_vault_is_empty() {
+        let db = mem_db();
+        assert!(list_tags(&db).unwrap().is_empty());
+    }
+
+    #[test]
+    fn quick_search_matches_aliases_and_round_trips_them() {
+        let db = mem_db();
+        let mut s = summary("widget.md", "Widget Co");
+        s.aliases = vec!["Globex".to_string()];
+        index_note(&db, &s, "body").unwrap();
+
+        // Query matches only the alias (not title/path), proving alias search.
+        let hits = quick_search(&db, "globex").unwrap();
+        assert!(hits.iter().any(|h| h.path == "widget.md"));
+        // And the alias column round-trips through the SELECT/row mapping.
+        assert_eq!(hits[0].aliases, vec!["Globex".to_string()]);
     }
 }

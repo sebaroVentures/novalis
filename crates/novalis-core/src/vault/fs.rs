@@ -112,6 +112,7 @@ pub fn build_summary(vault: &Path, relative: &str) -> CoreResult<NoteSummary> {
             title,
             folder,
             tags: Vec::new(),
+            aliases: Vec::new(),
             created: String::new(),
             modified: system_time_rfc3339(meta.modified()),
             pinned: false,
@@ -130,11 +131,21 @@ pub fn build_summary(vault: &Path, relative: &str) -> CoreResult<NoteSummary> {
     // M1: count checkboxes. The full task index (with metadata) arrives in M2.
     let (task_total, task_completed) = tasks::count(&content);
 
+    // Frontmatter tags first, then inline `#tags` from the body (case-insensitive
+    // de-dup so a body `#Work` doesn't double a frontmatter `work`).
+    let mut tags = fm.tags.clone();
+    for t in frontmatter::extract_body_tags(&body) {
+        if !tags.iter().any(|x| x.eq_ignore_ascii_case(&t)) {
+            tags.push(t);
+        }
+    }
+
     Ok(NoteSummary {
         path: relative.to_string(),
         title,
         folder,
-        tags: fm.tags.clone(),
+        tags,
+        aliases: fm.aliases.clone(),
         created: fm.created.clone(),
         modified: fm.modified.clone(),
         pinned: fm.pinned,
@@ -511,6 +522,21 @@ mod tests {
         assert_eq!(summary.task_completed, 1);
         let note = read_note(&vault, "todo.md").unwrap();
         assert!(note.content.contains("- [x] b"));
+        std::fs::remove_dir_all(&vault).ok();
+    }
+
+    #[test]
+    fn build_summary_unions_frontmatter_and_body_tags() {
+        let vault = temp_vault();
+        std::fs::write(
+            vault.join("n.md"),
+            "---\ntitle: N\ntags:\n  - work\n---\n\nbody with #urgent and #Work\n",
+        )
+        .unwrap();
+        let summary = build_summary(&vault, "n.md").unwrap();
+        // Frontmatter tag first; body `#urgent` appended; body `#Work`
+        // case-insensitively dedups against the frontmatter `work`.
+        assert_eq!(summary.tags, vec!["work".to_string(), "urgent".to_string()]);
         std::fs::remove_dir_all(&vault).ok();
     }
 }

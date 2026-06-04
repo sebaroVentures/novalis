@@ -38,7 +38,15 @@ pub fn create(
             if tpl_path.exists() {
                 let data = std::fs::read_to_string(&tpl_path)?;
                 let tpl: NoteTemplate = serde_json::from_str(&data)?;
-                tpl.content
+                // Resolve `{{title}}`/`{{date}}`/`{{time}}` rather than writing
+                // them literally. Title comes from the new note's filename stem.
+                let title = Path::new(&req.path)
+                    .file_stem()
+                    .map(|s| s.to_string_lossy().to_string());
+                crate::templates::render_template(
+                    &tpl.content,
+                    &crate::templates::TemplateContext { title },
+                )
             } else {
                 content
             }
@@ -175,7 +183,33 @@ pub fn resolve_or_create_wiki_link(
         return Ok(path);
     }
 
-    // 2. Create at vault root using a sanitized filename.
+    // 2. Existing note by alias (case-insensitive exact match). The LIKE is a
+    //    cheap pre-filter over the JSON-array `aliases` column; the authoritative
+    //    check is the exact case-insensitive compare, so `[[al]]` doesn't resolve
+    //    to a note aliased "Allan".
+    let alias_hit: Option<String> = {
+        let pattern = format!("%{}%", title.replace('%', "\\%"));
+        let mut stmt = db.prepare(
+            "SELECT path, aliases FROM note_meta WHERE aliases LIKE ?1 ORDER BY modified DESC",
+        )?;
+        let rows = stmt.query_map(params![pattern], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?))
+        })?;
+        let mut found = None;
+        for (path, aliases_str) in rows.filter_map(|r| r.ok()) {
+            let aliases: Vec<String> = serde_json::from_str(&aliases_str).unwrap_or_default();
+            if aliases.iter().any(|a| a.trim().eq_ignore_ascii_case(title)) {
+                found = Some(path);
+                break;
+            }
+        }
+        found
+    };
+    if let Some(path) = alias_hit {
+        return Ok(path);
+    }
+
+    // 3. Create at vault root using a sanitized filename.
     let filename = sanitize_wiki_link_filename(title);
     let path = format!("{filename}.md");
     let note = vault_fs::create_note(vault, &path, "")?;
@@ -429,6 +463,39 @@ mod tests {
 
         // Empty title errors.
         assert!(resolve_or_create_wiki_link(&c.db, &c.vault, "   ").is_err());
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn resolve_or_create_wiki_link_resolves_aliases() {
+        let c = ctx();
+
+        // A note whose frontmatter declares an alias.
+        std::fs::write(
+            c.vault.join("Recipes.md"),
+            "---\ntitle: Recipes\naliases:\n  - Cookbook\n---\n\nbody",
+        )
+        .unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "Recipes.md").unwrap();
+
+        // `[[Cookbook]]` resolves to the canonical note (case-insensitive),
+        // creating no new file.
+        let resolved = resolve_or_create_wiki_link(&c.db, &c.vault, "cookbook").unwrap();
+        assert_eq!(resolved, "Recipes.md");
+        assert!(!c.vault.join("cookbook.md").exists());
+
+        // Exact match only: `[[al]]` must NOT resolve to a note aliased "Allan"
+        // (the LIKE is just a pre-filter) — it creates `al.md`.
+        std::fs::write(
+            c.vault.join("Person.md"),
+            "---\ntitle: Person\naliases:\n  - Allan\n---\n\nbody",
+        )
+        .unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "Person.md").unwrap();
+        let al = resolve_or_create_wiki_link(&c.db, &c.vault, "al").unwrap();
+        assert_eq!(al, "al.md");
+        assert!(c.vault.join("al.md").exists());
 
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }

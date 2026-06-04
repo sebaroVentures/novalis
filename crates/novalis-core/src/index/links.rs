@@ -474,6 +474,7 @@ mod tests {
             title: title.to_string(),
             folder: String::new(),
             tags: vec![],
+            aliases: vec![],
             created: String::new(),
             modified: String::new(),
             pinned: false,

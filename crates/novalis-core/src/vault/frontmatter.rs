@@ -4,9 +4,12 @@
 //! compatibility. Reading is currently YAML-only; migration of legacy formats
 //! (Logseq `key:: value`, TOML `+++`) is a tracked follow-up.
 
+use std::sync::OnceLock;
+
 use chrono::Utc;
 use gray_matter::engine::YAML;
 use gray_matter::Matter;
+use regex::Regex;
 
 use crate::models::NoteFrontmatter;
 
@@ -73,4 +76,82 @@ pub fn extract_title(fm: &NoteFrontmatter, body: &str, filename: &str) -> String
 /// Count words in a string (body text).
 pub fn word_count(text: &str) -> usize {
     text.split_whitespace().count()
+}
+
+/// Extract inline `#tag` references from a note body, preserving first-seen
+/// order. Tags allow nesting (`#area/work`) and hyphens (`#in-progress`) and are
+/// returned verbatim (without the leading `#`, no case folding) for parity with
+/// frontmatter tags. ATX headings, fenced code blocks, and inline code spans are
+/// skipped so a `#` in any of those isn't mistaken for a tag.
+///
+/// Expects the note *body* (post-frontmatter), as returned by
+/// [`parse_frontmatter`].
+pub fn extract_body_tags(body: &str) -> Vec<String> {
+    // A tag is `#` + an alnum/underscore lead, then word chars plus `/` and `-`.
+    // The `(?:^|[^\w/#])` guard keeps `a#b`, `path/#x`, and `##` from matching
+    // mid-token. Group 1 is the tag text without the `#`.
+    static TAG_RE: OnceLock<Regex> = OnceLock::new();
+    static HEADING_RE: OnceLock<Regex> = OnceLock::new();
+    static INLINE_CODE_RE: OnceLock<Regex> = OnceLock::new();
+    let tag_re =
+        TAG_RE.get_or_init(|| Regex::new(r"(?:^|[^\w/#])#([A-Za-z0-9_][\w/-]*)").unwrap());
+    let heading_re = HEADING_RE.get_or_init(|| Regex::new(r"^ {0,3}#{1,6}\s+").unwrap());
+    let inline_code_re = INLINE_CODE_RE.get_or_init(|| Regex::new(r"`[^`]*`").unwrap());
+
+    let mut seen = std::collections::HashSet::new();
+    let mut out = Vec::new();
+    let mut in_code_fence = false;
+
+    for line in body.lines() {
+        let fence = line.trim_start();
+        if fence.starts_with("```") || fence.starts_with("~~~") {
+            in_code_fence = !in_code_fence;
+            continue;
+        }
+        if in_code_fence || heading_re.is_match(line) {
+            continue;
+        }
+        // Blank out inline code spans so a `#` inside backticks isn't a tag.
+        let scrubbed = inline_code_re.replace_all(line, " ");
+        for caps in tag_re.captures_iter(&scrubbed) {
+            let tag = caps.get(1).unwrap().as_str().to_string();
+            if seen.insert(tag.clone()) {
+                out.push(tag);
+            }
+        }
+    }
+
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn extract_body_tags_basic_and_nested() {
+        assert_eq!(
+            extract_body_tags("see #project/alpha and #in-progress now"),
+            vec!["project/alpha".to_string(), "in-progress".to_string()]
+        );
+    }
+
+    #[test]
+    fn extract_body_tags_skips_code_and_headings_and_midword() {
+        let body = "# Heading #notatag\n\nreal #keep here\n\n`#incode` and a#b\n\n```\n#fenced\n```\n";
+        assert_eq!(extract_body_tags(body), vec!["keep".to_string()]);
+    }
+
+    #[test]
+    fn extract_body_tags_dedupes_preserving_order() {
+        assert_eq!(
+            extract_body_tags("#x and #y then #x again"),
+            vec!["x".to_string(), "y".to_string()]
+        );
+    }
+
+    #[test]
+    fn extract_body_tags_ignores_bare_hash() {
+        assert_eq!(extract_body_tags("just a # and ## with spaces"), Vec::<String>::new());
+    }
 }

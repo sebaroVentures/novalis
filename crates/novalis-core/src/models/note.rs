@@ -42,6 +42,8 @@ pub struct NoteSummary {
     pub title: String,
     pub folder: String,
     pub tags: Vec<String>,
+    #[serde(default)]
+    pub aliases: Vec<String>,
     pub created: String,
     pub modified: String,
     pub pinned: bool,

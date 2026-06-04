@@ -17,7 +17,7 @@ use crate::models::NoteSummary;
 /// the folder tree without reading (or hydrating) every file in the vault.
 pub fn list_summaries(db: &Connection) -> CoreResult<Vec<NoteSummary>> {
     let mut stmt = db.prepare(
-        "SELECT path, title, folder, tags, created, modified, pinned, word_count, task_total, task_completed, cloud_only
+        "SELECT path, title, folder, tags, created, modified, pinned, word_count, task_total, task_completed, cloud_only, aliases
          FROM note_meta",
     )?;
     rows_to_summaries(&mut stmt, [])
@@ -33,11 +33,15 @@ pub(crate) fn rows_to_summaries(
         .query_map(params, |row| {
             let tags_str: String = row.get(3)?;
             let tags: Vec<String> = serde_json::from_str(&tags_str).unwrap_or_default();
+            // `aliases` is appended last in the SELECT column order (index 11).
+            let aliases_str: String = row.get(11)?;
+            let aliases: Vec<String> = serde_json::from_str(&aliases_str).unwrap_or_default();
             Ok(NoteSummary {
                 path: row.get(0)?,
                 title: row.get(1)?,
                 folder: row.get(2)?,
                 tags,
+                aliases,
                 created: row.get(4)?,
                 modified: row.get(5)?,
                 pinned: row.get::<_, i32>(6)? != 0,
