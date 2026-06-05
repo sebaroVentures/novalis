@@ -200,9 +200,10 @@ export function EditorPane() {
   }, [saveNote]);
 
   // Register the flush so navigation can drain pending edits to the right note.
+  // Keyed by pane id — a single "main" pane today; tabs/splits add real pane ids.
   useEffect(() => {
-    registerFlush(flushPending);
-    return () => registerFlush(null);
+    registerFlush("main", flushPending);
+    return () => registerFlush("main", null);
   }, [registerFlush, flushPending]);
 
   // On note switch / unmount, cancel the debounce. The outgoing note's edits

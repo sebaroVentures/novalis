@@ -24,11 +24,17 @@ const inflight = new Map<string, Promise<Note>>();
 // nothing, and idle autosaves don't churn the file.
 const lastRequest = new Map<string, string>();
 
-// The editor registers a "flush my pending autosave now" callback here. Every
-// navigation that changes `activePath` calls it first, so edits made in the
-// last debounce window are persisted to the *outgoing* note before we switch —
-// closing the silent data-loss path on sidebar/search/palette navigation.
-let pendingFlush: (() => Promise<void>) | null = null;
+// Each live editor (pane) registers a "flush my pending autosave now" callback
+// here, keyed by pane id. Every navigation that changes the open note(s) calls
+// `flushAll()` first, so edits made in the last debounce window are persisted to
+// the *outgoing* note before we switch — closing the silent data-loss path on
+// sidebar/search/palette navigation. A Map (not a single callback) so multiple
+// panes / a canvas / nested editors can register without clobbering — the seam
+// every multi-editor feature builds on.
+const flushRegistry = new Map<string, () => Promise<void>>();
+async function flushAll(): Promise<void> {
+  await Promise.all([...flushRegistry.values()].map((fn) => fn()));
+}
 
 // Set while stepping through back/forward history, so openNote doesn't record
 // the navigation as a new history entry.
@@ -187,8 +193,9 @@ interface VaultState {
   newNote: (folder: string, templateId?: string) => Promise<void>;
   deleteActive: () => Promise<void>;
   saveNote: (path: string, content: string) => Promise<void>;
-  /** The editor registers its pending-autosave flush so navigation can drain it. */
-  registerFlush: (fn: (() => Promise<void>) | null) => void;
+  /** A pane's editor registers its pending-autosave flush (keyed by pane id) so
+   *  navigation can drain every open editor. Pass `null` to unregister. */
+  registerFlush: (paneId: string, fn: (() => Promise<void>) | null) => void;
   /** Drain the active note's pending autosave now (e.g. before the window closes). */
   flushActive: () => Promise<void>;
   /** Mark the active note as having unsaved edits (editor calls this on input). */
@@ -404,7 +411,7 @@ export const useVault = create<VaultState>((set, get) => ({
   openNote: async (path) => {
     // Flush the outgoing note's pending autosave to *its* path before switching,
     // so edits made in the last debounce window are never dropped.
-    if (pendingFlush) await pendingFlush();
+    await flushAll();
     // Highlight the clicked note immediately, regardless of load time. Opening
     // a note clears the explicit folder selection (so the next "New note"
     // targets this note's folder), reveals it, and records it as recent.
@@ -483,7 +490,7 @@ export const useVault = create<VaultState>((set, get) => ({
 
   newNote: async (folder, templateId) => {
     // Don't lose pending edits in the currently-open note when creating another.
-    if (pendingFlush) await pendingFlush();
+    await flushAll();
     const base = folder ? `${folder}/` : "";
     for (let i = 1; i <= 50; i++) {
       const name = i === 1 ? "Untitled" : `Untitled ${i}`;
@@ -524,7 +531,7 @@ export const useVault = create<VaultState>((set, get) => ({
     if (!path) return;
     // Flush first so the trashed copy reflects the latest edits (a restore then
     // brings back the most recent content).
-    if (pendingFlush) await pendingFlush();
+    await flushAll();
     try {
       await api.deleteNote(path);
       get().invalidateNote(path);
@@ -560,12 +567,13 @@ export const useVault = create<VaultState>((set, get) => ({
     }
   },
 
-  registerFlush: (fn) => {
-    pendingFlush = fn;
+  registerFlush: (paneId, fn) => {
+    if (fn) flushRegistry.set(paneId, fn);
+    else flushRegistry.delete(paneId);
   },
 
   flushActive: async () => {
-    if (pendingFlush) await pendingFlush();
+    await flushAll();
   },
 
   markDirty: () => {
@@ -802,7 +810,7 @@ export const useVault = create<VaultState>((set, get) => ({
   },
 
   duplicateNote: async (path) => {
-    if (pendingFlush) await pendingFlush();
+    await flushAll();
     try {
       const note = await api.duplicateNote(path);
       noteCache.set(note.path, note);
