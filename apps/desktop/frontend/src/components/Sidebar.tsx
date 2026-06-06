@@ -27,6 +27,7 @@ import { COLOR_HEX, COLOR_TOKENS } from "../lib/colors";
 import i18n from "../lib/i18n";
 import { api, type FolderNode, type NoteSummary, type NoteTemplate } from "../ipc/api";
 import { orderedItems, type SortBy, type TreeItem } from "../lib/treeOrder";
+import { useUi } from "../stores/uiStore";
 import { newNoteFolder, useVault, type DragItem } from "../stores/vaultStore";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 
@@ -318,7 +319,7 @@ function buildMenu(target: MenuTarget, actions: CtxActions, x: number, y: number
     const note = target.note;
     const pinned = note?.pinned ?? false;
     return [
-      { label: i18n.t("sidebar:menu.open"), onClick: () => void s.openNote(target.path) },
+      { label: i18n.t("sidebar:menu.open"), onClick: () => useUi.getState().openInWorkspace(target.path) },
       { label: i18n.t("sidebar:menu.rename"), onClick: () => actions.beginRename(target.path) },
       { label: i18n.t("sidebar:menu.duplicate"), onClick: () => void s.duplicateNote(target.path) },
       {
@@ -340,6 +341,9 @@ function buildMenu(target: MenuTarget, actions: CtxActions, x: number, y: number
             void api.deleteNote(target.path).then(() => {
               s.invalidateNote(target.path);
               void s.refreshTree();
+              // Close its tab if it's open in a pane (no-op otherwise), so a
+              // background tab can't get stuck loading a trashed file.
+              void useUi.getState().closeTab(target.path);
             });
           }
         },
@@ -784,12 +788,18 @@ function SidebarSection({
 /** A note row for the Pinned/Recent sections — no tree depth or DnD. */
 function FlatNoteRow({ note }: { note: NoteSummary }) {
   const activePath = useVault((s) => s.activePath);
-  const openNote = useVault((s) => s.openNote);
+  const openInWorkspace = useUi((s) => s.openInWorkspace);
   const prefetchNote = useVault((s) => s.prefetchNote);
   const active = activePath === note.path;
   return (
     <button
-      onClick={() => void openNote(note.path)}
+      onClick={(e) => openInWorkspace(note.path, { background: e.metaKey || e.ctrlKey })}
+      onAuxClick={(e) => {
+        if (e.button === 1) {
+          e.preventDefault();
+          openInWorkspace(note.path, { background: true });
+        }
+      }}
       onMouseEnter={() => prefetchNote(note.path)}
       title={note.path}
       className={`flex w-full items-center gap-1.5 rounded-md py-1 pl-3 pr-2 text-left text-sm transition-colors ${
@@ -1020,7 +1030,7 @@ function NoteRow({
   nextKey: string | null;
 }) {
   const activePath = useVault((s) => s.activePath);
-  const openNote = useVault((s) => s.openNote);
+  const openInWorkspace = useUi((s) => s.openInWorkspace);
   const prefetchNote = useVault((s) => s.prefetchNote);
   const moveItem = useVault((s) => s.moveItem);
   const ctx = useSidebarCtx();
@@ -1078,7 +1088,13 @@ function NoteRow({
         e.preventDefault();
         ctx.openMenu(e, { kind: "note", path: note.path, note });
       }}
-      onClick={() => void openNote(note.path)}
+      onClick={(e) => openInWorkspace(note.path, { background: e.metaKey || e.ctrlKey })}
+      onAuxClick={(e) => {
+        if (e.button === 1) {
+          e.preventDefault();
+          openInWorkspace(note.path, { background: true });
+        }
+      }}
       onMouseEnter={() => prefetchNote(note.path)}
       title={note.path}
       style={{ paddingLeft: 24 + depth * 12 }}

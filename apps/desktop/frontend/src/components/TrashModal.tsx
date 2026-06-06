@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { formatStamp } from "../lib/datetime";
 import { api, type TrashItem } from "../ipc/api";
+import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 
@@ -15,7 +16,7 @@ export function TrashModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [items, setItems] = useState<TrashItem[]>([]);
   const [confirm, setConfirm] = useState<Pending>(null);
   const refreshTree = useVault((s) => s.refreshTree);
-  const openNote = useVault((s) => s.openNote);
+  const openInWorkspace = useUi((s) => s.openInWorkspace);
 
   const load = () => void api.listTrash().then(setItems).catch(() => setItems([]));
   useEffect(() => {
@@ -35,7 +36,7 @@ export function TrashModal({ open, onClose }: { open: boolean; onClose: () => vo
       const path = await api.restoreTrash(item.id);
       load();
       await refreshTree();
-      if (path.endsWith(".md")) await openNote(path);
+      if (path.endsWith(".md")) openInWorkspace(path);
     } catch {
       /* surfaced via the global error banner */
     }

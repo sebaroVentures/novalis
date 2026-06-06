@@ -29,6 +29,9 @@ export function useActionLabels(): Record<ActionId, string> {
     "nav-forward": t("settings:keybindings.navForward"),
     cheatsheet: t("settings:keybindings.cheatsheet"),
     "toggle-sidebar": t("settings:keybindings.toggleSidebar"),
+    "close-tab": t("settings:keybindings.closeTab"),
+    "next-tab": t("settings:keybindings.nextTab"),
+    "prev-tab": t("settings:keybindings.prevTab"),
   };
 }
 

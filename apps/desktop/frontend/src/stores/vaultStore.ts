@@ -11,6 +11,10 @@ import {
 import { findFolder, orderedItems, type SortBy } from "../lib/treeOrder";
 import { useAgenda } from "./agendaStore";
 import { useCalendar } from "./calendarStore";
+// uiStore owns the tab workspace; vaultStore notifies it after path-changing
+// ops (rename/move/delete) so tabs follow. The import is a benign cycle: both
+// stores reference each other ONLY inside action bodies, never at module init.
+import { useUi } from "./uiStore";
 
 // In-memory note cache + in-flight de-dup. Kept outside the store so reads/
 // prefetches don't trigger re-renders; only `activeNote` drives the editor.
@@ -44,8 +48,26 @@ let navigatingHistory = false;
 // Engine swap and leave `vaultPath` out of sync with the open vault.
 let switching = false;
 
-/** Save lifecycle for the active note, surfaced as a status indicator. */
+/** Save lifecycle for a note, surfaced as a status indicator. */
 export type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
+
+/** Write a path's save state (and optional error) into the per-path maps,
+ *  replacing the Map refs so zustand selectors re-run. Per-path (not "is this
+ *  the active note") so a background tab's save/dirty/error is tracked too. */
+function patchSave(
+  get: () => VaultState,
+  set: (partial: Partial<VaultState>) => void,
+  path: string,
+  state: SaveState,
+  error: string | null = null,
+): void {
+  const saveStates = new Map(get().saveStates);
+  saveStates.set(path, state);
+  const saveErrors = new Map(get().saveErrors);
+  if (error) saveErrors.set(path, error);
+  else saveErrors.delete(path);
+  set({ saveStates, saveErrors });
+}
 
 /** Fetch a note once: concurrent callers for the same path share one request,
  *  and the result is cached. */
@@ -155,11 +177,12 @@ interface VaultState {
   loading: boolean;
   error: string | null;
 
-  // Save lifecycle for the active note (drives the editor status indicator).
-  saveState: SaveState;
-  lastSavedAt: number | null;
-  saveError: string | null;
-  /** Set when the open note changed on disk while it has unsaved edits. */
+  // Save lifecycle, keyed by note path (a tab strip surfaces each tab's state;
+  // the editor reads the active path's). Absent ⇒ "idle".
+  saveStates: Map<string, SaveState>;
+  saveErrors: Map<string, string>;
+  /** Set when the open note changed on disk while it has unsaved edits. Single:
+   *  it's the active-note banner, and the live editor shows exactly one note. */
   externalChange: string | null;
 
   // Sidebar view-state (device-local).
@@ -186,6 +209,10 @@ interface VaultState {
   /** Step back/forward through the navigation history. */
   navBack: () => Promise<void>;
   navForward: () => Promise<void>;
+  /** Rewrite/prune the navigation history through `map` (path → new path, or
+   *  null to drop) after a rename/move/delete, so back/forward never targets a
+   *  stale path. Called from uiStore.reconcileTabs (the single chokepoint). */
+  reconcileHistory: (map: (path: string) => string | null) => void;
   /** Warm the cache (and OneDrive hydration) for a note, e.g. on hover. */
   prefetchNote: (path: string) => void;
   /** Drop a cached note (e.g. on external change/delete) so it re-reads. */
@@ -198,8 +225,12 @@ interface VaultState {
   registerFlush: (paneId: string, fn: (() => Promise<void>) | null) => void;
   /** Drain the active note's pending autosave now (e.g. before the window closes). */
   flushActive: () => Promise<void>;
-  /** Mark the active note as having unsaved edits (editor calls this on input). */
-  markDirty: () => void;
+  /** Mark a note (by path) as having unsaved edits (editor calls this on input). */
+  markDirty: (path: string) => void;
+  /** Drop a path's per-path save state (e.g. when its tab closes). */
+  dropSaveState: (path: string) => void;
+  /** Clear the live editor (no note open) — used when the last tab closes. */
+  clearActive: () => void;
   /** Reload the active note from disk, discarding in-editor changes. */
   reloadActive: () => Promise<void>;
   /** React to a watcher `note-changed` for the active note: ignore our own
@@ -268,9 +299,8 @@ export const useVault = create<VaultState>((set, get) => ({
   loading: true,
   error: null,
 
-  saveState: "idle",
-  lastSavedAt: null,
-  saveError: null,
+  saveStates: new Map<string, SaveState>(),
+  saveErrors: new Map<string, string>(),
   externalChange: null,
 
   collapsed: new Set<string>(),
@@ -310,11 +340,14 @@ export const useVault = create<VaultState>((set, get) => ({
       // Drain the active editor's pending autosave to the *outgoing* vault first,
       // so edits made in the last debounce window survive the switch.
       await get().flushActive();
-      // If that autosave failed, the edit is still unsaved — tearing the vault
-      // down here would lose it irrecoverably (the old engine closes). Surface
-      // the error and stay put so the user can retry against the open vault.
-      if (get().saveState === "error") {
-        set({ error: get().saveError });
+      // If any open note's autosave failed, the edit is still unsaved — tearing
+      // the vault down here would lose it irrecoverably (the old engine closes).
+      // Surface the error and stay put so the user can retry against the vault.
+      // (Per-path now: flushActive drains every pane, so check all open paths,
+      // not just the formerly-"active" one.)
+      const failed = [...get().saveStates.entries()].find(([, s]) => s === "error");
+      if (failed) {
+        set({ error: get().saveErrors.get(failed[0]) ?? get().error });
         return;
       }
       // Fail loud if the target folder is gone rather than silently recreating an
@@ -351,6 +384,9 @@ export const useVault = create<VaultState>((set, get) => ({
         loading: false,
         activePath: null,
         activeNote: null,
+        saveStates: new Map<string, SaveState>(),
+        saveErrors: new Map<string, string>(),
+        externalChange: null,
         collapsed: new Set<string>(),
         selectedFolder: null,
         recent: [],
@@ -359,6 +395,10 @@ export const useVault = create<VaultState>((set, get) => ({
         folderColors: {},
         itemOrder: {},
       });
+      // Clear the old vault's tabs immediately (no persist — that would clobber
+      // the NEW vault's saved layout, which App's vaultPath effect then restores
+      // via loadWorkspace).
+      useUi.getState().resetWorkspace();
       await get().loadSidebarState();
       await get().refreshTree();
     } catch (e) {
@@ -431,10 +471,9 @@ export const useVault = create<VaultState>((set, get) => ({
       recent,
       history,
       historyIndex,
-      saveState: "idle",
-      saveError: null,
       externalChange: null,
     });
+    patchSave(get, set, path, "idle");
     persistSidebar(get);
 
     const cached = noteCache.get(path);
@@ -456,25 +495,46 @@ export const useVault = create<VaultState>((set, get) => ({
   navBack: async () => {
     const { history, historyIndex } = get();
     if (historyIndex <= 0) return;
+    const target = history[historyIndex - 1];
     navigatingHistory = true;
     try {
-      await get().openNote(history[historyIndex - 1]);
+      await get().openNote(target);
       set({ historyIndex: historyIndex - 1 });
     } finally {
       navigatingHistory = false;
     }
+    // Keep the tab strip's active tab in sync (openNote loads but doesn't touch
+    // the workspace; the note is already loaded so don't re-open it).
+    useUi.getState().activateTab(target);
   },
 
   navForward: async () => {
     const { history, historyIndex } = get();
     if (historyIndex >= history.length - 1) return;
+    const target = history[historyIndex + 1];
     navigatingHistory = true;
     try {
-      await get().openNote(history[historyIndex + 1]);
+      await get().openNote(target);
       set({ historyIndex: historyIndex + 1 });
     } finally {
       navigatingHistory = false;
     }
+    useUi.getState().activateTab(target);
+  },
+
+  reconcileHistory: (map) => {
+    const { history, historyIndex } = get();
+    const cur = history[historyIndex];
+    const next: string[] = [];
+    for (const p of history) {
+      const m = map(p);
+      // Map through, dropping closed paths and collapsing adjacent duplicates.
+      if (m && next[next.length - 1] !== m) next.push(m);
+    }
+    const mappedCur = cur != null ? map(cur) : null;
+    let idx = mappedCur ? next.lastIndexOf(mappedCur) : -1;
+    if (idx < 0) idx = next.length - 1; // current entry dropped → clamp to end
+    set({ history: next, historyIndex: idx });
   },
 
   prefetchNote: (path) => {
@@ -500,23 +560,10 @@ export const useVault = create<VaultState>((set, get) => ({
           templateId ? { template: templateId } : undefined,
         );
         noteCache.set(note.path, note);
-        // Make sure the destination folder is open so the new note is visible.
-        const collapsed = new Set(get().collapsed);
-        for (const a of ancestorsOf(note.path)) collapsed.delete(a);
-        const recent = [note.path, ...get().recent.filter((p) => p !== note.path)].slice(
-          0,
-          getRecentLimit(),
-        );
-        set({ collapsed, recent });
         await get().refreshTree();
-        set({
-          activePath: note.path,
-          activeNote: note,
-          saveState: "idle",
-          saveError: null,
-          externalChange: null,
-        });
-        persistSidebar(get);
+        // Open as a tab in the focused pane (openNote does the folder-reveal,
+        // recent/history, per-path save state, and loads from cache).
+        useUi.getState().openInWorkspace(note.path);
         return;
       } catch (e) {
         if (e instanceof NovalisError && e.kind === "alreadyExists") continue;
@@ -532,11 +579,21 @@ export const useVault = create<VaultState>((set, get) => ({
     // Flush first so the trashed copy reflects the latest edits (a restore then
     // brings back the most recent content).
     await flushAll();
+    // If that flush failed, trashing now would save a STALE copy (a later
+    // restore loses the last edit window). Surface the error and bail so the
+    // user can retry — mirrors switchVault's guard.
+    if (get().saveStates.get(path) === "error") {
+      set({ error: get().saveErrors.get(path) ?? get().error });
+      return;
+    }
     try {
       await api.deleteNote(path);
       get().invalidateNote(path);
-      set({ activePath: null, activeNote: null, saveState: "idle", externalChange: null });
+      set({ externalChange: null });
       await get().refreshTree();
+      // Close the deleted note's tab; reconcile focuses a neighbor (or empties
+      // the pane), which re-syncs activePath/activeNote via openNote/clearActive.
+      useUi.getState().closeTab(path);
     } catch (e) {
       set({ error: displayError(e) });
     }
@@ -546,11 +603,14 @@ export const useVault = create<VaultState>((set, get) => ({
     // Idempotent: skip writing content identical to the last request for this
     // path (a redundant flush after navigation, or an idle autosave, is free).
     if (lastRequest.get(path) === content) {
-      if (get().activePath === path) set({ saveState: "saved" });
+      patchSave(get, set, path, "saved");
       return;
     }
     lastRequest.set(path, content);
-    if (get().activePath === path) set({ saveState: "saving", saveError: null });
+    // Per-path (not "is this the active note"): a background tab's flush updates
+    // ITS save state, and a background save error surfaces on that tab — not as a
+    // global banner for a note the user isn't looking at.
+    patchSave(get, set, path, "saving");
     try {
       const note = await api.updateNote(path, content);
       // Keep the cache current so re-opening this note is instant.
@@ -559,11 +619,10 @@ export const useVault = create<VaultState>((set, get) => ({
       // and the file watcher re-indexes the written file and emits
       // `note-changed`, which refreshes the tree once (see useNovalisEvents).
       // Refreshing on every debounced keystroke-save was the main typing lag.
-      if (get().activePath === path) set({ saveState: "saved", lastSavedAt: Date.now() });
+      patchSave(get, set, path, "saved");
     } catch (e) {
       lastRequest.delete(path); // allow retrying the same content
-      if (get().activePath === path) set({ saveState: "error", saveError: displayError(e) });
-      else set({ error: displayError(e) });
+      patchSave(get, set, path, "error", displayError(e));
     }
   },
 
@@ -576,9 +635,20 @@ export const useVault = create<VaultState>((set, get) => ({
     await flushAll();
   },
 
-  markDirty: () => {
-    if (get().saveState !== "dirty") set({ saveState: "dirty" });
+  markDirty: (path) => {
+    if ((get().saveStates.get(path) ?? "idle") !== "dirty") patchSave(get, set, path, "dirty");
   },
+
+  dropSaveState: (path) => {
+    if (!get().saveStates.has(path) && !get().saveErrors.has(path)) return;
+    const saveStates = new Map(get().saveStates);
+    saveStates.delete(path);
+    const saveErrors = new Map(get().saveErrors);
+    saveErrors.delete(path);
+    set({ saveStates, saveErrors });
+  },
+
+  clearActive: () => set({ activePath: null, activeNote: null, externalChange: null }),
 
   reloadActive: async () => {
     const path = get().activePath;
@@ -591,9 +661,8 @@ export const useVault = create<VaultState>((set, get) => ({
           activeNote: note,
           activeNoteVersion: get().activeNoteVersion + 1,
           externalChange: null,
-          saveState: "idle",
-          saveError: null,
         });
+        patchSave(get, set, path, "idle");
       }
     } catch (e) {
       if (get().activePath === path) set({ error: displayError(e) });
@@ -613,7 +682,7 @@ export const useVault = create<VaultState>((set, get) => ({
     const cached = noteCache.get(path);
     // Self-write echo (our own save re-fires the watcher) or no real change.
     if (cached && cached.content === disk.content) return;
-    if (get().saveState === "dirty") {
+    if ((get().saveStates.get(path) ?? "idle") === "dirty") {
       // Unsaved edits: let the user choose rather than clobber either side.
       set({ externalChange: path });
     } else {
@@ -623,8 +692,8 @@ export const useVault = create<VaultState>((set, get) => ({
         activeNote: disk,
         activeNoteVersion: get().activeNoteVersion + 1,
         externalChange: null,
-        saveState: "idle",
       });
+      patchSave(get, set, path, "idle");
     }
   },
 
@@ -732,6 +801,8 @@ export const useVault = create<VaultState>((set, get) => ({
       const parent = parentOf(path);
       const newPath = parent ? `${parent}/${trimmed}` : trimmed;
       if (newPath === path) return;
+      // Drain pending edits before the dir move renames the active note's path.
+      await flushAll();
       await api.moveFolder(path, newPath);
       const { colors, order } = migratePrefsForMove(
         path,
@@ -746,6 +817,8 @@ export const useVault = create<VaultState>((set, get) => ({
       set({ folderColors: colors, itemOrder: order, collapsed, activePath, selectedFolder });
       await persistFileTree(get);
       await get().refreshTree();
+      // Renamed folder ⇒ its notes' paths changed: rewrite open tabs to match.
+      useUi.getState().reconcileTabs((p) => prefixRewrite(p, path, newPath));
       persistSidebar(get);
     } catch (e) {
       if (e instanceof NovalisError && e.kind === "alreadyExists") {
@@ -803,6 +876,8 @@ export const useVault = create<VaultState>((set, get) => ({
       });
       await persistFileTree(get);
       await get().refreshTree();
+      // Close tabs for any deleted note (the folder and everything under it).
+      useUi.getState().reconcileTabs((p) => (p === path || p.startsWith(path + "/") ? null : p));
       persistSidebar(get);
     } catch (e) {
       set({ error: displayError(e) });
@@ -815,13 +890,7 @@ export const useVault = create<VaultState>((set, get) => ({
       const note = await api.duplicateNote(path);
       noteCache.set(note.path, note);
       await get().refreshTree();
-      set({
-        activePath: note.path,
-        activeNote: note,
-        saveState: "idle",
-        saveError: null,
-        externalChange: null,
-      });
+      useUi.getState().openInWorkspace(note.path);
     } catch (e) {
       set({ error: displayError(e) });
     }
@@ -839,6 +908,11 @@ export const useVault = create<VaultState>((set, get) => ({
   },
 
   moveItem: async (item, target) => {
+    // Drain the active editor's pending autosave to its still-current path
+    // before any on-disk rename, so edits typed in the last debounce window
+    // survive the move (matches openNote/newNote/deleteActive/switchVault). The
+    // same-parent reorder branch below pays nothing — flush is idempotent.
+    await flushAll();
     const src = item.path;
     const srcParent = parentOf(src);
 
@@ -922,6 +996,8 @@ export const useVault = create<VaultState>((set, get) => ({
       });
       await persistFileTree(get);
       await get().refreshTree();
+      // Moved note/folder ⇒ paths changed: rewrite open tabs to the new paths.
+      useUi.getState().reconcileTabs((p) => prefixRewrite(p, src, newPath));
       persistSidebar(get);
     } catch (e) {
       if (e instanceof NovalisError && e.kind === "alreadyExists") {

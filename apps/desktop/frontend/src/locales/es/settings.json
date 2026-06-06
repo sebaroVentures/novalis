@@ -123,7 +123,10 @@
     "search": "Buscar",
     "settings": "Ajustes",
     "title": "Atajos de teclado",
-    "toggleSidebar": "Alternar barra lateral"
+    "toggleSidebar": "Alternar barra lateral",
+    "closeTab": "Cerrar pestaña",
+    "nextTab": "Pestaña siguiente",
+    "prevTab": "Pestaña anterior"
   },
   "language": {
     "hint": "Se aplica a este dispositivo. Los cambios surten efecto de inmediato.",

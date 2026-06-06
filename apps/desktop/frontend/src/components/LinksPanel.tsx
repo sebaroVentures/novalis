@@ -4,6 +4,7 @@ import { Link2, Loader2, Network, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, type LinkReference } from "../ipc/api";
+import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 import { GraphModal } from "./GraphModal";
 
@@ -23,7 +24,7 @@ interface LinksPanelProps {
  *  editor writes on every save. */
 export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
   const { t } = useTranslation(["links", "common"]);
-  const openNote = useVault((s) => s.openNote);
+  const openInWorkspace = useUi((s) => s.openInWorkspace);
   const invalidateNote = useVault((s) => s.invalidateNote);
 
   const [backlinks, setBacklinks] = useState<LinkReference[]>([]);
@@ -114,7 +115,7 @@ export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
           <>
             <Section label={t("backlinks")} count={backlinks.length} empty={t("noBacklinks")}>
               {backlinks.map((r) => (
-                <ReferenceCard key={r.path} reference={r} onOpen={() => void openNote(r.path)} />
+                <ReferenceCard key={r.path} reference={r} onOpen={() => openInWorkspace(r.path)} />
               ))}
             </Section>
             <Section
@@ -127,7 +128,7 @@ export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
                 <ReferenceCard
                   key={r.path}
                   reference={r}
-                  onOpen={() => void openNote(r.path)}
+                  onOpen={() => openInWorkspace(r.path)}
                   linkLabel={t("link")}
                   linkTitle={t("linkTitle")}
                   onLink={(line) => void onLink(r, line)}

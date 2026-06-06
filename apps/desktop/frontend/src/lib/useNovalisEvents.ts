@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import { events } from "../ipc/api";
 import { useConflicts } from "../stores/conflictStore";
 import { useTasks } from "../stores/taskStore";
+import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 
 // Coalesce bursts of `conflict-detected` (one per synced file) into a single scan.
@@ -44,7 +45,14 @@ export function useNovalisEvents() {
         refresh();
       }),
       events.noteDeleted.listen((e) => {
-        useVault.getState().invalidateNote(e.payload.path);
+        const path = e.payload.path;
+        useVault.getState().invalidateNote(path);
+        useVault.getState().dropSaveState(path);
+        // Close the deleted note's tab (in any pane). reconcileTabs (not
+        // closeTab) so we DON'T flush — flushing would resurrect the
+        // externally-deleted file. It re-syncs the live editor for both the
+        // active-note and background-tab cases.
+        useUi.getState().reconcileTabs((p) => (p === path ? null : p));
         refresh();
       }),
     ];

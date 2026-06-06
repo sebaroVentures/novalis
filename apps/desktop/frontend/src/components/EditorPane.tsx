@@ -102,7 +102,6 @@ export function EditorPane() {
   const activeNoteVersion = useVault((s) => s.activeNoteVersion);
   const vaultPath = useVault((s) => s.vaultPath);
   const saveNote = useVault((s) => s.saveNote);
-  const openNote = useVault((s) => s.openNote);
   const revealPath = useVault((s) => s.revealPath);
   const refreshTree = useVault((s) => s.refreshTree);
   const deleteActive = useVault((s) => s.deleteActive);
@@ -111,7 +110,7 @@ export function EditorPane() {
   const markDirty = useVault((s) => s.markDirty);
   const reloadActive = useVault((s) => s.reloadActive);
   const dismissExternalChange = useVault((s) => s.dismissExternalChange);
-  const saveState = useVault((s) => s.saveState);
+  const saveState = useVault((s) => (s.activePath ? (s.saveStates.get(s.activePath) ?? "idle") : "idle"));
   const setNoteMeta = useVault((s) => s.setNoteMeta);
   const externalChange = useVault((s) => s.externalChange);
   const returnView = useUi((s) => s.returnView);
@@ -210,7 +209,7 @@ export function EditorPane() {
     if (!p) return;
     await saveNote(p.path, p.content);
     // Keep `pending` on a failed save so it can be retried; clear otherwise.
-    if (useVault.getState().saveState !== "error") pending.current = null;
+    if ((useVault.getState().saveStates.get(p.path) ?? "idle") !== "error") pending.current = null;
   }, [saveNote]);
 
   // Register the flush so navigation can drain pending edits to the right note.
@@ -341,7 +340,7 @@ export function EditorPane() {
     // was already persisted by the navigating flush, so ignore it rather than
     // resurrect dirty state on the newly-opened note.
     if (useVault.getState().activePath !== activePath) return;
-    markDirty();
+    markDirty(activePath);
     pending.current = { path: activePath, content: split.fm + body };
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
@@ -373,8 +372,9 @@ export function EditorPane() {
     await flushPending();
     try {
       const path = await api.resolveOrCreateWikiLink(title);
-      await openNote(path);
       await refreshTree();
+      // Open in (or activate) a tab in the focused pane (openInWorkspace loads it).
+      useUi.getState().openInWorkspace(path);
     } catch (e) {
       // Surfaced via vaultStore.error in the host; nothing to do here.
       void e;

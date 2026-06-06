@@ -4,7 +4,7 @@ import { Network, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, type NoteGraph } from "../ipc/api";
-import { useVault } from "../stores/vaultStore";
+import { useUi } from "../stores/uiStore";
 
 interface GraphModalProps {
   open: boolean;
@@ -55,7 +55,7 @@ function truncate(title: string): string {
  *  edges a muted color. */
 export function GraphModal({ open, path, onClose }: GraphModalProps) {
   const { t } = useTranslation("links");
-  const openNote = useVault((s) => s.openNote);
+  const openInWorkspace = useUi((s) => s.openInWorkspace);
   const [graph, setGraph] = useState<NoteGraph | null>(null);
 
   useEffect(() => {
@@ -82,7 +82,7 @@ export function GraphModal({ open, path, onClose }: GraphModalProps) {
 
   const hasNeighbors = placed.length > 1;
   const go = (p: string) => {
-    void openNote(p);
+    openInWorkspace(p);
     onClose();
   };
 

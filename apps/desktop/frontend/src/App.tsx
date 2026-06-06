@@ -13,6 +13,7 @@ import { EditorPane } from "./components/EditorPane";
 import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { Sidebar, type MainView } from "./components/Sidebar";
+import { TabStrip } from "./components/TabStrip";
 import { TasksView } from "./components/TasksView";
 import { TodayView } from "./components/TodayView";
 import { TrashModal } from "./components/TrashModal";
@@ -37,6 +38,17 @@ import { usePlugins } from "./stores/pluginStore";
 import { useSettings } from "./stores/settingsStore";
 import { useUi } from "./stores/uiStore";
 import { useVault } from "./stores/vaultStore";
+
+/** Cycle the focused pane's active tab by `dir` (wrapping). No-op below 2 tabs. */
+function cycleTab(dir: 1 | -1): void {
+  const ui = useUi.getState();
+  if (ui.view !== "notes") return;
+  const ws = ui.workspace;
+  const pane = ws.panes.find((p) => p.id === ws.focusedPaneId);
+  if (!pane || pane.tabs.length < 2 || !pane.activeTab) return;
+  const i = pane.tabs.indexOf(pane.activeTab);
+  ui.setActiveTab(pane.tabs[(i + dir + pane.tabs.length) % pane.tabs.length]);
+}
 
 export default function App() {
   const loading = useVault((s) => s.loading);
@@ -76,6 +88,12 @@ export default function App() {
   // (Re)load plugins whenever a vault becomes active.
   useEffect(() => {
     if (vaultPath) void usePlugins.getState().reload();
+  }, [vaultPath]);
+
+  // Restore this vault's editor tabs (and reopen its active tab) when it becomes
+  // active; openVault clears the in-memory workspace first, so no stale tabs.
+  useEffect(() => {
+    if (vaultPath) useUi.getState().loadWorkspace(vaultPath);
   }, [vaultPath]);
 
   // Load preferences when a vault becomes active; apply appearance (theme /
@@ -136,6 +154,13 @@ export default function App() {
         cheatsheet: () => setCheatsheetOpen((v) => !v),
         "nav-back": () => void useVault.getState().navBack(),
         "nav-forward": () => void useVault.getState().navForward(),
+        "close-tab": () => {
+          if (useUi.getState().view !== "notes") return;
+          const ap = useVault.getState().activePath;
+          if (ap) useUi.getState().closeTab(ap);
+        },
+        "next-tab": () => cycleTab(1),
+        "prev-tab": () => cycleTab(-1),
         "toggle-sidebar": () =>
           setSidebarCollapsed((v) => {
             const n = !v;
@@ -292,7 +317,10 @@ export default function App() {
         )}
         <div className="flex min-h-0 flex-1 flex-col">
           {view === "notes" ? (
-            <EditorPane />
+            <>
+              <TabStrip />
+              <EditorPane />
+            </>
           ) : view === "today" ? (
             <TodayView />
           ) : view === "tasks" ? (

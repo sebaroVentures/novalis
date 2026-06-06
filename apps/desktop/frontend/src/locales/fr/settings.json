@@ -123,7 +123,10 @@
     "search": "Rechercher",
     "settings": "Paramètres",
     "title": "Raccourcis clavier",
-    "toggleSidebar": "Basculer la barre latérale"
+    "toggleSidebar": "Basculer la barre latérale",
+    "closeTab": "Fermer l'onglet",
+    "nextTab": "Onglet suivant",
+    "prevTab": "Onglet précédent"
   },
   "language": {
     "hint": "S'applique à cet appareil. Les modifications prennent effet immédiatement.",

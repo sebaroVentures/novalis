@@ -43,8 +43,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
   const [folder, setFolder] = useState("");
   const [tag, setTag] = useState("");
   const [tags, setTags] = useState<TagCount[]>([]);
-  const openNote = useVault((s) => s.openNote);
-  const setView = useUi((s) => s.setView);
+  const openInWorkspace = useUi((s) => s.openInWorkspace);
   const tree = useVault((s) => s.tree);
   const inputRef = useRef<HTMLInputElement>(null);
 
@@ -95,8 +94,9 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
   if (!open) return null;
 
   const pick = (path: string) => {
-    setView("notes"); // search can run from any view; make the editor visible
-    void openNote(path);
+    // openInWorkspace makes the editor visible (search can run from any view),
+    // opens/activates the tab, and loads the note.
+    openInWorkspace(path);
     onClose();
   };
 
