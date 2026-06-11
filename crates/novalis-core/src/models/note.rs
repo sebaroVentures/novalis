@@ -10,6 +10,38 @@ pub struct Note {
     pub content: String,
     pub frontmatter: NoteFrontmatter,
     pub word_count: usize,
+    /// Typed view of the custom frontmatter keys (the `extra` passthrough),
+    /// in the alphabetical order serde_yaml re-emits them. Derived on read —
+    /// the YAML stays the source of truth.
+    #[serde(default)]
+    pub properties: Vec<NotePropertyEntry>,
+}
+
+/// The typed value of one custom frontmatter property — a closed wire enum
+/// over the YAML shapes the properties panel can edit. Anything else a user
+/// hand-wrote (nested maps, mixed-type arrays, integers beyond f64's exact
+/// range) is surfaced as `Text` by the read mapper and only overwritten by an
+/// explicit edit.
+///
+/// `Number` is `Option` because JSON cannot carry NaN/Infinity — a frontend
+/// `NaN` arrives over IPC as `null`, and it must surface as a structured
+/// `BadRequest` from the write boundary rather than an opaque deserialization
+/// failure. The read mapper never produces `None`.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(tag = "kind", content = "value", rename_all = "camelCase")]
+pub enum PropertyValue {
+    Text(String),
+    Number(Option<f64>),
+    Checkbox(bool),
+    List(Vec<String>),
+}
+
+/// One custom frontmatter key/value pair, surfaced on [`Note`].
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct NotePropertyEntry {
+    pub key: String,
+    pub value: PropertyValue,
 }
 
 /// YAML frontmatter. Field names are the literal YAML keys (no camelCase). The

@@ -2,7 +2,7 @@
 // `Result<T, CommandError>` union into a value or a thrown `NovalisError`.
 
 import { commands, events } from "./bindings";
-import type { CommandError } from "./bindings";
+import type { CommandError, PropertyValue } from "./bindings";
 
 export * from "./bindings";
 export { events };
@@ -52,6 +52,11 @@ export const api = {
   duplicateNote: (path: string) => unwrap(commands.duplicateNote(path)),
   updateNoteMeta: (req: Parameters<typeof commands.updateNoteMeta>[0]) =>
     unwrap(commands.updateNoteMeta(req)),
+  setProperty: (path: string, key: string, value: PropertyValue) =>
+    unwrap(commands.setProperty(path, key, value)),
+  removeProperty: (path: string, key: string) => unwrap(commands.removeProperty(path, key)),
+  renameProperty: (path: string, from: string, to: string) =>
+    unwrap(commands.renameProperty(path, from, to)),
   createFolder: (path: string) => unwrap(commands.createFolder(path)),
   deleteFolder: (path: string) => unwrap(commands.deleteFolder(path)),
   deleteFolderRecursive: (path: string) => unwrap(commands.deleteFolderRecursive(path)),

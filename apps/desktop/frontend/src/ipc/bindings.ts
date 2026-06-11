@@ -60,6 +60,9 @@ export const commands = {
 	createNote: (req: CreateNoteRequest) => typedError<Note, CommandError>(__TAURI_INVOKE("create_note", { req })),
 	updateNote: (path: string, content: string) => typedError<Note, CommandError>(__TAURI_INVOKE("update_note", { path, content })),
 	updateNoteMeta: (req: UpdateMetaRequest) => typedError<Note, CommandError>(__TAURI_INVOKE("update_note_meta", { req })),
+	setProperty: (path: string, key: string, value: PropertyValue) => typedError<Note, CommandError>(__TAURI_INVOKE("set_property", { path, key, value })),
+	removeProperty: (path: string, key: string) => typedError<Note, CommandError>(__TAURI_INVOKE("remove_property", { path, key })),
+	renameProperty: (path: string, from: string, to: string) => typedError<Note, CommandError>(__TAURI_INVOKE("rename_property", { path, from, to })),
 	moveNote: (path: string, newPath: string) => typedError<Note, CommandError>(__TAURI_INVOKE("move_note", { path, newPath })),
 	duplicateNote: (path: string) => typedError<Note, CommandError>(__TAURI_INVOKE("duplicate_note", { path })),
 	deleteNote: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_note", { path })),
@@ -460,6 +463,12 @@ export type Note = {
 	content: string,
 	frontmatter: NoteFrontmatter,
 	wordCount: number,
+	/**
+	 *  Typed view of the custom frontmatter keys (the `extra` passthrough),
+	 *  in the alphabetical order serde_yaml re-emits them. Derived on read —
+	 *  the YAML stays the source of truth.
+	 */
+	properties?: NotePropertyEntry[],
 };
 
 /**  A note was created or modified on disk (path is vault-relative). */
@@ -494,6 +503,12 @@ export type NoteGraph = {
 	center: string,
 	nodes: GraphNode[],
 	edges: GraphEdge[],
+};
+
+/**  One custom frontmatter key/value pair, surfaced on [`Note`]. */
+export type NotePropertyEntry = {
+	key: string,
+	value: PropertyValue,
 };
 
 /**  Lightweight note metadata used for lists, the file tree, and search results. */
@@ -555,6 +570,20 @@ export type Preferences = {
 	calendar?: CalendarPrefs,
 	general?: GeneralPrefs,
 };
+
+/**
+ *  The typed value of one custom frontmatter property — a closed wire enum
+ *  over the YAML shapes the properties panel can edit. Anything else a user
+ *  hand-wrote (nested maps, mixed-type arrays, integers beyond f64's exact
+ *  range) is surfaced as `Text` by the read mapper and only overwritten by an
+ *  explicit edit.
+ * 
+ *  `Number` is `Option` because JSON cannot carry NaN/Infinity — a frontend
+ *  `NaN` arrives over IPC as `null`, and it must surface as a structured
+ *  `BadRequest` from the write boundary rather than an opaque deserialization
+ *  failure. The read mapper never produces `None`.
+ */
+export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; value: number | null } | { kind: "checkbox"; value: boolean } | { kind: "list"; value: string[] };
 
 /**  An entry in the recent-vaults list (most-recent first in the stored list). */
 export type RecentVault = {

@@ -12,8 +12,9 @@ use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
     CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, LinkReference,
-    Note, NoteGraph, NoteSummary, NoteTemplate, PluginInfo, Preferences, ResolveConflictRequest,
-    SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
+    Note, NoteGraph, NoteSummary, NoteTemplate, PluginInfo, Preferences, PropertyValue,
+    ResolveConflictRequest, SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo,
+    VaultStats,
 };
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
@@ -238,6 +239,34 @@ pub fn update_note(state: State<AppEngine>, path: String, content: String) -> Cm
 #[specta::specta]
 pub fn update_note_meta(state: State<AppEngine>, req: UpdateMetaRequest) -> CmdResult<Note> {
     state.with(|e| novalis_core::notes::update_meta(&e.db, &e.vault_path, req))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn set_property(
+    state: State<AppEngine>,
+    path: String,
+    key: String,
+    value: PropertyValue,
+) -> CmdResult<Note> {
+    state.with(|e| novalis_core::notes::set_property(&e.db, &e.vault_path, &path, &key, value))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn remove_property(state: State<AppEngine>, path: String, key: String) -> CmdResult<Note> {
+    state.with(|e| novalis_core::notes::remove_property(&e.db, &e.vault_path, &path, &key))
+}
+
+#[tauri::command]
+#[specta::specta]
+pub fn rename_property(
+    state: State<AppEngine>,
+    path: String,
+    from: String,
+    to: String,
+) -> CmdResult<Note> {
+    state.with(|e| novalis_core::notes::rename_property(&e.db, &e.vault_path, &path, &from, &to))
 }
 
 #[tauri::command]

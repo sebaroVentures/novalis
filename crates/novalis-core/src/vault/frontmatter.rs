@@ -11,7 +11,8 @@ use gray_matter::engine::YAML;
 use gray_matter::Matter;
 use regex::Regex;
 
-use crate::models::NoteFrontmatter;
+use crate::error::{CoreError, CoreResult};
+use crate::models::{NoteFrontmatter, NotePropertyEntry, PropertyValue};
 
 /// Parse YAML frontmatter from a markdown string.
 /// Returns the parsed frontmatter and the body (content after frontmatter).
@@ -34,12 +35,93 @@ pub fn parse_frontmatter(content: &str) -> (NoteFrontmatter, String) {
     (fm, result.content)
 }
 
+/// Like [`parse_frontmatter`], but a frontmatter block that EXISTS yet fails
+/// to deserialize is an error instead of a silent default — for write paths
+/// that re-serialize the parsed struct, where the default would erase the
+/// user's hand-written metadata irrecoverably.
+pub fn parse_frontmatter_strict(content: &str) -> CoreResult<(NoteFrontmatter, String)> {
+    let matter = Matter::<YAML>::new();
+    let result = matter.parse(content);
+    let fm = match result.data {
+        Some(data) => data.deserialize().map_err(|e| {
+            CoreError::BadRequest(format!(
+                "frontmatter is not valid ({e}); fix it in the editor first"
+            ))
+        })?,
+        None => NoteFrontmatter::default(),
+    };
+    Ok((fm, result.content))
+}
+
 /// Serialize frontmatter and body back into markdown with YAML front matter.
 pub fn serialize_frontmatter(fm: &NoteFrontmatter, body: &str) -> String {
     let yaml = serde_yaml::to_string(fm).unwrap_or_default();
     // serde_yaml adds a trailing newline; trim it for cleanliness.
     let yaml = yaml.trim_end();
     format!("---\n{yaml}\n---\n{body}")
+}
+
+/// Map the frontmatter `extra` passthrough (custom YAML keys) to the typed
+/// property entries surfaced on [`crate::models::Note`]. Scalars map to their
+/// natural kind; a string array becomes `List`; anything else a user
+/// hand-wrote (nested map, mixed array) degrades to `Text` of its JSON so it
+/// is visible without being silently coerced. `null` reads as empty text.
+/// Order follows the underlying map (BTreeMap → alphabetical), matching how
+/// serde_yaml re-emits the keys.
+pub fn properties_from_extra(extra: &serde_json::Value) -> Vec<NotePropertyEntry> {
+    let serde_json::Value::Object(map) = extra else {
+        return Vec::new();
+    };
+    map.iter()
+        .map(|(key, v)| {
+            let value = match v {
+                serde_json::Value::String(s) => PropertyValue::Text(s.clone()),
+                serde_json::Value::Bool(b) => PropertyValue::Checkbox(*b),
+                serde_json::Value::Number(n) => number_property(n),
+                serde_json::Value::Array(items)
+                    if items
+                        .iter()
+                        .all(|i| matches!(i, serde_json::Value::String(_))) =>
+                {
+                    PropertyValue::List(
+                        items
+                            .iter()
+                            .filter_map(|i| i.as_str().map(str::to_string))
+                            .collect(),
+                    )
+                }
+                serde_json::Value::Null => PropertyValue::Text(String::new()),
+                other => PropertyValue::Text(other.to_string()),
+            };
+            NotePropertyEntry {
+                key: key.clone(),
+                value,
+            }
+        })
+        .collect()
+}
+
+/// Map a YAML/JSON number to a property value. Integers beyond f64's exact
+/// range (±2^53) degrade to `Text` — surfacing a rounded `Number` would let an
+/// explicit panel edit persist the corruption of a hand-written ID. (Untouched
+/// keys always re-serialize from the original parsed value, so unrelated
+/// writes are lossless either way.)
+fn number_property(n: &serde_json::Number) -> PropertyValue {
+    const EXACT: u64 = 1 << 53;
+    if let Some(u) = n.as_u64() {
+        if u > EXACT {
+            return PropertyValue::Text(n.to_string());
+        }
+    }
+    if let Some(i) = n.as_i64() {
+        if i.unsigned_abs() > EXACT {
+            return PropertyValue::Text(n.to_string());
+        }
+    }
+    match n.as_f64() {
+        Some(f) => PropertyValue::Number(Some(f)),
+        None => PropertyValue::Text(n.to_string()),
+    }
 }
 
 /// Update the `modified` field in frontmatter to the current UTC time.

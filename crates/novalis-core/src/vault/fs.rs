@@ -172,6 +172,7 @@ pub fn read_note(vault: &Path, relative: &str) -> CoreResult<Note> {
     let (fm, body) = frontmatter::parse_frontmatter(&content);
     let title = frontmatter::extract_title(&fm, &body, &filename);
     let wc = frontmatter::word_count(&body);
+    let properties = frontmatter::properties_from_extra(&fm.extra);
 
     Ok(Note {
         path: relative.to_string(),
@@ -179,6 +180,7 @@ pub fn read_note(vault: &Path, relative: &str) -> CoreResult<Note> {
         content,
         frontmatter: fm,
         word_count: wc,
+        properties,
     })
 }
 

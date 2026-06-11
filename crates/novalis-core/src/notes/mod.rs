@@ -12,7 +12,7 @@ use crate::change;
 use crate::error::{CoreError, CoreResult};
 use crate::models::{
     CreateNoteRequest, EmbedResolution, EmbedTargetKind, Note, NoteSummary, NoteTemplate,
-    UpdateMetaRequest,
+    PropertyValue, UpdateMetaRequest,
 };
 use crate::vault::{frontmatter, fs as vault_fs};
 
@@ -128,6 +128,180 @@ pub fn update_meta(db: &Connection, vault: &Path, req: UpdateMetaRequest) -> Cor
     let updated = vault_fs::read_note(vault, &path)?;
     change::reindex_path(db, vault, &path)?;
     Ok(updated)
+}
+
+/// Frontmatter keys owned by the typed schema — the custom-property API must
+/// never CREATE them (they have dedicated fields on [`UpdateMetaRequest`]).
+/// Checked case-insensitively on the creation surfaces (`set`, rename's `to`):
+/// a hand-written `Title:` key is legal YAML but too confusable to mint here.
+/// Removal and rename-FROM stay permitted, so a confusable key a user wrote by
+/// hand can be fixed through the panel instead of only by editing YAML.
+const RESERVED_KEYS: [&str; 6] = ["title", "tags", "aliases", "created", "modified", "pinned"];
+
+/// Validate a custom property key shape: non-empty after trimming.
+fn valid_property_key(key: &str) -> CoreResult<String> {
+    let key = key.trim();
+    if key.is_empty() {
+        return Err(CoreError::BadRequest("empty property key".into()));
+    }
+    Ok(key.to_string())
+}
+
+/// Validate a key being CREATED: non-empty and not (a case variant of) a
+/// reserved frontmatter field.
+fn ensure_property_key(key: &str) -> CoreResult<String> {
+    let key = valid_property_key(key)?;
+    if RESERVED_KEYS.contains(&key.to_ascii_lowercase().as_str()) {
+        return Err(CoreError::BadRequest(format!(
+            "'{key}' is a reserved frontmatter field"
+        )));
+    }
+    Ok(key)
+}
+
+/// True for strings the on-disk round-trip would destroy: serde_yaml emits
+/// them unquoted, but the (yaml-rust2) frontmatter READER resolves them as
+/// non-finite floats, which degrade to `null`. Rejected loudly until reader
+/// and writer share one YAML dialect (tracked follow-up — hand-written
+/// occurrences have the same pre-existing hazard on every body save).
+fn is_yaml_hostile_text(s: &str) -> bool {
+    let t = s.trim();
+    let t = t.strip_prefix(['+', '-']).unwrap_or(t);
+    t.eq_ignore_ascii_case("inf")
+        || t.eq_ignore_ascii_case("infinity")
+        || t.eq_ignore_ascii_case("nan")
+}
+
+/// Convert a wire [`PropertyValue`] to the JSON written into `extra`. Numbers
+/// are integer-preserved at this write boundary (`count: 42`, never `42.0`) —
+/// the wire type is f64 only because specta needs a closed scalar.
+fn property_value_to_json(value: PropertyValue) -> CoreResult<serde_json::Value> {
+    Ok(match value {
+        PropertyValue::Text(s) => {
+            if is_yaml_hostile_text(&s) {
+                return Err(CoreError::BadRequest(format!(
+                    "'{s}' cannot be stored as text (YAML would re-read it as a number)"
+                )));
+            }
+            serde_json::Value::String(s)
+        }
+        PropertyValue::Checkbox(b) => serde_json::Value::Bool(b),
+        PropertyValue::List(items) => {
+            if let Some(bad) = items.iter().find(|i| is_yaml_hostile_text(i)) {
+                return Err(CoreError::BadRequest(format!(
+                    "'{bad}' cannot be stored as text (YAML would re-read it as a number)"
+                )));
+            }
+            serde_json::Value::Array(items.into_iter().map(serde_json::Value::String).collect())
+        }
+        PropertyValue::Number(n) => {
+            // `None` is how a frontend NaN arrives (JSON has no NaN) — reject
+            // it structurally rather than failing deserialization.
+            let n = n.ok_or_else(|| CoreError::BadRequest("not a number".into()))?;
+            if !n.is_finite() {
+                return Err(CoreError::BadRequest("non-finite number".into()));
+            }
+            // Half-open upper bound: `i64::MAX as f64` rounds UP to 2^63,
+            // which is NOT representable — it must take the float branch, not
+            // saturate to i64::MAX.
+            if n.fract() == 0.0 && n >= i64::MIN as f64 && n < i64::MAX as f64 {
+                serde_json::Value::from(n as i64)
+            } else {
+                serde_json::Number::from_f64(n)
+                    .map(serde_json::Value::Number)
+                    .ok_or_else(|| CoreError::BadRequest("unrepresentable number".into()))?
+            }
+        }
+    })
+}
+
+/// Read-parse-mutate-serialize-write a note's custom frontmatter keys (the
+/// `extra` passthrough), then reindex — the same shape as [`update_meta`].
+/// Only `extra` and `modified` change; known fields and the body pass through
+/// untouched. Custom keys re-emit in BTreeMap (alphabetical) order, which is
+/// round-trip stable.
+fn mutate_extra(
+    db: &Connection,
+    vault: &Path,
+    path: &str,
+    f: impl FnOnce(&mut serde_json::Map<String, serde_json::Value>) -> CoreResult<()>,
+) -> CoreResult<Note> {
+    let note = vault_fs::read_note(vault, path)?;
+    // STRICT parse: broken frontmatter must error, not fall back to a default
+    // we would then serialize over the user's hand-written metadata.
+    let (mut fm, body) = frontmatter::parse_frontmatter_strict(&note.content)?;
+
+    // `extra` is Null on a fresh default; normalize to an object to mutate.
+    let mut map = match fm.extra.take() {
+        serde_json::Value::Object(m) => m,
+        _ => serde_json::Map::new(),
+    };
+    f(&mut map)?;
+    fm.extra = serde_json::Value::Object(map);
+    fm.modified = chrono::Utc::now().to_rfc3339();
+
+    let new_content = frontmatter::serialize_frontmatter(&fm, &body);
+    std::fs::write(vault.join(path), &new_content)?;
+
+    let updated = vault_fs::read_note(vault, path)?;
+    change::reindex_path(db, vault, path)?;
+    Ok(updated)
+}
+
+/// Set (create or overwrite) a custom frontmatter property.
+pub fn set_property(
+    db: &Connection,
+    vault: &Path,
+    path: &str,
+    key: &str,
+    value: PropertyValue,
+) -> CoreResult<Note> {
+    let key = ensure_property_key(key)?;
+    let json = property_value_to_json(value)?;
+    mutate_extra(db, vault, path, |map| {
+        map.insert(key, json);
+        Ok(())
+    })
+}
+
+/// Remove a custom frontmatter property. Erroring (instead of a silent no-op)
+/// on a missing key avoids a pointless file write + `modified` churn. Reserved
+/// names pass key validation here — the typed fields never live in `extra`, so
+/// they yield NotFound, while a hand-written case variant (`Title:`) IS
+/// removable.
+pub fn remove_property(db: &Connection, vault: &Path, path: &str, key: &str) -> CoreResult<Note> {
+    let key = valid_property_key(key)?;
+    mutate_extra(db, vault, path, |map| {
+        if map.remove(&key).is_none() {
+            return Err(CoreError::NotFound(format!("no property '{key}'")));
+        }
+        Ok(())
+    })
+}
+
+/// Rename a custom frontmatter property, preserving its value. Errors if
+/// `from` is missing or `to` already exists / is reserved. `from` may be a
+/// reserved case variant (so a confusable hand-written key can be renamed
+/// into a sane one); `to` may not.
+pub fn rename_property(
+    db: &Connection,
+    vault: &Path,
+    path: &str,
+    from: &str,
+    to: &str,
+) -> CoreResult<Note> {
+    let from = valid_property_key(from)?;
+    let to = ensure_property_key(to)?;
+    mutate_extra(db, vault, path, |map| {
+        if from != to && map.contains_key(&to) {
+            return Err(CoreError::AlreadyExists(format!("property '{to}'")));
+        }
+        let Some(value) = map.remove(&from) else {
+            return Err(CoreError::NotFound(format!("no property '{from}'")));
+        };
+        map.insert(to, value);
+        Ok(())
+    })
 }
 
 /// Move/rename a note and update the index. Version history follows the note.
@@ -537,6 +711,406 @@ mod tests {
         assert_eq!(
             vault_fs::build_summary(&c.vault, "Note.md").unwrap().title,
             "Renamed"
+        );
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    /// The typed value of `key` as surfaced on a fresh read of the note.
+    fn prop_of(c: &Ctx, path: &str, key: &str) -> Option<PropertyValue> {
+        vault_fs::read_note(&c.vault, path)
+            .unwrap()
+            .properties
+            .into_iter()
+            .find(|p| p.key == key)
+            .map(|p| p.value)
+    }
+
+    #[test]
+    fn set_property_writes_each_variant_and_reads_back_typed() {
+        let c = ctx();
+        create(
+            &c.db,
+            &c.vault,
+            &c.data,
+            CreateNoteRequest {
+                path: "P.md".into(),
+                content: Some("# P\nbody stays".into()),
+                template: None,
+            },
+        )
+        .unwrap();
+
+        set_property(
+            &c.db,
+            &c.vault,
+            "P.md",
+            "status",
+            PropertyValue::Text("draft".into()),
+        )
+        .unwrap();
+        set_property(
+            &c.db,
+            &c.vault,
+            "P.md",
+            "rating",
+            PropertyValue::Number(Some(2.5)),
+        )
+        .unwrap();
+        set_property(
+            &c.db,
+            &c.vault,
+            "P.md",
+            "done",
+            PropertyValue::Checkbox(true),
+        )
+        .unwrap();
+        set_property(
+            &c.db,
+            &c.vault,
+            "P.md",
+            "people",
+            PropertyValue::List(vec!["ada".into(), "alan".into()]),
+        )
+        .unwrap();
+
+        assert_eq!(
+            prop_of(&c, "P.md", "status"),
+            Some(PropertyValue::Text("draft".into()))
+        );
+        assert_eq!(
+            prop_of(&c, "P.md", "rating"),
+            Some(PropertyValue::Number(Some(2.5)))
+        );
+        assert_eq!(
+            prop_of(&c, "P.md", "done"),
+            Some(PropertyValue::Checkbox(true))
+        );
+        assert_eq!(
+            prop_of(&c, "P.md", "people"),
+            Some(PropertyValue::List(vec!["ada".into(), "alan".into()]))
+        );
+
+        // The body and known frontmatter fields are untouched.
+        let note = vault_fs::read_note(&c.vault, "P.md").unwrap();
+        assert!(note.content.contains("body stays"));
+        assert!(note.content.contains("# P"));
+        // Overwrite replaces the value without duplicating the YAML key —
+        // asserted on the raw file AFTER the overwrite.
+        set_property(
+            &c.db,
+            &c.vault,
+            "P.md",
+            "status",
+            PropertyValue::Text("final".into()),
+        )
+        .unwrap();
+        assert_eq!(
+            prop_of(&c, "P.md", "status"),
+            Some(PropertyValue::Text("final".into()))
+        );
+        let raw = std::fs::read_to_string(c.vault.join("P.md")).unwrap();
+        assert_eq!(raw.matches("status:").count(), 1);
+        assert!(raw.contains("status: final"));
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn set_property_preserves_integers_on_disk() {
+        let c = ctx();
+        create(
+            &c.db,
+            &c.vault,
+            &c.data,
+            CreateNoteRequest {
+                path: "N.md".into(),
+                content: None,
+                template: None,
+            },
+        )
+        .unwrap();
+
+        // A whole-valued Number lands as a YAML integer, not 42.0 — and a
+        // second round-trip (read → re-set) keeps it an integer.
+        set_property(
+            &c.db,
+            &c.vault,
+            "N.md",
+            "count",
+            PropertyValue::Number(Some(42.0)),
+        )
+        .unwrap();
+        let raw = std::fs::read_to_string(c.vault.join("N.md")).unwrap();
+        assert!(
+            raw.contains("count: 42\n"),
+            "expected integer in YAML, got:\n{raw}"
+        );
+        assert!(!raw.contains("42.0"));
+        let read_back = prop_of(&c, "N.md", "count").unwrap();
+        set_property(&c.db, &c.vault, "N.md", "count", read_back).unwrap();
+        let raw2 = std::fs::read_to_string(c.vault.join("N.md")).unwrap();
+        assert!(raw2.contains("count: 42\n"));
+
+        // Real fractions keep their fraction; non-finite is rejected.
+        set_property(
+            &c.db,
+            &c.vault,
+            "N.md",
+            "ratio",
+            PropertyValue::Number(Some(2.5)),
+        )
+        .unwrap();
+        assert!(std::fs::read_to_string(c.vault.join("N.md"))
+            .unwrap()
+            .contains("ratio: 2.5"));
+        assert!(set_property(
+            &c.db,
+            &c.vault,
+            "N.md",
+            "bad",
+            PropertyValue::Number(Some(f64::NAN))
+        )
+        .is_err());
+        // A frontend NaN arrives over IPC as null → Number(None): structured reject.
+        assert!(set_property(&c.db, &c.vault, "N.md", "bad", PropertyValue::Number(None)).is_err());
+        // The 2^63 boundary must NOT saturate to i64::MAX (it takes the float branch).
+        set_property(
+            &c.db,
+            &c.vault,
+            "N.md",
+            "big",
+            PropertyValue::Number(Some(9223372036854775808.0)),
+        )
+        .unwrap();
+        let raw3 = std::fs::read_to_string(c.vault.join("N.md")).unwrap();
+        assert!(
+            !raw3.contains("9223372036854775807"),
+            "must not saturate:\n{raw3}"
+        );
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn property_api_rejects_reserved_and_empty_keys() {
+        let c = ctx();
+        create(
+            &c.db,
+            &c.vault,
+            &c.data,
+            CreateNoteRequest {
+                path: "R.md".into(),
+                content: None,
+                template: None,
+            },
+        )
+        .unwrap();
+        set_property(
+            &c.db,
+            &c.vault,
+            "R.md",
+            "ok",
+            PropertyValue::Text("x".into()),
+        )
+        .unwrap();
+
+        for key in [
+            "title", "tags", "aliases", "created", "modified", "pinned", "Title", "PINNED",
+        ] {
+            assert!(
+                set_property(
+                    &c.db,
+                    &c.vault,
+                    "R.md",
+                    key,
+                    PropertyValue::Text("x".into())
+                )
+                .is_err(),
+                "set_property must reject reserved key {key}"
+            );
+            assert!(
+                rename_property(&c.db, &c.vault, "R.md", "ok", key).is_err(),
+                "rename_property must reject reserved target {key}"
+            );
+            // remove allows the NAME (so hand-written case variants are fixable)
+            // but the typed fields never live in `extra` → NotFound, no write.
+            assert!(
+                remove_property(&c.db, &c.vault, "R.md", key).is_err(),
+                "remove_property must error for absent key {key}"
+            );
+        }
+        assert!(set_property(
+            &c.db,
+            &c.vault,
+            "R.md",
+            "  ",
+            PropertyValue::Text("x".into())
+        )
+        .is_err());
+        // None of the rejected calls wrote anything.
+        assert_eq!(
+            prop_of(&c, "R.md", "ok"),
+            Some(PropertyValue::Text("x".into()))
+        );
+        assert!(!std::fs::read_to_string(c.vault.join("R.md"))
+            .unwrap()
+            .contains("Title"));
+
+        // A hand-written case VARIANT of a reserved key is not consumed by the
+        // typed fields (serde is case-sensitive): it surfaces as a property and
+        // is removable/renamable through the API — only CREATING one is blocked.
+        std::fs::write(
+            c.vault.join("R2.md"),
+            "---\ntitle: R2\nTitle: confusable\n---\n\nbody",
+        )
+        .unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "R2.md").unwrap();
+        assert_eq!(
+            prop_of(&c, "R2.md", "Title"),
+            Some(PropertyValue::Text("confusable".into()))
+        );
+        remove_property(&c.db, &c.vault, "R2.md", "Title").unwrap();
+        assert_eq!(prop_of(&c, "R2.md", "Title"), None);
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn remove_and_rename_property_semantics() {
+        let c = ctx();
+        create(
+            &c.db,
+            &c.vault,
+            &c.data,
+            CreateNoteRequest {
+                path: "M.md".into(),
+                content: None,
+                template: None,
+            },
+        )
+        .unwrap();
+        set_property(
+            &c.db,
+            &c.vault,
+            "M.md",
+            "status",
+            PropertyValue::Text("draft".into()),
+        )
+        .unwrap();
+        set_property(
+            &c.db,
+            &c.vault,
+            "M.md",
+            "other",
+            PropertyValue::Number(Some(1.0)),
+        )
+        .unwrap();
+
+        // Rename preserves the value; the old key is gone.
+        rename_property(&c.db, &c.vault, "M.md", "status", "state").unwrap();
+        assert_eq!(
+            prop_of(&c, "M.md", "state"),
+            Some(PropertyValue::Text("draft".into()))
+        );
+        assert_eq!(prop_of(&c, "M.md", "status"), None);
+        // Renaming onto an existing key or from a missing key errors.
+        assert!(rename_property(&c.db, &c.vault, "M.md", "state", "other").is_err());
+        assert!(rename_property(&c.db, &c.vault, "M.md", "ghost", "x").is_err());
+
+        // Remove deletes; removing a missing key errors (no silent write).
+        remove_property(&c.db, &c.vault, "M.md", "state").unwrap();
+        assert_eq!(prop_of(&c, "M.md", "state"), None);
+        assert!(remove_property(&c.db, &c.vault, "M.md", "state").is_err());
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn properties_reemit_alphabetically_and_stay_stable() {
+        let c = ctx();
+        // Hand-ordered legacy note: z_key listed before a_key.
+        std::fs::write(
+            c.vault.join("L.md"),
+            "---\ntitle: L\nz_key: zed\na_key: aye\n---\n\nbody",
+        )
+        .unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "L.md").unwrap();
+
+        // First property write re-emits custom keys alphabetically (the
+        // documented one-time reorder for hand-ordered notes)...
+        set_property(
+            &c.db,
+            &c.vault,
+            "L.md",
+            "m_key",
+            PropertyValue::Text("em".into()),
+        )
+        .unwrap();
+        let raw1 = std::fs::read_to_string(c.vault.join("L.md")).unwrap();
+        let (a, m, z) = (
+            raw1.find("a_key:").unwrap(),
+            raw1.find("m_key:").unwrap(),
+            raw1.find("z_key:").unwrap(),
+        );
+        assert!(
+            a < m && m < z,
+            "custom keys must re-emit alphabetically:\n{raw1}"
+        );
+        assert!(raw1.contains("zed") && raw1.contains("aye"));
+
+        // ...and a second pass is byte-stable for the frontmatter block apart
+        // from `modified` (no ordering churn).
+        set_property(
+            &c.db,
+            &c.vault,
+            "L.md",
+            "m_key",
+            PropertyValue::Text("em".into()),
+        )
+        .unwrap();
+        let raw2 = std::fs::read_to_string(c.vault.join("L.md")).unwrap();
+        let strip_modified = |s: &str| -> String {
+            s.lines()
+                .filter(|l| !l.starts_with("modified:"))
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
+        assert_eq!(strip_modified(&raw1), strip_modified(&raw2));
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn unrelated_set_preserves_nested_values_verbatim() {
+        let c = ctx();
+        // A hand-written nested map — beyond the panel's editable kinds.
+        std::fs::write(
+            c.vault.join("X.md"),
+            "---\ntitle: X\nmeta:\n  deep: true\n  count: 3\n---\n\nbody",
+        )
+        .unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "X.md").unwrap();
+
+        set_property(
+            &c.db,
+            &c.vault,
+            "X.md",
+            "status",
+            PropertyValue::Text("ok".into()),
+        )
+        .unwrap();
+
+        // The nested map survives semantically (it re-reads to the same JSON)…
+        let note = vault_fs::read_note(&c.vault, "X.md").unwrap();
+        assert_eq!(
+            note.frontmatter.extra.get("meta"),
+            Some(&serde_json::json!({"deep": true, "count": 3}))
+        );
+        // …and surfaces read-only as Text of its JSON.
+        assert_eq!(
+            prop_of(&c, "X.md", "meta"),
+            Some(PropertyValue::Text("{\"count\":3,\"deep\":true}".into()))
         );
 
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
