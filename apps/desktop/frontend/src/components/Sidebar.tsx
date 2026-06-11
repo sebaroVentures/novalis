@@ -26,7 +26,9 @@ import { useTranslation } from "react-i18next";
 import { COLOR_HEX, COLOR_TOKENS } from "../lib/colors";
 import i18n from "../lib/i18n";
 import { api, type FolderNode, type NoteSummary, type NoteTemplate } from "../ipc/api";
+import { formatChord } from "../lib/keybindings";
 import { orderedItems, type SortBy, type TreeItem } from "../lib/treeOrder";
+import { useKeymap } from "../stores/keymapStore";
 import { useUi } from "../stores/uiStore";
 import { newNoteFolder, useVault, type DragItem } from "../stores/vaultStore";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
@@ -96,6 +98,7 @@ export function Sidebar({
   const moveItem = useVault((s) => s.moveItem);
   const vaultName = vaultPath ? vaultPath.split("/").filter(Boolean).pop() : "Vault";
   const { t } = useTranslation(["sidebar", "common", "trash"]);
+  const keymap = useKeymap((s) => s.keymap);
   const viewLabels: Record<MainView, string> = {
     notes: t("common:views.notes"),
     today: t("common:views.today"),
@@ -181,7 +184,12 @@ export function Sidebar({
           <ChevronDown size={13} className="shrink-0 text-fg-subtle" />
         </button>
         <div className="flex items-center gap-0.5">
-          <button title={t("searchShortcut")} onClick={onOpenSearch} className={iconBtn}>
+          <button
+            aria-label={t("search")}
+            title={`${t("search")} (${formatChord(keymap.search)})`}
+            onClick={onOpenSearch}
+            className={iconBtn}
+          >
             <Search size={16} />
           </button>
           <button title={t("refreshFromDisk")} onClick={() => void api.rescanVault()} className={iconBtn}>
