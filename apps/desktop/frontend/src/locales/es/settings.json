@@ -126,7 +126,11 @@
     "toggleSidebar": "Alternar barra lateral",
     "closeTab": "Cerrar pestaña",
     "nextTab": "Pestaña siguiente",
-    "prevTab": "Pestaña anterior"
+    "prevTab": "Pestaña anterior",
+    "splitRight": "Dividir a la derecha",
+    "splitDown": "Dividir abajo",
+    "focusPaneLeft": "Panel anterior",
+    "focusPaneRight": "Panel siguiente"
   },
   "language": {
     "hint": "Se aplica a este dispositivo. Los cambios surten efecto de inmediato.",

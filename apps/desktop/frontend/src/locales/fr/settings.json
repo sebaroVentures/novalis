@@ -126,7 +126,11 @@
     "toggleSidebar": "Basculer la barre latérale",
     "closeTab": "Fermer l'onglet",
     "nextTab": "Onglet suivant",
-    "prevTab": "Onglet précédent"
+    "prevTab": "Onglet précédent",
+    "splitRight": "Scinder à droite",
+    "splitDown": "Scinder vers le bas",
+    "focusPaneLeft": "Panneau précédent",
+    "focusPaneRight": "Panneau suivant"
   },
   "language": {
     "hint": "S'applique à cet appareil. Les modifications prennent effet immédiatement.",

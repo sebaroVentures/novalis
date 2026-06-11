@@ -7,7 +7,7 @@
 // callouts render via decorations / a code-block NodeView while keeping the
 // Markdown plain, so round-trip stays trivial too.
 
-export { NovalisEditor } from "./NovalisEditor";
+export { NovalisEditor, getMarkdown } from "./NovalisEditor";
 export type { NovalisEditorProps } from "./NovalisEditor";
 export { extractHeadings } from "./outline";
 export type { OutlineItem } from "./outline";

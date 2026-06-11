@@ -334,18 +334,9 @@ function buildMenu(target: MenuTarget, actions: CtxActions, x: number, y: number
           if (!window.confirm(i18n.t("sidebar:confirm.trashNote", { title: note?.title ?? target.path }))) {
             return;
           }
-          if (s.activePath === target.path) {
-            // Route through the store so pending edits flush into the trashed copy.
-            void s.deleteActive();
-          } else {
-            void api.deleteNote(target.path).then(() => {
-              s.invalidateNote(target.path);
-              void s.refreshTree();
-              // Close its tab if it's open in a pane (no-op otherwise), so a
-              // background tab can't get stuck loading a trashed file.
-              void useUi.getState().closeTab(target.path);
-            });
-          }
+          // Route through the store: it flushes pending edits into the trashed
+          // copy and closes the note's tab in every pane that has it open.
+          void s.deleteNote(target.path);
         },
       },
     ];

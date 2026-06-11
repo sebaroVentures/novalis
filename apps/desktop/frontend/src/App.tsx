@@ -9,15 +9,14 @@ import { Cheatsheet } from "./components/Cheatsheet";
 import { CloudHint } from "./components/CloudHint";
 import { CommandPalette } from "./components/CommandPalette";
 import { ConflictModal } from "./components/ConflictModal";
-import { EditorPane } from "./components/EditorPane";
 import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { Sidebar, type MainView } from "./components/Sidebar";
-import { TabStrip } from "./components/TabStrip";
 import { TasksView } from "./components/TasksView";
 import { TodayView } from "./components/TodayView";
 import { TrashModal } from "./components/TrashModal";
 import { VaultGate } from "./components/VaultGate";
+import { WorkspaceLayout } from "./components/WorkspaceLayout";
 import { applyAppearance, watchSystemTheme } from "./lib/appearance";
 import { applyLanguage } from "./lib/i18n";
 import { actionForEvent } from "./lib/keybindings";
@@ -161,6 +160,20 @@ export default function App() {
         },
         "next-tab": () => cycleTab(1),
         "prev-tab": () => cycleTab(-1),
+        "split-right": () => {
+          const ui = useUi.getState();
+          if (ui.view === "notes") void ui.splitPane(ui.workspace.focusedPaneId, "row");
+        },
+        "split-down": () => {
+          const ui = useUi.getState();
+          if (ui.view === "notes") void ui.splitPane(ui.workspace.focusedPaneId, "column");
+        },
+        "focus-pane-left": () => {
+          if (useUi.getState().view === "notes") useUi.getState().movePaneFocus(-1);
+        },
+        "focus-pane-right": () => {
+          if (useUi.getState().view === "notes") useUi.getState().movePaneFocus(1);
+        },
         "toggle-sidebar": () =>
           setSidebarCollapsed((v) => {
             const n = !v;
@@ -317,10 +330,7 @@ export default function App() {
         )}
         <div className="flex min-h-0 flex-1 flex-col">
           {view === "notes" ? (
-            <>
-              <TabStrip />
-              <EditorPane />
-            </>
+            <WorkspaceLayout />
           ) : view === "today" ? (
             <TodayView />
           ) : view === "tasks" ? (

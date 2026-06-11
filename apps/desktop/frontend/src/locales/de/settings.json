@@ -126,7 +126,11 @@
     "toggleSidebar": "Seitenleiste umschalten",
     "closeTab": "Tab schließen",
     "nextTab": "Nächster Tab",
-    "prevTab": "Vorheriger Tab"
+    "prevTab": "Vorheriger Tab",
+    "splitRight": "Rechts teilen",
+    "splitDown": "Nach unten teilen",
+    "focusPaneLeft": "Vorheriger Bereich",
+    "focusPaneRight": "Nächster Bereich"
   },
   "language": {
     "hint": "Gilt für dieses Gerät. Änderungen werden sofort wirksam.",

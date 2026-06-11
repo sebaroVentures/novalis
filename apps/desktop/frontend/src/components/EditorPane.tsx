@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   NovalisEditor,
   extractHeadings,
+  getMarkdown,
   type Editor,
   type EmbedResult,
   type OutlineItem,
@@ -25,6 +26,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { api } from "../ipc/api";
+import type { Pane } from "../lib/workspacePrefs";
 import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
 import { useVault, type SaveState } from "../stores/vaultStore";
@@ -96,21 +98,26 @@ function folderCrumbs(path: string): { label: string; path: string }[] {
   return out;
 }
 
-export function EditorPane() {
-  const activeNote = useVault((s) => s.activeNote);
-  const activePath = useVault((s) => s.activePath);
-  const activeNoteVersion = useVault((s) => s.activeNoteVersion);
+export function EditorPane({ pane }: { pane: Pane }) {
+  // This pane's visible note: content comes from the per-path openNotes map
+  // (NOT the focused-pane `activeNote` alias), so every pane renders its own
+  // tab regardless of which pane is focused.
+  const path = pane.activeTab;
+  const note = useVault((s) => (path ? (s.openNotes.get(path) ?? null) : null));
+  const epoch = useVault((s) => s.paneEpochs.get(pane.id) ?? 0);
+  const focused = useUi((s) => s.workspace.focusedPaneId === pane.id);
   const vaultPath = useVault((s) => s.vaultPath);
   const saveNote = useVault((s) => s.saveNote);
+  const loadNote = useVault((s) => s.loadNote);
   const revealPath = useVault((s) => s.revealPath);
   const refreshTree = useVault((s) => s.refreshTree);
-  const deleteActive = useVault((s) => s.deleteActive);
+  const deleteNote = useVault((s) => s.deleteNote);
   const renameItem = useVault((s) => s.renameItem);
   const registerFlush = useVault((s) => s.registerFlush);
   const markDirty = useVault((s) => s.markDirty);
-  const reloadActive = useVault((s) => s.reloadActive);
+  const reloadNote = useVault((s) => s.reloadNote);
   const dismissExternalChange = useVault((s) => s.dismissExternalChange);
-  const saveState = useVault((s) => (s.activePath ? (s.saveStates.get(s.activePath) ?? "idle") : "idle"));
+  const saveState = useVault((s) => (path ? (s.saveStates.get(path) ?? "idle") : "idle"));
   const setNoteMeta = useVault((s) => s.setNoteMeta);
   const externalChange = useVault((s) => s.externalChange);
   const returnView = useUi((s) => s.returnView);
@@ -155,15 +162,33 @@ export function EditorPane() {
   // Write tags/aliases via the frontmatter path. Flush the pending body autosave
   // first so it doesn't race the meta write on the same file.
   const commitMeta = async (meta: { tags?: string[]; aliases?: string[] }) => {
-    if (!activePath) return;
+    if (!path) return;
     await flushPending();
-    await setNoteMeta(activePath, meta);
+    await setNoteMeta(path, meta);
   };
 
+  // The pane's live editor instance, mirrored into a ref so cleanups can tell
+  // whether the shared `activeEditor` is OURS before clearing it (another
+  // pane's editor must never be clobbered by this pane unmounting).
+  const editorRef = useRef<Editor | null>(null);
   const handleEditorReady = useCallback((ed: Editor) => {
     setEditorInstance(ed);
-    useUi.getState().setActiveEditor(ed); // share for palette "Insert template"
-  }, []);
+    editorRef.current = ed;
+    // Share for palette "Insert template" — but only the FOCUSED pane's editor.
+    const ui = useUi.getState();
+    if (ui.workspace.focusedPaneId === pane.id) ui.setActiveEditor(ed);
+  }, [pane.id]);
+
+  // Re-publish this pane's editor whenever it gains focus; on focus LOSS clear
+  // it if it is still ours, so focusing a pane with no mounted editor (empty /
+  // loading) can't leave palette actions targeting the unfocused pane's note.
+  useEffect(() => {
+    const ui = useUi.getState();
+    if (focused && editor) ui.setActiveEditor(editor);
+    else if (!focused && editorRef.current && ui.activeEditor === editorRef.current) {
+      ui.setActiveEditor(null);
+    }
+  }, [focused, editor]);
 
   const jumpToHeading = useCallback(
     (pos: number) => {
@@ -192,32 +217,125 @@ export function EditorPane() {
     };
   }, [editor]);
 
-  const split = useMemo(
-    () => (activeNote ? splitFrontmatter(activeNote.content) : null),
-    [activeNote],
-  );
+  const split = useMemo(() => (note ? splitFrontmatter(note.content) : null), [note]);
+
+  // Render-scope mirrors so the (stable) flush callback in the registry always
+  // sees this pane's CURRENT path/frontmatter without re-registering.
+  const pathRef = useRef(path);
+  pathRef.current = path;
+  const fmRef = useRef("");
+  fmRef.current = split?.fm ?? "";
+  // True when the live editor has doc changes NEWER than the debounced
+  // `pending` snapshot. The editor's serialize debounce resets on every
+  // keystroke, so during continuous typing `pending` lags arbitrarily far —
+  // flushes and the mirror-on-save skip-check must not be blind to that.
+  const liveDirty = useRef(false);
+  // True between a discard (Reload-from-disk / external delete) and this
+  // pane's editor remount: the doomed doc's late serializations (the editor's
+  // own 200ms debounce can fire DURING the reload fetch) must not re-arm an
+  // autosave of content the user already threw away.
+  const discarded = useRef(false);
+
+  useEffect(() => {
+    if (!editor) return;
+    // A fresh editor instance starts clean (its prior content was flushed or
+    // deliberately discarded by whatever remounted it).
+    liveDirty.current = false;
+    // Only DOC changes count — `update` also fires for non-doc transactions
+    // (e.g. setEditable), and a false positive here would make this pane claim
+    // pending edits it doesn't have (blocking mirror-on-save convergence).
+    const mark = ({ transaction }: { transaction: { docChanged: boolean } }) => {
+      if (transaction.docChanged) liveDirty.current = true;
+    };
+    editor.on("update", mark);
+    return () => {
+      editor.off("update", mark);
+    };
+  }, [editor]);
+
+  // Make sure this pane's note content is loaded (no-op when cached). The
+  // focused pane is usually populated by openNote already; this is how a
+  // NON-focused pane (split, restored layout) loads its tab.
+  useEffect(() => {
+    if (path) void loadNote(path);
+  }, [path, loadNote]);
 
   // Persist the pending autosave now (to its own note). Called on debounce, and
-  // by every navigation action (via the store registry) before `activePath`
-  // changes — this is what closes the silent data-loss path.
+  // by every navigation action (via the store registry) before this pane's
+  // visible note changes — this is what closes the silent data-loss path.
   const flushPending = useCallback(async () => {
     if (timer.current) {
       window.clearTimeout(timer.current);
       timer.current = null;
     }
-    const p = pending.current;
+    // Discarded content (and anything typed into the doomed doc since) must
+    // never be flushed — the remount resolves this state.
+    if (discarded.current) return;
+    let p = pending.current;
+    // Edits newer than the debounced snapshot: serialize straight from the
+    // live editor so a flush persists the TRUE current doc (a burst of
+    // continuous typing may have produced no onChange at all yet).
+    const ed = editorRef.current;
+    if (liveDirty.current && ed && !ed.isDestroyed && pathRef.current) {
+      try {
+        p = { path: pathRef.current, content: fmRef.current + getMarkdown(ed) };
+      } catch {
+        /* fall back to the debounced snapshot */
+      }
+    }
     if (!p) return;
-    await saveNote(p.path, p.content);
+    liveDirty.current = false;
+    // Retain as `pending` so a failed save keeps the content for retry.
+    pending.current = p;
+    // This pane is the typing source: other panes showing the note mirror on
+    // save (they remount); this one never does.
+    await saveNote(p.path, p.content, pane.id);
     // Keep `pending` on a failed save so it can be retried; clear otherwise.
     if ((useVault.getState().saveStates.get(p.path) ?? "idle") !== "error") pending.current = null;
-  }, [saveNote]);
+  }, [saveNote, pane.id]);
 
-  // Register the flush so navigation can drain pending edits to the right note.
-  // Keyed by pane id — a single "main" pane today; tabs/splits add real pane ids.
+  // Register the pane's autosave hooks so navigation can drain (flush), the
+  // mirror-on-save path can spare a mid-edit pane (pendingPath), and external
+  // deletes can drop a pending edit without resurrecting the file (discard).
   useEffect(() => {
-    registerFlush("main", flushPending);
-    return () => registerFlush("main", null);
-  }, [registerFlush, flushPending]);
+    registerFlush(pane.id, {
+      flush: flushPending,
+      // Unflushed edits = a debounced snapshot OR live typing the serialize
+      // debounce hasn't captured yet (mirror-on-save must spare both). A
+      // discarded pane reports nothing: its doc is doomed and remount-bound.
+      pendingPath: () =>
+        discarded.current
+          ? null
+          : (pending.current?.path ?? (liveDirty.current ? pathRef.current : null)),
+      discard: () => {
+        if (timer.current) {
+          window.clearTimeout(timer.current);
+          timer.current = null;
+        }
+        pending.current = null;
+        liveDirty.current = false;
+        discarded.current = true;
+      },
+    });
+    return () => registerFlush(pane.id, null);
+  }, [registerFlush, flushPending, pane.id]);
+
+  // An epoch bump means this pane ADOPTED content from elsewhere (external
+  // reload, version restore, mirror-on-save): any pending autosave is based on
+  // the replaced doc — drop it rather than let its timer resurrect stale
+  // content over what the user (or disk) just chose.
+  const lastEpoch = useRef(epoch);
+  useEffect(() => {
+    if (lastEpoch.current === epoch) return;
+    lastEpoch.current = epoch;
+    if (timer.current) {
+      window.clearTimeout(timer.current);
+      timer.current = null;
+    }
+    pending.current = null;
+    liveDirty.current = false;
+    discarded.current = false;
+  }, [epoch]);
 
   // On note switch / unmount, cancel the debounce. The outgoing note's edits
   // were already flushed by the navigating action (and the editor's own blur
@@ -233,17 +351,26 @@ export function EditorPane() {
         hoverTimer.current = null;
       }
       pending.current = null;
+      liveDirty.current = false;
+      discarded.current = false;
       setHovered(null);
       setFindOpen(false);
-      useUi.getState().setActiveEditor(null);
+      // Clear the shared editor only if it is OURS (another pane may have
+      // published its own since) — and drop the local handles too: the old
+      // TipTap instance is destroyed with the outgoing NovalisEditor, and a
+      // focus-gain before the new one mounts must not republish a corpse.
+      const ui = useUi.getState();
+      if (editorRef.current && ui.activeEditor === editorRef.current) ui.setActiveEditor(null);
+      editorRef.current = null;
+      setEditorInstance(null);
     },
-    [activePath],
+    [path],
   );
 
   // Reset reading mode to the configured default whenever the open note changes.
   useEffect(() => {
     setReadingMode(readingDefault);
-  }, [activePath, readingDefault]);
+  }, [path, readingDefault]);
 
   // Tag autocomplete source for the chip editor; refreshed per open note.
   useEffect(() => {
@@ -257,7 +384,7 @@ export function EditorPane() {
     return () => {
       cancelled = true;
     };
-  }, [activePath]);
+  }, [path]);
 
   // NOTE: all hooks must stay above the early returns below, so the hook order
   // is identical across the loading → loaded transition (otherwise React throws
@@ -302,7 +429,7 @@ export function EditorPane() {
     setHovered(null);
   }, []);
 
-  if (!activePath) {
+  if (!path) {
     return (
       <section className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-fg-faint">
         <FileText size={40} strokeWidth={1.25} className="text-fg-faint" />
@@ -314,17 +441,17 @@ export function EditorPane() {
     );
   }
 
-  // Active note selected but its content isn't loaded yet (e.g. a OneDrive
-  // online-only file still hydrating). Show a loader instead of the previous
-  // note's stale content — never block on the read.
-  if (!activeNote || activeNote.path !== activePath || !split) {
-    const name = activePath.split("/").pop()?.replace(/\.md$/, "") ?? activePath;
+  // A tab is selected but its content isn't loaded yet (e.g. a OneDrive
+  // online-only file still hydrating). Show a loader instead of stale
+  // content — never block on the read.
+  if (!note || note.path !== path || !split) {
+    const name = path.split("/").pop()?.replace(/\.md$/, "") ?? path;
     return (
       <section className="flex min-h-0 min-w-0 flex-1 flex-col">
         <header className="flex items-center gap-2 border-b border-border px-5 py-2.5">
           <div className="min-w-0">
             <h2 className="truncate text-sm font-medium text-fg">{name}</h2>
-            <p className="truncate text-xs text-fg-faint">{activePath}</p>
+            <p className="truncate text-xs text-fg-faint">{path}</p>
           </div>
         </header>
         <div className="flex flex-1 items-center justify-center gap-2 text-fg-faint">
@@ -336,12 +463,21 @@ export function EditorPane() {
   }
 
   const onChange = (body: string) => {
-    // A late flush from an editor unmounting due to a note switch: its content
+    // Between a discard and the remount that resolves it, every serialization
+    // carries the doomed pre-discard doc — drop it (see `discarded`).
+    if (discarded.current) return;
+    // A late flush from an editor unmounting due to a tab switch: its content
     // was already persisted by the navigating flush, so ignore it rather than
-    // resurrect dirty state on the newly-opened note.
-    if (useVault.getState().activePath !== activePath) return;
-    markDirty(activePath);
-    pending.current = { path: activePath, content: split.fm + body };
+    // resurrect dirty state on the newly-opened note. Per-pane: compare against
+    // THIS pane's current active tab, not the focused pane's.
+    const cur = useUi.getState().workspace.panes.find((p) => p.id === pane.id);
+    if (cur?.activeTab !== path) return;
+    // Likewise an editor being REPLACED by an epoch bump (same path): its
+    // serialize-flush carries the pre-adoption doc — this closure captured the
+    // pre-bump epoch, so a mismatch identifies (and drops) exactly that.
+    if ((useVault.getState().paneEpochs.get(pane.id) ?? 0) !== epoch) return;
+    markDirty(path);
+    pending.current = { path, content: split.fm + body };
     if (timer.current) window.clearTimeout(timer.current);
     timer.current = window.setTimeout(() => {
       timer.current = null;
@@ -405,7 +541,7 @@ export function EditorPane() {
 
   const doExport = (format: "html" | "docx") => {
     setExportOpen(false);
-    void api.exportNote(activePath, format).catch(() => {});
+    void api.exportNote(path, format).catch(() => {});
   };
 
   // Commit (or discard) an inline title edit from the header. Renaming a note
@@ -416,16 +552,16 @@ export function EditorPane() {
     setTitleDraft(null);
     if (draft === null) return;
     const trimmed = draft.trim();
-    if (!trimmed || trimmed === activeNote.title) return;
+    if (!trimmed || trimmed === note.title) return;
     await flushPending();
-    await renameItem(activePath, "note", trimmed);
+    await renameItem(path, "note", trimmed);
   };
 
   return (
     <section className="flex min-h-0 min-w-0 flex-1 flex-col">
       <header className="flex items-center justify-between gap-2 border-b border-border px-5 py-2.5">
         <div className="flex min-w-0 items-center gap-2">
-          {returnView && (
+          {focused && returnView && (
             <button
               onClick={goBack}
               title={t("backToTasks")}
@@ -456,16 +592,16 @@ export function EditorPane() {
               />
             ) : (
               <button
-                onClick={() => setTitleDraft(activeNote.title)}
+                onClick={() => setTitleDraft(note.title)}
                 title={t("renameTitle")}
                 className="block max-w-full truncate rounded text-left text-sm font-medium text-fg transition-colors hover:bg-hover"
               >
-                {activeNote.title}
+                {note.title}
               </button>
             )}
-            {folderCrumbs(activePath).length > 0 ? (
+            {folderCrumbs(path).length > 0 ? (
               <div className="flex items-center gap-0.5 truncate text-xs text-fg-faint">
-                {folderCrumbs(activePath).map((c, i) => (
+                {folderCrumbs(path).map((c, i) => (
                   <span key={c.path} className="flex items-center gap-0.5">
                     {i > 0 && <ChevronRight size={11} className="shrink-0 text-fg-faint/60" />}
                     <button
@@ -478,7 +614,7 @@ export function EditorPane() {
                 ))}
               </div>
             ) : (
-              <p className="truncate text-xs text-fg-faint">{activePath}</p>
+              <p className="truncate text-xs text-fg-faint">{path}</p>
             )}
           </div>
         </div>
@@ -555,15 +691,18 @@ export function EditorPane() {
           </button>
         </div>
       </header>
-      {externalChange && (
-        <div className="flex items-center justify-between gap-3 border-b border-border bg-surface-2 px-5 py-2 text-xs">
+      {externalChange === path && (
+        <div
+          data-external-banner=""
+          className="flex items-center justify-between gap-3 border-b border-border bg-surface-2 px-5 py-2 text-xs"
+        >
           <span className="flex items-center gap-2 text-fg-muted">
             <AlertTriangle size={14} className="text-danger" />
             {t("externalChanged")}
           </span>
           <div className="flex items-center gap-1.5">
             <button
-              onClick={() => void reloadActive()}
+              onClick={() => void reloadNote(path)}
               className="rounded-md bg-accent px-2.5 py-1 font-medium text-accent-fg transition-colors hover:opacity-90"
             >
               {t("externalReload")}
@@ -584,7 +723,7 @@ export function EditorPane() {
             {t("tags")}
           </span>
           <ChipInput
-            values={activeNote.frontmatter.tags ?? []}
+            values={note.frontmatter.tags ?? []}
             onChange={(next) => void commitMeta({ tags: next })}
             suggestions={tagSuggestions}
             placeholder={t("addTag")}
@@ -597,7 +736,7 @@ export function EditorPane() {
             {t("aliases")}
           </span>
           <ChipInput
-            values={activeNote.frontmatter.aliases ?? []}
+            values={note.frontmatter.aliases ?? []}
             onChange={(next) => void commitMeta({ aliases: next })}
             placeholder={t("addAlias")}
             ariaLabel={t("aliases")}
@@ -607,7 +746,7 @@ export function EditorPane() {
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <NovalisEditor
-            key={`${activePath}:${activeNoteVersion}`}
+            key={`${pane.id}:${path}:${epoch}`}
             value={split.body}
             editable={!readingMode}
             onChange={onChange}
@@ -663,8 +802,8 @@ export function EditorPane() {
             {panels.outline && panels.links && <div className="border-t border-border" />}
             {panels.links && (
               <LinksPanel
-                title={activeNote.title}
-                path={activePath}
+                title={note.title}
+                path={path}
                 onClose={() => togglePanel("links")}
                 stacked
               />
@@ -675,18 +814,18 @@ export function EditorPane() {
       <WikiLinkHoverCard target={hovered} />
       <VersionHistoryModal
         open={historyOpen}
-        path={activePath}
+        path={path}
         onClose={() => setHistoryOpen(false)}
       />
       <ConfirmDialog
         open={confirmDelete}
         danger
         title={t("trash:trashConfirmTitle")}
-        body={t("trash:trashConfirmBody", { name: activeNote.title })}
+        body={t("trash:trashConfirmBody", { name: note.title })}
         confirmLabel={t("common:delete")}
         onConfirm={() => {
           setConfirmDelete(false);
-          void deleteActive();
+          void deleteNote(path);
         }}
         onCancel={() => setConfirmDelete(false)}
       />

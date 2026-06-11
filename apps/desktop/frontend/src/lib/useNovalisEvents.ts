@@ -34,9 +34,9 @@ export function useNovalisEvents() {
       events.noteChanged.listen((e) => {
         const path = e.payload.path;
         const st = useVault.getState();
-        if (st.activePath === path) {
-          // The open note changed on disk: ignore our own echo, auto-reload when
-          // clean, or prompt when there are unsaved edits (manages the cache).
+        if (useUi.getState().workspace.panes.some((p) => p.activeTab === path)) {
+          // A VISIBLE note (any pane) changed on disk: ignore our own echo,
+          // auto-reload when clean, or prompt when there are unsaved edits.
           void st.handleExternalChange(path);
         } else {
           // Drop the cached copy so the next open re-reads the new content.
@@ -48,10 +48,12 @@ export function useNovalisEvents() {
         const path = e.payload.path;
         useVault.getState().invalidateNote(path);
         useVault.getState().dropSaveState(path);
-        // Close the deleted note's tab (in any pane). reconcileTabs (not
-        // closeTab) so we DON'T flush — flushing would resurrect the
-        // externally-deleted file. It re-syncs the live editor for both the
-        // active-note and background-tab cases.
+        // Drop (don't flush) any pane's pending autosave for the deleted path —
+        // flushing would resurrect the externally-deleted file, and reconcile's
+        // own focused-content sync flushes everything it can.
+        useVault.getState().discardPending(path);
+        // Close the deleted note's tab in every pane; reconcileTabs re-syncs
+        // the live editor for both the visible and background-tab cases.
         useUi.getState().reconcileTabs((p) => (p === path ? null : p));
         refresh();
       }),

@@ -2,19 +2,19 @@ import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { noteTitleFromPath } from "../lib/taskDisplay";
+import type { Pane } from "../lib/workspacePrefs";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 
-/** Scrollable row of the focused pane's open note tabs. One live editor backs
- *  the active tab; the rest are inert {path} descriptors. Hidden when empty. */
-export function TabStrip() {
+/** Scrollable row of one pane's open note tabs. One live editor backs the
+ *  active tab; the rest are inert {path} descriptors. Hidden when empty. */
+export function TabStrip({ pane }: { pane: Pane }) {
   const { t } = useTranslation("editor");
-  const workspace = useUi((s) => s.workspace);
   const setActiveTab = useUi((s) => s.setActiveTab);
   const closeTab = useUi((s) => s.closeTab);
-  const pane = workspace.panes.find((p) => p.id === workspace.focusedPaneId) ?? workspace.panes[0];
+  const paneFocused = useUi((s) => s.workspace.focusedPaneId === pane.id);
 
-  if (!pane || pane.tabs.length === 0) return null;
+  if (pane.tabs.length === 0) return null;
 
   return (
     <div className="flex shrink-0 items-stretch gap-0.5 overflow-x-auto border-b border-border bg-surface px-1 pt-1">
@@ -23,8 +23,9 @@ export function TabStrip() {
           key={path}
           path={path}
           active={path === pane.activeTab}
-          onSelect={setActiveTab}
-          onClose={closeTab}
+          paneFocused={paneFocused}
+          onSelect={(p) => setActiveTab(p, pane.id)}
+          onClose={(p) => void closeTab(p, pane.id)}
           closeLabel={t("closeTab")}
         />
       ))}
@@ -35,12 +36,14 @@ export function TabStrip() {
 function TabItem({
   path,
   active,
+  paneFocused,
   onSelect,
   onClose,
   closeLabel,
 }: {
   path: string;
   active: boolean;
+  paneFocused: boolean;
   onSelect: (path: string) => void;
   onClose: (path: string) => void;
   closeLabel: string;
@@ -48,7 +51,7 @@ function TabItem({
   const state = useVault((s) => s.saveStates.get(path) ?? "idle");
   // The active tab can show the live note's (frontmatter) title; background tabs
   // fall back to the basename (the app-wide path→label convention).
-  const liveTitle = useVault((s) => (active && s.activePath === path ? s.activeNote?.title : null));
+  const liveTitle = useVault((s) => (active ? (s.openNotes.get(path)?.title ?? null) : null));
   const label = liveTitle || noteTitleFromPath(path);
   const unsaved = state === "dirty" || state === "saving" || state === "error";
 
@@ -67,7 +70,12 @@ function TabItem({
       }}
       className={`group flex max-w-[12rem] min-w-0 shrink-0 cursor-pointer items-center gap-1.5 rounded-t-md border-b-2 px-3 py-1.5 text-xs transition-colors ${
         active
-          ? "border-accent bg-surface-2 text-fg"
+          ? // The focused pane's active tab carries the accent; an unfocused
+            // pane's active tab is marked but muted, so the pane receiving
+            // keyboard shortcuts is always identifiable.
+            paneFocused
+            ? "border-accent bg-surface-2 text-fg"
+            : "border-border-strong bg-surface-2 text-fg-muted"
           : "border-transparent text-fg-muted hover:bg-hover"
       }`}
     >

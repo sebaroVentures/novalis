@@ -126,7 +126,11 @@
     "toggleSidebar": "Toggle sidebar",
     "closeTab": "Close tab",
     "nextTab": "Next tab",
-    "prevTab": "Previous tab"
+    "prevTab": "Previous tab",
+    "splitRight": "Split right",
+    "splitDown": "Split down",
+    "focusPaneLeft": "Previous pane",
+    "focusPaneRight": "Next pane"
   },
   "language": {
     "hint": "Applies to this device. Changes take effect immediately.",

@@ -27,22 +27,45 @@ const inflight = new Map<string, Promise<Note>>();
 // identical content a no-op — so a redundant flush after navigation costs
 // nothing, and idle autosaves don't churn the file.
 const lastRequest = new Map<string, string>();
+// The in-flight write per path. A deduped re-save (same content) AWAITS the
+// real write instead of reporting "saved" early — otherwise a flush-then-check
+// sequence (closeTab's surfaceSaveError bail, switchVault's guard) could pass
+// while the actual write is still pending and about to fail.
+const writeInFlight = new Map<string, Promise<void>>();
 
-// Each live editor (pane) registers a "flush my pending autosave now" callback
-// here, keyed by pane id. Every navigation that changes the open note(s) calls
-// `flushAll()` first, so edits made in the last debounce window are persisted to
-// the *outgoing* note before we switch — closing the silent data-loss path on
-// sidebar/search/palette navigation. A Map (not a single callback) so multiple
-// panes / a canvas / nested editors can register without clobbering — the seam
-// every multi-editor feature builds on.
-const flushRegistry = new Map<string, () => Promise<void>>();
+// Each live editor (pane) registers its pending-autosave hooks here, keyed by
+// pane id. Every navigation that changes the open note(s) calls `flushAll()`
+// first, so edits made in the last debounce window are persisted to the
+// *outgoing* note before we switch — closing the silent data-loss path on
+// sidebar/search/palette/pane navigation. A Map (not a single callback) so
+// multiple panes / a canvas / nested editors can register without clobbering —
+// the seam every multi-editor feature builds on.
+// - `flush` persists the pane's pending edit now.
+// - `pendingPath` reports which path (if any) the pane has unflushed edits for,
+//   so mirror-on-save can skip remounting a pane that is mid-edit.
+// - `discard` drops the pending edit WITHOUT saving — for content the user (or
+//   an external delete) explicitly threw away.
+export interface PaneFlush {
+  flush: () => Promise<void>;
+  pendingPath: () => string | null;
+  discard: () => void;
+}
+const flushRegistry = new Map<string, PaneFlush>();
 async function flushAll(): Promise<void> {
-  await Promise.all([...flushRegistry.values()].map((fn) => fn()));
+  // Sequential, not Promise.all: two panes can (in a race window) hold pending
+  // edits for the SAME path, and concurrent writes to one file would be
+  // last-writer-wins with indeterminate order.
+  for (const entry of flushRegistry.values()) await entry.flush();
 }
 
 // Set while stepping through back/forward history, so openNote doesn't record
 // the navigation as a new history entry.
 let navigatingHistory = false;
+
+// Monotonic token for adoptFocusedNote: rapid pane-focus changes flush
+// concurrently, and a slow earlier adoption must not overwrite the alias set
+// by a newer one (last-call-wins on activePath/activeNote).
+let adoptSeq = 0;
 
 // Set while a vault switch is opening, so a second switch can't race the backend
 // Engine swap and leave `vaultPath` out of sync with the open vault.
@@ -50,6 +73,52 @@ let switching = false;
 
 /** Save lifecycle for a note, surfaced as a status indicator. */
 export type SaveState = "idle" | "dirty" | "saving" | "saved" | "error";
+
+/** Is `path` the visible (active-tab) note of any pane? */
+function isVisibleInAnyPane(path: string): boolean {
+  return useUi.getState().workspace.panes.some((p) => p.activeTab === path);
+}
+
+/** Write `note` into the per-path open-notes map (the content source every
+ *  pane's editor reads), keeping the focused-pane alias `activeNote` in sync. */
+function patchOpenNote(
+  get: () => VaultState,
+  set: (partial: Partial<VaultState>) => void,
+  path: string,
+  note: Note,
+): void {
+  const openNotes = new Map(get().openNotes);
+  openNotes.set(path, note);
+  set({ openNotes, ...(get().activePath === path ? { activeNote: note } : {}) });
+}
+
+/** Bump the remount epoch of every pane whose visible note is `path`. The
+ *  editor key includes the epoch, so a bump remounts that pane's editor with
+ *  the current `openNotes` content.
+ *  - `excludePaneId`: the pane that produced the change (the typing source
+ *    must never remount mid-edit).
+ *  - `skipPending`: also spare panes that hold their OWN unflushed edit for
+ *    the path (mirror-on-save must not wipe a pane the user is typing in —
+ *    its content converges on its own next flush). Reload/external-adopt
+ *    paths pass false: there the pending edit is being deliberately replaced
+ *    (the pane's epoch-discard effect drops it). */
+function bumpPaneEpochs(
+  get: () => VaultState,
+  set: (partial: Partial<VaultState>) => void,
+  path: string,
+  opts?: { excludePaneId?: string; skipPending?: boolean },
+): void {
+  const targets = useUi.getState().workspace.panes.filter(
+    (p) =>
+      p.activeTab === path &&
+      p.id !== opts?.excludePaneId &&
+      !(opts?.skipPending && flushRegistry.get(p.id)?.pendingPath() === path),
+  );
+  if (targets.length === 0) return;
+  const paneEpochs = new Map(get().paneEpochs);
+  for (const p of targets) paneEpochs.set(p.id, (paneEpochs.get(p.id) ?? 0) + 1);
+  set({ paneEpochs });
+}
 
 /** Write a path's save state (and optional error) into the per-path maps,
  *  replacing the Map refs so zustand selectors re-run. Per-path (not "is this
@@ -169,11 +238,18 @@ export function newNoteFolder(s: {
 interface VaultState {
   vaultPath: string | null;
   tree: FolderNode | null;
+  /** The FOCUSED pane's open note path/content (history, recents, sidebar
+   *  highlight and palette actions all track the focused pane). `activeNote` is
+   *  kept as an alias of `openNotes.get(activePath)`. */
   activePath: string | null;
   activeNote: Note | null;
-  /** Bumped to force the editor to remount with fresh content (external reload
-   *  / version restore) without changing `activePath`. */
-  activeNoteVersion: number;
+  /** Loaded content per open (visible) note path — what each pane's editor
+   *  renders. Replaced-on-write so selectors re-run. */
+  openNotes: Map<string, Note>;
+  /** Per-pane remount epoch: bumped to force ONE pane's editor to remount with
+   *  fresh content (external reload / mirror-on-save) — never the pane that is
+   *  typing. Part of every pane's editor key. */
+  paneEpochs: Map<string, number>;
   loading: boolean;
   error: string | null;
 
@@ -206,6 +282,11 @@ interface VaultState {
   switchVault: (path: string) => Promise<void>;
   refreshTree: () => Promise<void>;
   openNote: (path: string) => Promise<void>;
+  /** Point the live-note alias (activePath/activeNote) at the focused pane's
+   *  active tab after a WORKSPACE change (pane focus/close/split). Always
+   *  flushes first; unlike `openNote` it records no history/recents and leaves
+   *  sidebar state alone — focusing a pane is not a navigation. `null` clears. */
+  adoptFocusedNote: (path: string | null) => Promise<void>;
   /** Step back/forward through the navigation history. */
   navBack: () => Promise<void>;
   navForward: () => Promise<void>;
@@ -217,21 +298,43 @@ interface VaultState {
   prefetchNote: (path: string) => void;
   /** Drop a cached note (e.g. on external change/delete) so it re-reads. */
   invalidateNote: (path: string) => void;
+  /** Ensure `path`'s content is in `openNotes` (cache hit or fetch) WITHOUT the
+   *  navigation side effects of `openNote` — how a non-focused pane loads its
+   *  visible note. */
+  loadNote: (path: string) => Promise<void>;
   newNote: (folder: string, templateId?: string) => Promise<void>;
-  deleteActive: () => Promise<void>;
-  saveNote: (path: string, content: string) => Promise<void>;
-  /** A pane's editor registers its pending-autosave flush (keyed by pane id) so
-   *  navigation can drain every open editor. Pass `null` to unregister. */
-  registerFlush: (paneId: string, fn: (() => Promise<void>) | null) => void;
-  /** Drain the active note's pending autosave now (e.g. before the window closes). */
+  /** Trash a note wherever it is open: flush first, delete, close its tabs in
+   *  every pane. */
+  deleteNote: (path: string) => Promise<void>;
+  /** Persist `content` for `path`. `sourcePaneId` is the pane whose editor
+   *  produced it — every OTHER pane showing the path remounts on success
+   *  (mirror-on-save), the source never does. */
+  saveNote: (path: string, content: string, sourcePaneId?: string) => Promise<void>;
+  /** A pane's editor registers its pending-autosave hooks (keyed by pane id) so
+   *  navigation can drain/inspect/discard every open editor. Pass `null` to
+   *  unregister. */
+  registerFlush: (paneId: string, entry: PaneFlush | null) => void;
+  /** Drain every pane's pending autosave now (e.g. before the window closes). */
   flushActive: () => Promise<void>;
+  /** Drop (without saving) any pane's pending autosave for `path` — for notes
+   *  deleted externally, where flushing would resurrect the file. */
+  discardPending: (path: string) => void;
+  /** If `path`'s last save failed, surface that error and return true (callers
+   *  bail instead of unmounting the editor that still holds the only copy). */
+  surfaceSaveError: (path: string) => boolean;
   /** Mark a note (by path) as having unsaved edits (editor calls this on input). */
   markDirty: (path: string) => void;
   /** Drop a path's per-path save state (e.g. when its tab closes). */
   dropSaveState: (path: string) => void;
+  /** Drop open-note content + save state for every path NOT in `keep` (the set
+   *  of all open tab paths) — called whenever tabs/panes close. */
+  pruneNoteState: (keep: Set<string>) => void;
   /** Clear the live editor (no note open) — used when the last tab closes. */
   clearActive: () => void;
-  /** Reload the active note from disk, discarding in-editor changes. */
+  /** Reload `path` from disk, discarding in-editor changes, and remount every
+   *  pane showing it. */
+  reloadNote: (path: string) => Promise<void>;
+  /** Reload the focused pane's note from disk (version restore, etc.). */
   reloadActive: () => Promise<void>;
   /** React to a watcher `note-changed` for the active note: ignore our own
    *  write echo, auto-reload when clean, or prompt when there are unsaved edits. */
@@ -295,7 +398,8 @@ export const useVault = create<VaultState>((set, get) => ({
   tree: null,
   activePath: null,
   activeNote: null,
-  activeNoteVersion: 0,
+  openNotes: new Map<string, Note>(),
+  paneEpochs: new Map<string, number>(),
   loading: true,
   error: null,
 
@@ -384,6 +488,8 @@ export const useVault = create<VaultState>((set, get) => ({
         loading: false,
         activePath: null,
         activeNote: null,
+        openNotes: new Map<string, Note>(),
+        paneEpochs: new Map<string, number>(),
         saveStates: new Map<string, SaveState>(),
         saveErrors: new Map<string, string>(),
         externalChange: null,
@@ -464,6 +570,8 @@ export const useVault = create<VaultState>((set, get) => ({
       history = [...history.slice(0, historyIndex + 1), path];
       historyIndex = history.length - 1;
     }
+    // The external-change banner is per-path now (it stays for whichever pane
+    // still shows that note); pruneNoteState clears it when the tab closes.
     set({
       activePath: path,
       selectedFolder: null,
@@ -471,24 +579,62 @@ export const useVault = create<VaultState>((set, get) => ({
       recent,
       history,
       historyIndex,
-      externalChange: null,
     });
-    patchSave(get, set, path, "idle");
+    // Fresh-open shows no stale badge — but never mask a failed save (the
+    // pending edit is retained for retry and the user must see it).
+    if (get().saveStates.get(path) !== "error") patchSave(get, set, path, "idle");
     persistSidebar(get);
 
     const cached = noteCache.get(path);
     if (cached) {
-      set({ activeNote: cached });
+      patchOpenNote(get, set, path, cached);
       return;
     }
-    // Not cached: leave the previous activeNote in place (EditorPane shows a
-    // loading state because activeNote.path !== activePath) and fetch.
+    // Not cached: the pane shows a loading state (openNotes has no entry for
+    // the path yet — or a stale one that invalidateNote dropped) and we fetch.
     try {
       const note = await fetchNote(path);
-      // Race guard: only apply if the user hasn't since clicked another note.
-      if (get().activePath === path) set({ activeNote: note });
+      // Apply only while the path is still open (its tab may have closed
+      // mid-fetch — pruneNoteState already dropped its entries).
+      if (useUi.getState().isPathOpen(path)) patchOpenNote(get, set, path, note);
     } catch (e) {
       if (get().activePath === path) set({ error: displayError(e) });
+    }
+  },
+
+  adoptFocusedNote: async (path) => {
+    const seq = ++adoptSeq;
+    // Always flush — even when the focused pane shows the SAME note as before
+    // (two panes on one note): the newly focused pane must mirror the other
+    // pane's just-typed content before the user can edit on a stale base.
+    await flushAll();
+    // A newer focus adoption superseded this one while we flushed: the flush
+    // side effects stand (idempotent), but the alias is last-call-wins.
+    if (seq !== adoptSeq) return;
+    if (path === null) {
+      if (get().activePath !== null) get().clearActive();
+      return;
+    }
+    const note = get().openNotes.get(path) ?? noteCache.get(path) ?? null;
+    // No history/recents/sidebar mutation, no save-state reset: the path was
+    // already open; only the alias moves. A missing note self-heals via the
+    // pane's loadNote effect.
+    set({ activePath: path, activeNote: note });
+  },
+
+  loadNote: async (path) => {
+    const cached = noteCache.get(path);
+    if (cached) {
+      if (get().openNotes.get(path) !== cached) patchOpenNote(get, set, path, cached);
+      return;
+    }
+    try {
+      const note = await fetchNote(path);
+      // Only surface it if the path is still open somewhere (tab may have
+      // closed while the fetch was in flight).
+      if (useUi.getState().isPathOpen(path)) patchOpenNote(get, set, path, note);
+    } catch (e) {
+      if (useUi.getState().isPathOpen(path)) set({ error: displayError(e) });
     }
   },
 
@@ -546,6 +692,15 @@ export const useVault = create<VaultState>((set, get) => ({
     noteCache.delete(path);
     inflight.delete(path);
     lastRequest.delete(path);
+    // Also drop stale open-note content — but never for a VISIBLE note: that
+    // would unmount its live editor mid-edit (and lose the pending autosave).
+    // A visible note is refreshed through reloadNote/handleExternalChange,
+    // which swap content and remount via an epoch bump instead.
+    if (get().openNotes.has(path) && !isVisibleInAnyPane(path)) {
+      const openNotes = new Map(get().openNotes);
+      openNotes.delete(path);
+      set({ openNotes });
+    }
   },
 
   newNote: async (folder, templateId) => {
@@ -573,9 +728,7 @@ export const useVault = create<VaultState>((set, get) => ({
     }
   },
 
-  deleteActive: async () => {
-    const path = get().activePath;
-    if (!path) return;
+  deleteNote: async (path) => {
     // Flush first so the trashed copy reflects the latest edits (a restore then
     // brings back the most recent content).
     await flushAll();
@@ -589,20 +742,28 @@ export const useVault = create<VaultState>((set, get) => ({
     try {
       await api.deleteNote(path);
       get().invalidateNote(path);
-      set({ externalChange: null });
       await get().refreshTree();
-      // Close the deleted note's tab; reconcile focuses a neighbor (or empties
-      // the pane), which re-syncs activePath/activeNote via openNote/clearActive.
-      useUi.getState().closeTab(path);
+      // The file is gone: close its tab in EVERY pane. reconcileTabs focuses a
+      // neighbor (or empties the pane), re-syncs the live note, and prunes the
+      // path's open-note/save state.
+      useUi.getState().reconcileTabs((p) => (p === path ? null : p));
     } catch (e) {
       set({ error: displayError(e) });
     }
   },
 
-  saveNote: async (path, content) => {
+  saveNote: async (path, content, sourcePaneId) => {
     // Idempotent: skip writing content identical to the last request for this
     // path (a redundant flush after navigation, or an idle autosave, is free).
+    // If that identical write is still IN FLIGHT, wait for its true outcome —
+    // callers that flush-then-check (close/switch bails) must not see a
+    // premature "saved" for a write that is about to fail.
     if (lastRequest.get(path) === content) {
+      const inflightWrite = writeInFlight.get(path);
+      if (inflightWrite) {
+        await inflightWrite;
+        return;
+      }
       patchSave(get, set, path, "saved");
       return;
     }
@@ -611,28 +772,60 @@ export const useVault = create<VaultState>((set, get) => ({
     // ITS save state, and a background save error surfaces on that tab — not as a
     // global banner for a note the user isn't looking at.
     patchSave(get, set, path, "saving");
+    const write = (async () => {
+      try {
+        const note = await api.updateNote(path, content);
+        // Keep the cache current so re-opening this note is instant.
+        noteCache.set(path, note);
+        // No refreshTree() here: a content save doesn't change the tree's shape,
+        // and the file watcher re-indexes the written file and emits
+        // `note-changed`, which refreshes the tree once (see useNovalisEvents).
+        // Refreshing on every debounced keystroke-save was the main typing lag.
+        patchSave(get, set, path, "saved");
+        // Our write just overwrote whatever the external-change banner offered to
+        // reload — the conflict is resolved in our favor; a stale banner would
+        // advertise a "Reload" of our own content.
+        if (get().externalChange === path) set({ externalChange: null });
+        // Mirror-on-save: if the note is visible in other panes, refresh their
+        // content and remount them. The source pane (the one typing) and any
+        // pane holding its own pending edit for the path are spared — a pane
+        // mid-typing must never be wiped by a sibling's save.
+        if (isVisibleInAnyPane(path)) {
+          patchOpenNote(get, set, path, note);
+          bumpPaneEpochs(get, set, path, { excludePaneId: sourcePaneId, skipPending: true });
+        }
+      } catch (e) {
+        lastRequest.delete(path); // allow retrying the same content
+        patchSave(get, set, path, "error", displayError(e));
+      }
+    })();
+    writeInFlight.set(path, write);
     try {
-      const note = await api.updateNote(path, content);
-      // Keep the cache current so re-opening this note is instant.
-      noteCache.set(path, note);
-      // No refreshTree() here: a content save doesn't change the tree's shape,
-      // and the file watcher re-indexes the written file and emits
-      // `note-changed`, which refreshes the tree once (see useNovalisEvents).
-      // Refreshing on every debounced keystroke-save was the main typing lag.
-      patchSave(get, set, path, "saved");
-    } catch (e) {
-      lastRequest.delete(path); // allow retrying the same content
-      patchSave(get, set, path, "error", displayError(e));
+      await write;
+    } finally {
+      if (writeInFlight.get(path) === write) writeInFlight.delete(path);
     }
   },
 
-  registerFlush: (paneId, fn) => {
-    if (fn) flushRegistry.set(paneId, fn);
+  registerFlush: (paneId, entry) => {
+    if (entry) flushRegistry.set(paneId, entry);
     else flushRegistry.delete(paneId);
   },
 
   flushActive: async () => {
     await flushAll();
+  },
+
+  discardPending: (path) => {
+    for (const entry of flushRegistry.values()) {
+      if (entry.pendingPath() === path) entry.discard();
+    }
+  },
+
+  surfaceSaveError: (path) => {
+    if (get().saveStates.get(path) !== "error") return false;
+    set({ error: get().saveErrors.get(path) ?? get().error });
+    return true;
   },
 
   markDirty: (path) => {
@@ -648,29 +841,57 @@ export const useVault = create<VaultState>((set, get) => ({
     set({ saveStates, saveErrors });
   },
 
-  clearActive: () => set({ activePath: null, activeNote: null, externalChange: null }),
+  pruneNoteState: (keep) => {
+    const s = get();
+    const stale = (m: Map<string, unknown>) => [...m.keys()].some((k) => !keep.has(k));
+    if (stale(s.openNotes)) {
+      const openNotes = new Map([...s.openNotes].filter(([k]) => keep.has(k)));
+      set({ openNotes });
+    }
+    if (stale(s.saveStates) || stale(s.saveErrors)) {
+      const saveStates = new Map([...s.saveStates].filter(([k]) => keep.has(k)));
+      const saveErrors = new Map([...s.saveErrors].filter(([k]) => keep.has(k)));
+      set({ saveStates, saveErrors });
+    }
+    if (s.externalChange && !keep.has(s.externalChange)) set({ externalChange: null });
+  },
+
+  clearActive: () => set({ activePath: null, activeNote: null }),
+
+  reloadNote: async (path) => {
+    // The user chose the disk content: drop any pane's pending autosave for
+    // the path FIRST, or an armed debounce timer could fire during the fetch
+    // and write the discarded edits back over what was just adopted.
+    get().discardPending(path);
+    noteCache.delete(path);
+    inflight.delete(path);
+    lastRequest.delete(path);
+    try {
+      const note = await fetchNote(path);
+      if (!useUi.getState().isPathOpen(path)) return; // tab closed mid-fetch
+      patchOpenNote(get, set, path, note);
+      // Adopting disk content everywhere: remount EVERY pane showing the path
+      // (a pane's own pending edit was deliberately discarded by the user —
+      // its epoch-discard effect drops it).
+      bumpPaneEpochs(get, set, path);
+      patchSave(get, set, path, "idle");
+      if (get().externalChange === path) set({ externalChange: null });
+    } catch (e) {
+      // Even a failed reload must remount the panes: their editors are in the
+      // post-discard suppressed state, and only a remount resolves it.
+      bumpPaneEpochs(get, set, path);
+      if (useUi.getState().isPathOpen(path)) set({ error: displayError(e) });
+    }
+  },
 
   reloadActive: async () => {
     const path = get().activePath;
     if (!path) return;
-    get().invalidateNote(path);
-    try {
-      const note = await fetchNote(path);
-      if (get().activePath === path) {
-        set({
-          activeNote: note,
-          activeNoteVersion: get().activeNoteVersion + 1,
-          externalChange: null,
-        });
-        patchSave(get, set, path, "idle");
-      }
-    } catch (e) {
-      if (get().activePath === path) set({ error: displayError(e) });
-    }
+    await get().reloadNote(path);
   },
 
   handleExternalChange: async (path) => {
-    if (get().activePath !== path) return;
+    if (!isVisibleInAnyPane(path)) return;
     let disk: Note;
     try {
       // Read fresh from disk (bypasses the frontend cache).
@@ -678,7 +899,7 @@ export const useVault = create<VaultState>((set, get) => ({
     } catch {
       return;
     }
-    if (get().activePath !== path) return; // navigated away meanwhile
+    if (!isVisibleInAnyPane(path)) return; // its tab(s) closed meanwhile
     const cached = noteCache.get(path);
     // Self-write echo (our own save re-fires the watcher) or no real change.
     if (cached && cached.content === disk.content) return;
@@ -686,13 +907,11 @@ export const useVault = create<VaultState>((set, get) => ({
       // Unsaved edits: let the user choose rather than clobber either side.
       set({ externalChange: path });
     } else {
-      // Clean: adopt the external content and remount the editor.
+      // Clean: adopt the external content and remount every pane showing it.
       noteCache.set(path, disk);
-      set({
-        activeNote: disk,
-        activeNoteVersion: get().activeNoteVersion + 1,
-        externalChange: null,
-      });
+      patchOpenNote(get, set, path, disk);
+      bumpPaneEpochs(get, set, path);
+      if (get().externalChange === path) set({ externalChange: null });
       patchSave(get, set, path, "idle");
     }
   },
@@ -792,7 +1011,9 @@ export const useVault = create<VaultState>((set, get) => ({
         });
         noteCache.set(path, updated);
         inflight.delete(path);
-        if (get().activePath === path) set({ activeNote: updated });
+        // Refresh the open content in every pane showing it (no remount — the
+        // body is unchanged, only frontmatter title).
+        if (get().openNotes.has(path)) patchOpenNote(get, set, path, updated);
         await get().refreshTree();
         return;
       }
@@ -830,7 +1051,7 @@ export const useVault = create<VaultState>((set, get) => ({
   },
 
   // Update a note's frontmatter tags/aliases. Like the note-rename branch, this
-  // updates `activeNote` without bumping `activeNoteVersion`, so the open editor
+  // updates the open content WITHOUT bumping any pane epoch, so the open editor
   // keeps its cursor/scroll (no remount). Passing an empty array clears the
   // field; omitting it leaves the field unchanged.
   setNoteMeta: async (path, meta) => {
@@ -843,7 +1064,7 @@ export const useVault = create<VaultState>((set, get) => ({
         aliases: meta.aliases ?? null,
       });
       noteCache.set(path, updated);
-      if (get().activePath === path) set({ activeNote: updated });
+      if (get().openNotes.has(path)) patchOpenNote(get, set, path, updated);
       await get().refreshTree();
     } catch (e) {
       set({ error: displayError(e) });
@@ -851,6 +1072,9 @@ export const useVault = create<VaultState>((set, get) => ({
   },
 
   deleteFolder: async (path) => {
+    // Flush first so trashed copies reflect the latest edits (mirrors
+    // deleteNote — a restore otherwise misses the last debounce window).
+    await flushAll();
     const node = get().tree ? findFolder(get().tree as FolderNode, path) : null;
     const isEmpty = !!node && node.children.length === 0 && node.notes.length === 0;
     try {
@@ -898,9 +1122,19 @@ export const useVault = create<VaultState>((set, get) => ({
 
   togglePin: async (path, pinned) => {
     try {
-      await api.updateNoteMeta({ path, pinned, title: null, tags: null, aliases: null });
-      noteCache.delete(path);
+      const updated = await api.updateNoteMeta({
+        path,
+        pinned,
+        title: null,
+        tags: null,
+        aliases: null,
+      });
+      // Keep the cache hot (like renameItem/setNoteMeta): a deleted cache entry
+      // would defeat handleExternalChange's self-write echo check, yielding a
+      // spurious conflict banner (dirty) or a cursor-losing remount (clean).
+      noteCache.set(path, updated);
       inflight.delete(path);
+      if (get().openNotes.has(path)) patchOpenNote(get, set, path, updated);
       await get().refreshTree();
     } catch (e) {
       set({ error: displayError(e) });

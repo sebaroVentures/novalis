@@ -18,7 +18,11 @@ export type ActionId =
   | "toggle-sidebar"
   | "close-tab"
   | "next-tab"
-  | "prev-tab";
+  | "prev-tab"
+  | "split-right"
+  | "split-down"
+  | "focus-pane-left"
+  | "focus-pane-right";
 
 export const ACTION_IDS: ActionId[] = [
   "search",
@@ -36,6 +40,10 @@ export const ACTION_IDS: ActionId[] = [
   "close-tab",
   "next-tab",
   "prev-tab",
+  "split-right",
+  "split-down",
+  "focus-pane-left",
+  "focus-pane-right",
 ];
 
 /** A chord string like "mod+shift+p", "mod+,", "mod+[". */
@@ -57,6 +65,10 @@ export const DEFAULT_KEYMAP: Record<ActionId, Chord> = {
   "close-tab": "mod+w",
   "next-tab": "mod+alt+]",
   "prev-tab": "mod+alt+[",
+  "split-right": "mod+alt+\\",
+  "split-down": "mod+alt+-",
+  "focus-pane-left": "mod+alt+arrowleft",
+  "focus-pane-right": "mod+alt+arrowright",
 };
 
 interface ParsedChord {
@@ -123,7 +135,16 @@ export function actionForEvent(
   return null;
 }
 
+const KEY_GLYPHS: Record<string, string> = {
+  arrowleft: "←",
+  arrowright: "→",
+  arrowup: "↑",
+  arrowdown: "↓",
+};
+
 function prettyKey(key: string): string {
+  const glyph = KEY_GLYPHS[key];
+  if (glyph) return glyph;
   if (key.length === 1) return key.toUpperCase();
   return key.charAt(0).toUpperCase() + key.slice(1);
 }

@@ -32,6 +32,10 @@ export function useActionLabels(): Record<ActionId, string> {
     "close-tab": t("settings:keybindings.closeTab"),
     "next-tab": t("settings:keybindings.nextTab"),
     "prev-tab": t("settings:keybindings.prevTab"),
+    "split-right": t("settings:keybindings.splitRight"),
+    "split-down": t("settings:keybindings.splitDown"),
+    "focus-pane-left": t("settings:keybindings.focusPaneLeft"),
+    "focus-pane-right": t("settings:keybindings.focusPaneRight"),
   };
 }
 

@@ -141,7 +141,10 @@ const DEFAULT_LABELS: NovalisEditorLabels = {
   embedOpenNote: "Open note",
 };
 
-function getMarkdown(editor: Editor): string {
+/** Serialize the editor's current doc to markdown (the canonical serializer —
+ *  hosts use this to snapshot a live editor instead of waiting on the
+ *  debounced onChange). */
+export function getMarkdown(editor: Editor): string {
   return (editor.storage.markdown as { getMarkdown(): string }).getMarkdown();
 }
 
@@ -360,9 +363,11 @@ export function NovalisEditor({
 
   // `editable` is consumed at creation by useEditor; reflect later changes live
   // so toggling reading mode doesn't require a remount (which would lose the
-  // cursor/scroll position).
+  // cursor/scroll position). emitUpdate=false: toggling editability is not a
+  // content change — the default `update` emission would arm the serialize
+  // debounce (and host dirty-tracking) for a doc that didn't change.
   useEffect(() => {
-    if (editor) editor.setEditable(editable);
+    if (editor) editor.setEditable(editable, false);
   }, [editor, editable]);
 
   // Hand the editor instance to the host once it exists (outline / find/replace).
