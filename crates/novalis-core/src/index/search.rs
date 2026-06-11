@@ -46,8 +46,7 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
 /// Upsert a single note into `note_meta`, the FTS index, and the link graph.
 pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> CoreResult<()> {
     let tags_json = serde_json::to_string(&summary.tags).unwrap_or_else(|_| "[]".to_string());
-    let aliases_json =
-        serde_json::to_string(&summary.aliases).unwrap_or_else(|_| "[]".to_string());
+    let aliases_json = serde_json::to_string(&summary.aliases).unwrap_or_else(|_| "[]".to_string());
     let (fm, body) = frontmatter::parse_frontmatter(content);
 
     db.execute(

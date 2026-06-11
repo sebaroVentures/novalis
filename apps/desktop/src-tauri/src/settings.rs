@@ -131,8 +131,14 @@ mod tests {
     #[test]
     fn upsert_dedupes_and_moves_to_front() {
         let mut list = vec![
-            RecentVault { path: "/a".into(), last_opened: 1 },
-            RecentVault { path: "/b".into(), last_opened: 2 },
+            RecentVault {
+                path: "/a".into(),
+                last_opened: 1,
+            },
+            RecentVault {
+                path: "/b".into(),
+                last_opened: 2,
+            },
         ];
         upsert_recent(&mut list, "/b", 99);
         assert_eq!(list.len(), 2, "dedupes by path, no duplicate /b");
@@ -143,7 +149,10 @@ mod tests {
 
     #[test]
     fn upsert_prepends_new_entries() {
-        let mut list = vec![RecentVault { path: "/a".into(), last_opened: 1 }];
+        let mut list = vec![RecentVault {
+            path: "/a".into(),
+            last_opened: 1,
+        }];
         upsert_recent(&mut list, "/c", 5);
         assert_eq!(list[0].path, "/c");
         assert_eq!(list[1].path, "/a");

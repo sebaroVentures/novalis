@@ -93,8 +93,7 @@ pub fn extract_body_tags(body: &str) -> Vec<String> {
     static TAG_RE: OnceLock<Regex> = OnceLock::new();
     static HEADING_RE: OnceLock<Regex> = OnceLock::new();
     static INLINE_CODE_RE: OnceLock<Regex> = OnceLock::new();
-    let tag_re =
-        TAG_RE.get_or_init(|| Regex::new(r"(?:^|[^\w/#])#([A-Za-z0-9_][\w/-]*)").unwrap());
+    let tag_re = TAG_RE.get_or_init(|| Regex::new(r"(?:^|[^\w/#])#([A-Za-z0-9_][\w/-]*)").unwrap());
     let heading_re = HEADING_RE.get_or_init(|| Regex::new(r"^ {0,3}#{1,6}\s+").unwrap());
     let inline_code_re = INLINE_CODE_RE.get_or_init(|| Regex::new(r"`[^`]*`").unwrap());
 
@@ -138,7 +137,8 @@ mod tests {
 
     #[test]
     fn extract_body_tags_skips_code_and_headings_and_midword() {
-        let body = "# Heading #notatag\n\nreal #keep here\n\n`#incode` and a#b\n\n```\n#fenced\n```\n";
+        let body =
+            "# Heading #notatag\n\nreal #keep here\n\n`#incode` and a#b\n\n```\n#fenced\n```\n";
         assert_eq!(extract_body_tags(body), vec!["keep".to_string()]);
     }
 
@@ -152,6 +152,9 @@ mod tests {
 
     #[test]
     fn extract_body_tags_ignores_bare_hash() {
-        assert_eq!(extract_body_tags("just a # and ## with spaces"), Vec::<String>::new());
+        assert_eq!(
+            extract_body_tags("just a # and ## with spaces"),
+            Vec::<String>::new()
+        );
     }
 }

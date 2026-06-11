@@ -258,7 +258,12 @@ fn slice_section(body: &str, section: &str) -> Option<String> {
         }
         let Some(c) = re.captures(line) else { continue };
         let level = c.get(1).unwrap().as_str().len();
-        let text = c.get(2).unwrap().as_str().trim_end_matches([' ', '#']).trim();
+        let text = c
+            .get(2)
+            .unwrap()
+            .as_str()
+            .trim_end_matches([' ', '#'])
+            .trim();
         match start {
             None => {
                 if text.eq_ignore_ascii_case(want) {
@@ -703,7 +708,8 @@ mod tests {
     fn resolve_embed_slices_section_anchor() {
         let c = ctx();
 
-        let content = "# Daily\n\nintro\n\n## Tasks\n\n- one\n- two\n\n### Sub\n\ndeep\n\n## Done\n\nfini\n";
+        let content =
+            "# Daily\n\nintro\n\n## Tasks\n\n- one\n- two\n\n### Sub\n\ndeep\n\n## Done\n\nfini\n";
         std::fs::write(c.vault.join("Daily.md"), content).unwrap();
         crate::change::reindex_path(&c.db, &c.vault, "Daily.md").unwrap();
 
@@ -726,7 +732,10 @@ mod tests {
 
         // Case-insensitive heading match.
         assert_eq!(
-            resolve_embed(&c.db, &c.vault, "Daily#tasks").unwrap().body.as_deref(),
+            resolve_embed(&c.db, &c.vault, "Daily#tasks")
+                .unwrap()
+                .body
+                .as_deref(),
             Some(body),
         );
 
