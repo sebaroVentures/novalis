@@ -83,6 +83,17 @@ pub fn ensure_repo(vault: &Path) -> CoreResult<()> {
         opts.initial_head("main");
         Repository::init_opts(vault, &opts).map_err(gerr)?;
     }
+    // Novalis reads and writes every note as LF on all platforms. Pin
+    // core.autocrlf=false on the vault repo so libgit2 never rewrites line
+    // endings on checkout: Git for Windows defaults autocrlf=true, which would
+    // turn a pulled `\n` into `\r\n` in the working tree — diverging byte-for-byte
+    // from macOS/Linux clones and leaving the auto-committer a perpetually
+    // "modified" tree.
+    if let Some(repo) = open(vault) {
+        repo.config()
+            .and_then(|mut cfg| cfg.set_bool("core.autocrlf", false))
+            .map_err(gerr)?;
+    }
     remove_stale_locks(vault, STALE_LOCK_AGE);
     ensure_ignores(vault)
 }
