@@ -16,6 +16,13 @@ const OUTCOME_KEY = {
   diverged: "sync.outcome.diverged",
   noRemote: "sync.outcome.noRemote",
 } as const satisfies Record<GitSyncKind, string>;
+// i18next-parser only scans static t() literals; the outcome message resolves at
+// runtime via t(OUTCOME_KEY[outcome.kind]), so list the keys to keep them alive.
+// t("settings:sync.outcome.upToDate")
+// t("settings:sync.outcome.pushed")
+// t("settings:sync.outcome.pulled")
+// t("settings:sync.outcome.diverged")
+// t("settings:sync.outcome.noRemote")
 
 /** Git sync settings: P1 local auto-commit + P2 https remote sync. */
 export function SyncPanel() {

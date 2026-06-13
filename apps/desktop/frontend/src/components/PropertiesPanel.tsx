@@ -49,6 +49,13 @@ const KIND_LABEL_KEY = {
   checkbox: "editor:propertyTypeCheckbox",
   list: "editor:propertyTypeList",
 } as const;
+// i18next-parser only scans static t() literals; these resolve at runtime via
+// t(KIND_LABEL_KEY[kind]), so list them here to keep the catalog keys alive.
+// t("editor:propertyTypeText")
+// t("editor:propertyTypeNumber")
+// t("editor:propertyTypeDate")
+// t("editor:propertyTypeCheckbox")
+// t("editor:propertyTypeList")
 
 /** Collapsible typed editor for a note's custom frontmatter properties. The
  *  YAML stays the source of truth — every edit round-trips through the
@@ -93,9 +100,9 @@ export function PropertiesPanel({
   const keyProblem = (key: string, ignoreExisting?: string): string | null => {
     const k = key.trim();
     if (!k) return t("editor:propertyKeyEmpty");
-    if (RESERVED_KEYS.has(k.toLowerCase())) return t("editor:propertyKeyReserved", { key: k });
+    if (RESERVED_KEYS.has(k.toLowerCase())) return t("editor:propertyKeyReserved", { name: k });
     if (properties.some((p) => p.key === k && p.key !== ignoreExisting)) {
-      return t("editor:propertyKeyExists", { key: k });
+      return t("editor:propertyKeyExists", { name: k });
     }
     return null;
   };
