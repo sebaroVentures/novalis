@@ -10,7 +10,7 @@
     "build": "pnpm --filter @novalis/desktop build",
     "tauri": "pnpm --filter @novalis/desktop tauri",
     "frontend:build": "pnpm --filter @novalis/frontend build",
-    "gen:bindings": "cargo run -p novalis-desktop --bin gen_bindings",
+    "gen:bindings": "cargo run -p novalis-desktop --example gen_bindings",
     "fmt": "cargo fmt --all",
     "lint": "cargo clippy --workspace --all-targets -- -D warnings",
     "test": "cargo test --workspace"

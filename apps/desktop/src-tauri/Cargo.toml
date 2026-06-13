@@ -6,9 +6,6 @@ edition.workspace = true
 license.workspace = true
 authors.workspace = true
 rust-version.workspace = true
-# Two binaries live here (the app and the bindings generator). `tauri dev`
-# runs `cargo run`, which needs to pick one; default to the app.
-default-run = "novalis-desktop"
 
 # Tauri requires a lib (used by desktop bin and mobile entry points) plus a thin
 # binary that calls into it.
