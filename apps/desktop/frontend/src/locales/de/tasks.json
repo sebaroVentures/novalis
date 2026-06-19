@@ -3,6 +3,7 @@
   "addCardPlaceholder": "Neue Aufgabe…",
   "addPlaceholder": "Aufgabe hinzufügen…  (z. B. Release veröffentlichen @due(2026-06-01) @priority(high))",
   "agenda": {
+    "completed": "Erledigt",
     "noDate": "Ohne Datum",
     "overdue": "Überfällig",
     "today": "Heute",

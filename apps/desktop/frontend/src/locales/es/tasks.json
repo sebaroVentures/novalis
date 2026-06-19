@@ -3,6 +3,7 @@
   "addCardPlaceholder": "Nueva tarea…",
   "addPlaceholder": "Añadir una tarea…  (p. ej. Publicar la versión @due(2026-06-01) @priority(high))",
   "agenda": {
+    "completed": "Completadas",
     "noDate": "Sin fecha",
     "overdue": "Vencidas",
     "today": "Hoy",

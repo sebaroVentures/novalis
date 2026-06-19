@@ -4,7 +4,7 @@ import { api, type KanbanColumnDef, type Task } from "../ipc/api";
 import { topFolderFromPath } from "../lib/taskDisplay";
 
 export type TaskFilter = "open" | "completed" | "all";
-export type TaskMode = "list" | "kanban" | "agenda";
+export type TaskMode = "list" | "kanban";
 
 /** Coarse due-date buckets for the board filter bar. */
 export type DueBucket = "any" | "overdue" | "today" | "week" | "none";
@@ -136,8 +136,12 @@ export const DEFAULT_COLUMNS: Column[] = [
   { id: "done", title: "Done" },
 ];
 
-function toTaskMode(mode: string | null | undefined): TaskMode | null {
-  return mode === "list" || mode === "kanban" || mode === "agenda" ? mode : null;
+/** Normalize a stored/preference mode string to a current TaskMode. The retired
+ *  "agenda" mode folds into "list" (its due-date grouping now lives there). */
+export function toTaskMode(mode: string | null | undefined): TaskMode | null {
+  if (mode === "kanban") return "kanban";
+  if (mode === "list" || mode === "agenda") return "list";
+  return null;
 }
 
 function normalizeColumns(columns: KanbanColumnDef[] | Column[] | null | undefined): Column[] {

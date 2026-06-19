@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 
 import { getRecentLimit, setRecentLimit } from "../../../lib/sidebarPrefs";
 import { useSettings } from "../../../stores/settingsStore";
-import { useTasks } from "../../../stores/taskStore";
+import { toTaskMode, useTasks } from "../../../stores/taskStore";
 import {
   NumberField,
   SegmentedControl,
@@ -23,7 +23,7 @@ export function GeneralPanel() {
 
   const settings = useSettings.getState();
   const tc = prefs.taskView?.taskCreation ?? { strategy: "inbox", inboxPath: "_Inbox.md" };
-  const defaultMode = prefs.taskView?.defaultMode ?? "list";
+  const defaultMode = toTaskMode(prefs.taskView?.defaultMode) ?? "list";
   const startView = prefs.general?.defaultAppView ?? "notes";
 
   return (
@@ -87,9 +87,8 @@ export function GeneralPanel() {
                 useTasks.getState().applyDefaultMode(v);
               }}
               options={[
-                { value: "list", label: t("common:taskModes.list") },
                 { value: "kanban", label: t("common:taskModes.kanban") },
-                { value: "agenda", label: t("common:taskModes.agenda") },
+                { value: "list", label: t("common:taskModes.list") },
               ]}
             />
           }

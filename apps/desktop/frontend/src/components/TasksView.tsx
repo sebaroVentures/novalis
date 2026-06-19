@@ -42,10 +42,9 @@ export function TasksView() {
   const filter = useTasks((s) => s.filter);
   const setFilter = useTasks((s) => s.setFilter);
 
-  const modeLabels: Record<"list" | "kanban" | "agenda", string> = {
-    list: t("common:taskModes.list"),
+  const modeLabels: Record<"kanban" | "list", string> = {
     kanban: t("common:taskModes.kanban"),
-    agenda: t("common:taskModes.agenda"),
+    list: t("common:taskModes.list"),
   };
   const filterLabels: Record<"open" | "all" | "completed", string> = {
     open: t("filter.open"),
@@ -62,7 +61,7 @@ export function TasksView() {
       <header className="flex items-center justify-between gap-2 border-b border-border px-4 py-2">
         <div className="flex gap-1">
           {/* eslint-disable-next-line i18next/no-literal-string -- mode ids (logic keys); labels come from modeLabels */}
-          {(["list", "kanban", "agenda"] as const).map((m) => (
+          {(["kanban", "list"] as const).map((m) => (
             <button key={m} onClick={() => setMode(m)} className={seg(mode === m)}>
               {modeLabels[m]}
             </button>
@@ -80,7 +79,7 @@ export function TasksView() {
       <NewTaskBar />
       <FilterBar />
       <div className="min-h-0 flex-1 overflow-hidden">
-        {mode === "list" ? <ListView /> : mode === "kanban" ? <KanbanView /> : <AgendaView />}
+        {mode === "kanban" ? <KanbanView /> : <ListView />}
       </div>
       <TaskCardMenu />
     </section>
@@ -315,16 +314,40 @@ function TaskRow({ task }: { task: Task }) {
   );
 }
 
+/** The single non-Kanban mode: a task list grouped into due-date sections
+ *  (Overdue / Today / Upcoming / No date), with a trailing Completed section.
+ *  Honors the open/all/completed filter, so completed tasks appear only when the
+ *  filter loads them (then collected under "Completed" rather than scattered
+ *  through the date buckets). */
 function ListView() {
+  const { t } = useTranslation("tasks");
   const tasks = useTasks((s) => s.tasks);
   const boardFilter = useTasks((s) => s.boardFilter);
   const visible = useMemo(() => filterTasks(tasks, boardFilter), [tasks, boardFilter]);
+  const groups = useMemo(() => groupByDue(visible), [visible]);
   if (visible.length === 0) return <Empty />;
+  const labels: Record<DueGroupKey, string> = {
+    overdue: t("agenda.overdue"),
+    today: t("agenda.today"),
+    upcoming: t("agenda.upcoming"),
+    noDate: t("agenda.noDate"),
+    completed: t("agenda.completed"),
+  };
   return (
-    <div className="h-full overflow-y-auto p-3">
-      {visible.map((task) => (
-        <TaskRow key={task.id} task={task} />
-      ))}
+    <div className="h-full space-y-5 overflow-y-auto p-3">
+      {groups.map(
+        (g) =>
+          g.tasks.length > 0 && (
+            <div key={g.key}>
+              <h3 className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
+                {labels[g.key]}
+              </h3>
+              {g.tasks.map((task) => (
+                <TaskRow key={task.id} task={task} />
+              ))}
+            </div>
+          ),
+      )}
     </div>
   );
 }
@@ -618,53 +641,27 @@ function KanbanView() {
   );
 }
 
-type AgendaKey = "overdue" | "today" | "upcoming" | "noDate";
+type DueGroupKey = "overdue" | "today" | "upcoming" | "noDate" | "completed";
 
-function AgendaView() {
-  const { t } = useTranslation("tasks");
-  const tasks = useTasks((s) => s.tasks);
-  const boardFilter = useTasks((s) => s.boardFilter);
-  const visible = useMemo(
-    () => filterTasks(tasks, boardFilter).filter((task) => !task.completed),
-    [tasks, boardFilter],
-  );
-  const groups = groupByDue(visible);
-  if (visible.length === 0) return <Empty />;
-  const labels: Record<AgendaKey, string> = {
-    overdue: t("agenda.overdue"),
-    today: t("agenda.today"),
-    upcoming: t("agenda.upcoming"),
-    noDate: t("agenda.noDate"),
-  };
-  return (
-    <div className="h-full space-y-5 overflow-y-auto p-3">
-      {groups.map(
-        (g) =>
-          g.tasks.length > 0 && (
-            <div key={g.key}>
-              <h3 className="mb-1 px-2 text-xs font-semibold uppercase tracking-wide text-fg-subtle">
-                {labels[g.key]}
-              </h3>
-              {g.tasks.map((task) => (
-                <TaskRow key={task.id} task={task} />
-              ))}
-            </div>
-          ),
-      )}
-    </div>
-  );
-}
-
-function groupByDue(tasks: Task[]): { key: AgendaKey; tasks: Task[] }[] {
+/** Bucket tasks by due date for the list view. Completed tasks are collected in
+ *  their own trailing section rather than scattered through the date buckets. */
+function groupByDue(tasks: Task[]): { key: DueGroupKey; tasks: Task[] }[] {
   const today = new Date().toISOString().slice(0, 10);
-  const groups: Record<AgendaKey, Task[]> = { overdue: [], today: [], upcoming: [], noDate: [] };
+  const groups: Record<DueGroupKey, Task[]> = {
+    overdue: [],
+    today: [],
+    upcoming: [],
+    noDate: [],
+    completed: [],
+  };
   for (const task of tasks) {
-    if (!task.dueDate) groups.noDate.push(task);
+    if (task.completed) groups.completed.push(task);
+    else if (!task.dueDate) groups.noDate.push(task);
     else if (task.dueDate < today) groups.overdue.push(task);
     else if (task.dueDate === today) groups.today.push(task);
     else groups.upcoming.push(task);
   }
-  return (["overdue", "today", "upcoming", "noDate"] as AgendaKey[]).map((key) => ({
+  return (["overdue", "today", "upcoming", "noDate", "completed"] as DueGroupKey[]).map((key) => ({
     key,
     tasks: groups[key],
   }));

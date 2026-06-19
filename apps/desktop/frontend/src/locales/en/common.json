@@ -23,7 +23,6 @@
   "showInFileManager": "Show in file manager",
   "showSidebar": "Show sidebar",
   "taskModes": {
-    "agenda": "Agenda",
     "kanban": "Kanban",
     "list": "List"
   },

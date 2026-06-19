@@ -3,6 +3,7 @@
   "addCardPlaceholder": "New task…",
   "addPlaceholder": "Add a task…  (e.g. Ship release @due(2026-06-01) @priority(high))",
   "agenda": {
+    "completed": "Completed",
     "noDate": "No date",
     "overdue": "Overdue",
     "today": "Today",
