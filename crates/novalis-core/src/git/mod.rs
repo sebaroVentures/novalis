@@ -356,6 +356,43 @@ pub fn commit_all(vault: &Path, name: &str, email: &str) -> CoreResult<Option<Gi
     Ok(head_commit_info(&repo))
 }
 
+/// The current HEAD commit id (full hex), or `None` if the repository is
+/// unborn or not initialized. Used to capture a pre-session checkpoint that a
+/// later [`reset_hard`] can revert to.
+pub fn head_id(vault: &Path) -> Option<String> {
+    open(vault)?
+        .head()
+        .ok()?
+        .peel_to_commit()
+        .ok()
+        .map(|c| c.id().to_string())
+}
+
+/// Discard all working-tree and index changes and move HEAD to `commit_id`
+/// (a full or abbreviated hex oid). This is the hard reset that makes an
+/// agentic editing session revertable: commit the session's changes, then
+/// reset back to the pre-session checkpoint to undo them wholesale — including
+/// files the session *created*, which the forced checkout removes. Refuses
+/// while the repository has an operation in progress (merge/rebase in an
+/// adopted repo) so it can never trash a user's in-flight work.
+pub fn reset_hard(vault: &Path, commit_id: &str) -> CoreResult<()> {
+    let _gate = MUTATE_GATE.lock().unwrap_or_else(|p| p.into_inner());
+    let repo = open(vault).ok_or_else(|| {
+        CoreError::BadRequest("vault is not a git repository — enable git sync first".to_string())
+    })?;
+    if repo.state() != git2::RepositoryState::Clean {
+        return Err(CoreError::BadRequest(format!(
+            "repository is busy ({:?}) — finish that operation first",
+            repo.state()
+        )));
+    }
+    let oid = Oid::from_str(commit_id)
+        .map_err(|_| CoreError::BadRequest(format!("not a valid commit id: {commit_id}")))?;
+    let obj = repo.find_object(oid, None).map_err(gerr)?;
+    repo.reset(&obj, git2::ResetType::Hard, None).map_err(gerr)?;
+    Ok(())
+}
+
 /// Set, replace, or (with `None`/blank) remove the vault's `origin` remote.
 /// The repo's git config is the single source of truth for the URL. Scheme
 /// validation (https-only — this build carries no ssh transport) lives at
@@ -847,6 +884,53 @@ mod tests {
         let entry = index.get_path(Path::new("a.md"), 0).unwrap();
         let blob = repo.find_blob(entry.id).unwrap();
         assert_eq!(blob.content(), b"# A v2\n");
+    }
+
+    #[test]
+    fn reset_hard_reverts_edits_and_removes_session_files() {
+        let dir = vault();
+        ensure_repo(dir.path()).unwrap();
+        commit_all(dir.path(), "Novalis", "novalis@localhost")
+            .unwrap()
+            .unwrap();
+        let base = head_id(dir.path()).expect("base checkpoint");
+        // Simulate an agentic session: edit a tracked note and create a new one.
+        std::fs::write(dir.path().join("a.md"), "# A rewritten by the agent\n").unwrap();
+        std::fs::write(dir.path().join("new-by-agent.md"), "agent output\n").unwrap();
+        commit_all(dir.path(), "Novalis", "novalis@localhost")
+            .unwrap()
+            .expect("session commit");
+        assert_ne!(head_id(dir.path()).unwrap(), base, "session advanced HEAD");
+
+        // Undo the whole session by resetting to the pre-session checkpoint.
+        reset_hard(dir.path(), &base).unwrap();
+        assert_eq!(head_id(dir.path()).unwrap(), base, "HEAD back at checkpoint");
+        assert_eq!(
+            std::fs::read_to_string(dir.path().join("a.md")).unwrap(),
+            "# A\n",
+            "edit reverted"
+        );
+        assert!(
+            !dir.path().join("new-by-agent.md").exists(),
+            "session-created file removed"
+        );
+    }
+
+    #[test]
+    fn head_id_is_none_on_a_plain_folder() {
+        let dir = vault();
+        assert!(head_id(dir.path()).is_none());
+    }
+
+    #[test]
+    fn reset_hard_rejects_an_invalid_commit_id() {
+        let dir = vault();
+        ensure_repo(dir.path()).unwrap();
+        commit_all(dir.path(), "Novalis", "novalis@localhost")
+            .unwrap()
+            .unwrap();
+        let err = reset_hard(dir.path(), "not-a-real-oid").unwrap_err();
+        assert!(matches!(err, CoreError::BadRequest(_)));
     }
 
     #[test]

@@ -30,12 +30,17 @@ notify = "7"
 notify-debouncer-mini = "0.5"
 regex = "1"
 log = "0.4"
-reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "json"] }
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "rustls-tls", "json", "stream"] }
 tauri-plugin-opener = "2"
 tauri-plugin-notification = "2"
 base64 = "0.22"
 sha2 = "0.10"
 uuid = { workspace = true }
+# Async AI streaming + local CLI providers. Tauri provides the tokio runtime;
+# we enable sync (Notify), macros (select!), process (spawn CLIs), and io-util
+# (async read/write of child stdio).
+futures-util = "0.3"
+tokio = { version = "1", default-features = false, features = ["sync", "macros", "process", "io-util", "rt"] }
 novalis-core.workspace = true
 
 [target.'cfg(target_os = "macos")'.dependencies]

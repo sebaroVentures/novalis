@@ -15,6 +15,16 @@
   "noMentions": "Aucune mention non liée.",
   "notCreated": "Pas encore créée",
   "outline": "Plan",
+  "related": {
+    "title": "Connexes",
+    "show": "Afficher les notes connexes",
+    "hide": "Masquer les notes connexes",
+    "refresh": "Actualiser",
+    "empty": "Aucune note connexe trouvée.",
+    "notConfigured": "Activez la recherche sémantique dans Réglages → IA pour voir les notes connexes.",
+    "stale": "Cette note n'est pas encore dans l'index sémantique. Générez-le dans Réglages → IA.",
+    "error": "Impossible de charger les notes connexes."
+  },
   "show": "Afficher les liens",
   "showOutline": "Afficher le plan",
   "title": "Liens"

@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import { Menu, PanelLeftOpen, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { AiActionPanel } from "./components/ai/AiActionPanel";
 import { CalendarView } from "./components/CalendarView";
 import { Cheatsheet } from "./components/Cheatsheet";
 import { CloudHint } from "./components/CloudHint";
@@ -34,6 +35,7 @@ import {
   SIDEBAR_MIN_WIDTH,
 } from "./lib/uiPrefs";
 import { checkReminders, resetReminderBaseline } from "./lib/reminderScheduler";
+import { useAiEvents } from "./lib/useAiEvents";
 import { useNovalisEvents } from "./lib/useNovalisEvents";
 import { useConflicts } from "./stores/conflictStore";
 import { useKeymap } from "./stores/keymapStore";
@@ -76,6 +78,7 @@ export default function App() {
   const { t } = useTranslation(["common", "conflict"]);
 
   useNovalisEvents();
+  useAiEvents();
 
   useEffect(() => {
     // UI language is device-local; apply it once at startup (before any vault),
@@ -363,6 +366,7 @@ export default function App() {
       <ConflictModal open={conflictsOpen} onClose={() => setConflictsOpen(false)} />
       <TrashModal open={trashOpen} onClose={() => setTrashOpen(false)} />
       <Cheatsheet open={cheatsheetOpen} onClose={() => setCheatsheetOpen(false)} />
+      <AiActionPanel />
       {notice && (
         <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-xl border border-border-strong/80 bg-surface/90 px-4 py-2.5 text-sm text-fg shadow-xl backdrop-blur">
           {notice}

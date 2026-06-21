@@ -694,6 +694,55 @@ pub async fn git_commit_now(app: AppHandle) -> CmdResult<GitStatus> {
     .map_err(|e| CommandError::internal(format!("git_commit_now task panicked: {e}")))?
 }
 
+/// Prepare an agentic CLI run: resolve the open vault as the working directory
+/// and take a best-effort git checkpoint so the session's edits land as a
+/// clean, revertable commit boundary. Returns the vault path, or `None` when no
+/// vault is open. Checkpoint failures (git not enabled, nothing to commit) are
+/// ignored — they must never block the run. Called off the async runtime
+/// (committing hashes files).
+pub(crate) fn prepare_agentic_workdir(app: &AppHandle) -> Option<PathBuf> {
+    let vault = vault_path_snapshot(app).ok()?;
+    if git::ensure_repo(&vault).is_ok() {
+        let prefs = config::read_preferences(&vault);
+        let _ = git::commit_all(&vault, &prefs.git.author_name, &prefs.git.author_email);
+    }
+    Some(vault)
+}
+
+/// Commit everything pending and return the resulting HEAD commit id — a
+/// checkpoint a later [`git_reset_hard`] can revert to (e.g. before/after an
+/// agentic editing session). Returns `None` if the vault isn't a repo.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_checkpoint(app: AppHandle) -> CmdResult<Option<String>> {
+    let vault = vault_path_snapshot(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        if git::ensure_repo(&vault).is_err() {
+            return Ok(None);
+        }
+        let prefs = config::read_preferences(&vault);
+        let _ = git::commit_all(&vault, &prefs.git.author_name, &prefs.git.author_email)?;
+        Ok(git::head_id(&vault))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("git_checkpoint task panicked: {e}")))?
+}
+
+/// Hard-reset the vault to `commit_id`, discarding all later changes — the
+/// "undo this AI session" primitive. Irreversible by design; the caller
+/// confirms first.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_reset_hard(app: AppHandle, commit_id: String) -> CmdResult<GitStatus> {
+    let vault = vault_path_snapshot(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        git::reset_hard(&vault, &commit_id)?;
+        git::repo_status(&vault).map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("git_reset_hard task panicked: {e}")))?
+}
+
 /// The vault's git access token from the OS keychain, if stored. Shared by
 /// the sync command and the background auto-committer; the token itself
 /// never crosses the IPC boundary to the frontend.

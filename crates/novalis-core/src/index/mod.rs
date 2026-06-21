@@ -7,6 +7,7 @@ pub mod events;
 pub mod links;
 pub mod schema;
 pub mod search;
+pub mod vectors;
 
 use rusqlite::{Connection, Statement};
 

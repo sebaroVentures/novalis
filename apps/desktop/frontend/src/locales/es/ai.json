@@ -1,0 +1,122 @@
+{
+  "action": {
+    "challenge": {
+      "title": "Cuestionar mi argumento"
+    },
+    "compose": {
+      "title": "Escribir a partir de una indicación"
+    },
+    "rewrite": {
+      "title": "Sugerir una reescritura (selección)"
+    },
+    "summarize": {
+      "title": "Resumir nota"
+    }
+  },
+  "kind": {
+    "anthropic": "Claude (Anthropic)",
+    "claudeCli": "Claude Code (CLI)",
+    "codexCli": "Codex (CLI)",
+    "openAiCompatible": "Compatible con OpenAI"
+  },
+  "menu": {
+    "actionsHeading": "Acciones",
+    "button": "IA",
+    "cancel": "Cancelar",
+    "configureHint": "Añade una en Ajustes → IA.",
+    "modelHeading": "Modelo",
+    "noConnections": "No hay conexiones de IA configuradas.",
+    "promptPlaceholder": "Describe qué escribir…",
+    "run": "Ejecutar",
+    "selectFirst": "Selecciona texto para reescribir",
+    "templatesHeading": "Plantillas"
+  },
+  "meta": {
+    "add": "Añadir",
+    "aliases": "Alias",
+    "analyzing": "Analizando la nota…",
+    "close": "Cerrar",
+    "dismiss": "Descartar",
+    "error": "No se pudieron obtener sugerencias.",
+    "none": "Sin sugerencias.",
+    "properties": "Propiedades",
+    "retry": "Reintentar",
+    "suggest": "Sugerir metadatos",
+    "tags": "Etiquetas",
+    "title": "Metadatos sugeridos"
+  },
+  "rewrite": {
+    "apply": "Aplicar",
+    "discard": "Descartar",
+    "generating": "Generando reescritura…",
+    "kept": "{{kept}}/{{total}} cambios conservados",
+    "label": "Reescritura de IA"
+  },
+  "panel": {
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "copied": "Copiado",
+    "copy": "Copiar",
+    "error": "Algo salió mal.",
+    "insert": "Insertar",
+    "streaming": "Generando…"
+  },
+  "settings": {
+    "add": "Añadir",
+    "addKind": "Tipo de proveedor",
+    "apiKey": "Clave de API",
+    "apiKeyPlaceholder": "Pega tu clave de API",
+    "baseUrl": "URL base",
+    "binaryPath": "Ruta del binario",
+    "binaryPathPlaceholder": "Opcional: ruta completa al binario",
+    "cliHint": "Usa tu sesión local de la CLI — no necesita clave de API.",
+    "agentic": {
+      "hint": "Permite que esta CLI lea y edite los archivos de tu bóveda para realizar tareas abiertas. Cada ejecución se confirma primero en git, así que puedes revertirla. Úsalo con cuidado.",
+      "label": "Acceso agéntico a la bóveda"
+    },
+    "configured": "Clave guardada",
+    "desc": "Añade claves de API para Claude, OpenAI y servicios compatibles con OpenAI (DeepSeek, …), o usa una CLI de Claude Code / Codex instalada localmente. Las claves se guardan en el llavero de tu sistema operativo.",
+    "detected": "Detectado",
+    "empty": "Aún no hay conexiones. Añade una abajo.",
+    "enabled": "Activado",
+    "label": "Nombre",
+    "model": "Modelo",
+    "modelDefault": "Predeterminado (modelo de la herramienta)",
+    "notConfigured": "Sin clave",
+    "notFound": "No encontrado",
+    "remove": "Eliminar conexión",
+    "removeKey": "Eliminar",
+    "saveKey": "Guardar",
+    "embed": {
+      "title": "Búsqueda semántica",
+      "desc": "Crea un índice local de embeddings de notas para mostrar notas relacionadas. Los embeddings se calculan una vez mediante una conexión compatible con OpenAI; luego las búsquedas son locales.",
+      "connection": "Conexión",
+      "connectionNone": "Ninguna (desactivado)",
+      "noConnections": "Añade arriba una conexión compatible con OpenAI para activar la búsqueda semántica.",
+      "model": "Modelo de embeddings",
+      "modelPlaceholder": "text-embedding-3-small",
+      "coverage": "{{embedded}} de {{total}} notas indexadas",
+      "notConfigured": "Elige una conexión y un modelo para activar.",
+      "upToDate": "Índice actualizado",
+      "build": "Crear índice",
+      "rebuild": "Actualizar índice",
+      "building": "Indexando… {{done}}/{{total}}"
+    },
+    "templates": {
+      "add": "Añadir plantilla",
+      "bodyPlaceholder": "La indicación — p. ej. Traduce la nota al alemán.",
+      "desc": "Indicaciones reutilizables que aparecen en el menú de IA del editor, guardadas como archivos .md editables. Las plantillas de bóveda se sincronizan entre tus dispositivos; las de dispositivo permanecen en este equipo (disponibles en todas las bóvedas).",
+      "namePlaceholder": "Nombre de la plantilla (p. ej. Traducir al alemán)",
+      "remove": "Eliminar plantilla",
+      "scope": "Guardar en",
+      "scopeGlobal": "Este dispositivo",
+      "scopeVault": "Esta bóveda",
+      "title": "Plantillas de indicaciones"
+    },
+    "test": {
+      "button": "Probar",
+      "ok": "La conexión funciona"
+    },
+    "title": "Conexiones de IA"
+  }
+}

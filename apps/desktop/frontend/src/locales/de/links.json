@@ -15,6 +15,16 @@
   "noMentions": "Keine unverknüpften Erwähnungen.",
   "notCreated": "Noch nicht erstellt",
   "outline": "Gliederung",
+  "related": {
+    "title": "Verwandt",
+    "show": "Verwandte Notizen anzeigen",
+    "hide": "Verwandte Notizen ausblenden",
+    "refresh": "Aktualisieren",
+    "empty": "Keine verwandten Notizen gefunden.",
+    "notConfigured": "Aktiviere die semantische Suche unter Einstellungen → KI, um verwandte Notizen zu sehen.",
+    "stale": "Diese Notiz ist noch nicht im semantischen Index. Erstelle ihn unter Einstellungen → KI.",
+    "error": "Verwandte Notizen konnten nicht geladen werden."
+  },
   "show": "Verknüpfungen anzeigen",
   "showOutline": "Gliederung anzeigen",
   "title": "Verknüpfungen"

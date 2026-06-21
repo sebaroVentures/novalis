@@ -1,0 +1,122 @@
+{
+  "action": {
+    "challenge": {
+      "title": "Contester mon argument"
+    },
+    "compose": {
+      "title": "Écrire à partir d'une consigne"
+    },
+    "rewrite": {
+      "title": "Proposer une réécriture (sélection)"
+    },
+    "summarize": {
+      "title": "Résumer la note"
+    }
+  },
+  "kind": {
+    "anthropic": "Claude (Anthropic)",
+    "claudeCli": "Claude Code (CLI)",
+    "codexCli": "Codex (CLI)",
+    "openAiCompatible": "Compatible OpenAI"
+  },
+  "menu": {
+    "actionsHeading": "Actions",
+    "button": "IA",
+    "cancel": "Annuler",
+    "configureHint": "Ajoutez-en une dans Réglages → IA.",
+    "modelHeading": "Modèle",
+    "noConnections": "Aucune connexion IA configurée.",
+    "promptPlaceholder": "Décrivez ce qu'il faut écrire…",
+    "run": "Exécuter",
+    "selectFirst": "Sélectionnez du texte à réécrire",
+    "templatesHeading": "Modèles"
+  },
+  "meta": {
+    "add": "Ajouter",
+    "aliases": "Alias",
+    "analyzing": "Analyse de la note…",
+    "close": "Fermer",
+    "dismiss": "Ignorer",
+    "error": "Impossible d'obtenir des suggestions.",
+    "none": "Aucune suggestion.",
+    "properties": "Propriétés",
+    "retry": "Réessayer",
+    "suggest": "Suggérer des métadonnées",
+    "tags": "Étiquettes",
+    "title": "Métadonnées suggérées"
+  },
+  "rewrite": {
+    "apply": "Appliquer",
+    "discard": "Abandonner",
+    "generating": "Génération de la réécriture…",
+    "kept": "{{kept}}/{{total}} modifications conservées",
+    "label": "Réécriture IA"
+  },
+  "panel": {
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "copied": "Copié",
+    "copy": "Copier",
+    "error": "Une erreur s'est produite.",
+    "insert": "Insérer",
+    "streaming": "Génération…"
+  },
+  "settings": {
+    "add": "Ajouter",
+    "addKind": "Type de fournisseur",
+    "apiKey": "Clé API",
+    "apiKeyPlaceholder": "Collez votre clé API",
+    "baseUrl": "URL de base",
+    "binaryPath": "Chemin du binaire",
+    "binaryPathPlaceholder": "Facultatif : chemin complet vers le binaire",
+    "cliHint": "Utilise votre session CLI locale — aucune clé API requise.",
+    "agentic": {
+      "hint": "Autorise cette CLI à lire et modifier les fichiers de votre coffre pour réaliser des tâches ouvertes. Chaque exécution est d'abord validée dans git, vous pouvez donc l'annuler. À utiliser avec précaution.",
+      "label": "Accès agentique au coffre"
+    },
+    "configured": "Clé enregistrée",
+    "desc": "Ajoutez des clés API pour Claude, OpenAI et les services compatibles OpenAI (DeepSeek, …), ou utilisez une CLI Claude Code / Codex installée localement. Les clés sont stockées dans le trousseau de votre système d'exploitation.",
+    "detected": "Détecté",
+    "empty": "Aucune connexion pour l'instant. Ajoutez-en une ci-dessous.",
+    "enabled": "Activé",
+    "label": "Nom",
+    "model": "Modèle",
+    "modelDefault": "Par défaut (modèle de l'outil)",
+    "notConfigured": "Aucune clé",
+    "notFound": "Introuvable",
+    "remove": "Supprimer la connexion",
+    "removeKey": "Supprimer",
+    "saveKey": "Enregistrer",
+    "embed": {
+      "title": "Recherche sémantique",
+      "desc": "Crée un index local d'embeddings de notes pour faire apparaître les notes connexes. Les embeddings sont calculés une fois via une connexion compatible OpenAI ; les recherches restent ensuite locales.",
+      "connection": "Connexion",
+      "connectionNone": "Aucune (désactivé)",
+      "noConnections": "Ajoutez ci-dessus une connexion compatible OpenAI pour activer la recherche sémantique.",
+      "model": "Modèle d'embeddings",
+      "modelPlaceholder": "text-embedding-3-small",
+      "coverage": "{{embedded}} notes indexées sur {{total}}",
+      "notConfigured": "Choisissez une connexion et un modèle pour activer.",
+      "upToDate": "Index à jour",
+      "build": "Générer l'index",
+      "rebuild": "Mettre à jour l'index",
+      "building": "Indexation… {{done}}/{{total}}"
+    },
+    "templates": {
+      "add": "Ajouter un modèle",
+      "bodyPlaceholder": "La consigne — par ex. Traduire la note en allemand.",
+      "desc": "Consignes réutilisables affichées dans le menu IA de l'éditeur, enregistrées comme fichiers .md modifiables. Les modèles de coffre sont synchronisés entre vos appareils ; les modèles d'appareil restent sur cette machine (disponibles dans tous les coffres).",
+      "namePlaceholder": "Nom du modèle (par ex. Traduire en allemand)",
+      "remove": "Supprimer le modèle",
+      "scope": "Enregistrer dans",
+      "scopeGlobal": "Cet appareil",
+      "scopeVault": "Ce coffre",
+      "title": "Modèles de consignes"
+    },
+    "test": {
+      "button": "Tester",
+      "ok": "La connexion fonctionne"
+    },
+    "title": "Connexions IA"
+  }
+}

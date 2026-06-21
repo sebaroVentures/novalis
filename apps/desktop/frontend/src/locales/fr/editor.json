@@ -67,6 +67,8 @@
   "splitDown": "Scinder vers le bas",
   "splitRight": "Scinder à droite",
   "strike": "Barré",
+  "suggestReject": "Rejeter cette modification",
+  "suggestRestore": "Rétablir cette modification",
   "tags": "Étiquettes",
   "taskList": "Tâches",
   "unsaved": "Non enregistré",

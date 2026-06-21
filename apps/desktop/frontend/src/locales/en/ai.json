@@ -1,0 +1,122 @@
+{
+  "action": {
+    "challenge": {
+      "title": "Challenge my argument"
+    },
+    "compose": {
+      "title": "Write from a prompt"
+    },
+    "rewrite": {
+      "title": "Suggest a rewrite (selection)"
+    },
+    "summarize": {
+      "title": "Summarize note"
+    }
+  },
+  "kind": {
+    "anthropic": "Claude (Anthropic)",
+    "claudeCli": "Claude Code (CLI)",
+    "codexCli": "Codex (CLI)",
+    "openAiCompatible": "OpenAI-compatible"
+  },
+  "menu": {
+    "actionsHeading": "Actions",
+    "button": "AI",
+    "cancel": "Cancel",
+    "configureHint": "Add one in Settings → AI.",
+    "modelHeading": "Model",
+    "noConnections": "No AI connections configured.",
+    "promptPlaceholder": "Describe what to write…",
+    "run": "Run",
+    "selectFirst": "Select some text to rewrite",
+    "templatesHeading": "Templates"
+  },
+  "meta": {
+    "add": "Add",
+    "aliases": "Aliases",
+    "analyzing": "Analyzing note…",
+    "close": "Close",
+    "dismiss": "Dismiss",
+    "error": "Couldn't get suggestions.",
+    "none": "No suggestions.",
+    "properties": "Properties",
+    "retry": "Retry",
+    "suggest": "Suggest metadata",
+    "tags": "Tags",
+    "title": "Suggested metadata"
+  },
+  "panel": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "copied": "Copied",
+    "copy": "Copy",
+    "error": "Something went wrong.",
+    "insert": "Insert",
+    "streaming": "Generating…"
+  },
+  "rewrite": {
+    "apply": "Apply",
+    "discard": "Discard",
+    "generating": "Generating rewrite…",
+    "kept": "{{kept}}/{{total}} changes kept",
+    "label": "AI rewrite"
+  },
+  "settings": {
+    "add": "Add",
+    "addKind": "Provider type",
+    "agentic": {
+      "hint": "Let this CLI read and edit your vault's files to carry out open-ended tasks. Each run is committed to git first, so you can revert it. Use with care.",
+      "label": "Agentic vault access"
+    },
+    "apiKey": "API key",
+    "apiKeyPlaceholder": "Paste your API key",
+    "baseUrl": "Base URL",
+    "binaryPath": "Binary path",
+    "binaryPathPlaceholder": "Optional: full path to the binary",
+    "cliHint": "Uses your local CLI login — no API key needed.",
+    "configured": "Key saved",
+    "desc": "Add API keys for Claude, OpenAI, and OpenAI-compatible services (DeepSeek, …), or use a locally-installed Claude Code / Codex CLI. Keys are stored in your operating system's keychain.",
+    "detected": "Detected",
+    "empty": "No connections yet. Add one below.",
+    "enabled": "Enabled",
+    "label": "Name",
+    "model": "Model",
+    "modelDefault": "Default (tool's model)",
+    "notConfigured": "No key",
+    "notFound": "Not found",
+    "remove": "Remove connection",
+    "removeKey": "Remove",
+    "saveKey": "Save",
+    "embed": {
+      "title": "Semantic search",
+      "desc": "Build an on-device index of note embeddings to surface related notes. Embeddings are computed once through an OpenAI-compatible connection; lookups then stay local.",
+      "connection": "Connection",
+      "connectionNone": "None (off)",
+      "noConnections": "Add an OpenAI-compatible connection above to enable semantic search.",
+      "model": "Embedding model",
+      "modelPlaceholder": "text-embedding-3-small",
+      "coverage": "{{embedded}} of {{total}} notes indexed",
+      "notConfigured": "Pick a connection and model to enable.",
+      "upToDate": "Index up to date",
+      "build": "Build index",
+      "rebuild": "Update index",
+      "building": "Indexing… {{done}}/{{total}}"
+    },
+    "templates": {
+      "add": "Add template",
+      "bodyPlaceholder": "The prompt — e.g. Translate the note into German.",
+      "desc": "Reusable prompts shown in the editor's AI menu, saved as editable .md files. Vault templates sync across your devices; device templates stay on this machine (available in every vault).",
+      "namePlaceholder": "Template name (e.g. Translate to German)",
+      "remove": "Remove template",
+      "scope": "Save to",
+      "scopeGlobal": "This device",
+      "scopeVault": "This vault",
+      "title": "Prompt templates"
+    },
+    "test": {
+      "button": "Test",
+      "ok": "Connection works"
+    },
+    "title": "AI connections"
+  }
+}

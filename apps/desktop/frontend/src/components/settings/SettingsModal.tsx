@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { useSettings } from "../../stores/settingsStore";
 import { SettingsNav, useCategoryLabels, type CategoryId } from "./SettingsNav";
 import { AboutPanel } from "./panels/AboutPanel";
+import { AiPanel } from "./panels/AiPanel";
 import { AppearancePanel } from "./panels/AppearancePanel";
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { EditorPanel } from "./panels/EditorPanel";
@@ -120,6 +121,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
             {active === "keybindings" && <KeybindingsPanel />}
             {active === "templates" && <TemplatesPanel />}
             {active === "plugins" && <PluginsPanel />}
+            {active === "ai" && <AiPanel />}
             {active === "about" && <AboutPanel />}
           </div>
         </div>

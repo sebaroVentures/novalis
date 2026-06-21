@@ -15,6 +15,16 @@
   "noMentions": "No hay menciones sin enlazar.",
   "notCreated": "Aún no creada",
   "outline": "Esquema",
+  "related": {
+    "title": "Relacionadas",
+    "show": "Mostrar notas relacionadas",
+    "hide": "Ocultar notas relacionadas",
+    "refresh": "Actualizar",
+    "empty": "No se encontraron notas relacionadas.",
+    "notConfigured": "Activa la búsqueda semántica en Ajustes → IA para ver notas relacionadas.",
+    "stale": "Esta nota aún no está en el índice semántico. Créalo en Ajustes → IA.",
+    "error": "No se pudieron cargar las notas relacionadas."
+  },
   "show": "Mostrar enlaces",
   "showOutline": "Mostrar esquema",
   "title": "Enlaces"

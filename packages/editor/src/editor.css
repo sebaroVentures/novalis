@@ -173,6 +173,55 @@
   background: color-mix(in srgb, var(--nv-accent) 55%, transparent);
 }
 
+/* AI rewrite review (track changes). Decorations only — the document text is
+   not mutated until the user applies, so Markdown round-trip is unaffected
+   while a suggestion is under review (cf. find). Removed text is struck through
+   in red; proposed insertions render as green widgets that are not part of the
+   document; each change carries a small reject/restore control. */
+.nv-editor-content .nv-sg-del {
+  text-decoration: line-through;
+  text-decoration-color: rgb(220 38 38 / 0.85);
+  background: rgb(220 38 38 / 0.12);
+  border-radius: 2px;
+}
+.nv-editor-content .nv-sg-ins {
+  background: rgb(22 163 74 / 0.16);
+  color: var(--nv-fg);
+  border-radius: 2px;
+  padding: 0 1px;
+  box-shadow: inset 0 -1px 0 rgb(22 163 74 / 0.6);
+}
+.nv-editor-content .nv-sg-ctl {
+  display: inline-block;
+  user-select: none;
+  vertical-align: baseline;
+}
+.nv-editor-content .nv-sg-ctl-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 15px;
+  height: 15px;
+  margin: 0 1px;
+  padding: 0;
+  font-size: 10px;
+  line-height: 1;
+  cursor: pointer;
+  border: 1px solid var(--nv-border);
+  border-radius: 3px;
+  background: var(--nv-hover);
+  color: var(--nv-muted);
+  opacity: 0.6;
+  transition: opacity 0.1s ease;
+}
+.nv-editor-content .nv-sg-ctl-btn:hover {
+  opacity: 1;
+}
+.nv-editor-content .nv-sg-ctl-btn.is-excluded {
+  opacity: 1;
+  color: var(--nv-accent);
+}
+
 /* Callouts: a blockquote whose first line is `[!type] …` renders as a colored
    admonition box. Decoration-only — the Markdown stays a plain blockquote. */
 .nv-editor-content blockquote.nv-callout {

@@ -2,7 +2,7 @@
 // `Result<T, CommandError>` union into a value or a thrown `NovalisError`.
 
 import { commands, events } from "./bindings";
-import type { CommandError, PropertyValue } from "./bindings";
+import type { AiTemplateScope, CommandError, PropertyValue } from "./bindings";
 
 export * from "./bindings";
 export { events };
@@ -123,7 +123,7 @@ export const api = {
   setTaskStatus: (id: string, status: string) => unwrap(commands.setTaskStatus(id, status)),
   updateTask: (
     id: string,
-    field: "project" | "epic" | "priority" | "due" | "start" | "remind",
+    field: "project" | "epic" | "priority" | "due" | "start" | "remind" | "repeat",
     value: string | null,
   ) =>
     unwrap(commands.updateTask(id, field, value)),
@@ -186,6 +186,35 @@ export const api = {
     unwrap(commands.conflictDiff(original, conflict)),
   resolveConflict: (req: Parameters<typeof commands.resolveConflict>[0]) =>
     unwrap(commands.resolveConflict(req)),
+
+  // AI
+  aiListActions: () => commands.aiListActions(),
+  aiListConnections: () => unwrap(commands.aiListConnections()),
+  aiUpsertConnection: (config: Parameters<typeof commands.aiUpsertConnection>[0]) =>
+    unwrap(commands.aiUpsertConnection(config)),
+  aiDeleteConnection: (id: string) => unwrap(commands.aiDeleteConnection(id)),
+  // Write-only: the API key goes to the OS keychain and never comes back.
+  aiSetApiKey: (id: string, key: string) => unwrap(commands.aiSetApiKey(id, key)),
+  aiClearApiKey: (id: string) => unwrap(commands.aiClearApiKey(id)),
+  aiHasApiKey: (id: string) => unwrap(commands.aiHasApiKey(id)),
+  aiTestConnection: (id: string) => unwrap(commands.aiTestConnection(id)),
+  aiRunAction: (req: Parameters<typeof commands.aiRunAction>[0]) =>
+    unwrap(commands.aiRunAction(req)),
+  aiCancel: (requestId: string) => unwrap(commands.aiCancel(requestId)),
+  aiListTemplates: () => unwrap(commands.aiListTemplates()),
+  aiSaveTemplate: (name: string, body: string, scope: AiTemplateScope) =>
+    unwrap(commands.aiSaveTemplate(name, body, scope)),
+  aiDeleteTemplate: (id: string, scope: AiTemplateScope) =>
+    unwrap(commands.aiDeleteTemplate(id, scope)),
+  // Semantic index (on-device vectors; build is the only network/token cost).
+  aiEmbeddingConfig: () => unwrap(commands.aiEmbeddingConfig()),
+  // Blank connectionId clears the config.
+  aiSetEmbeddingConfig: (connectionId: string, model: string) =>
+    unwrap(commands.aiSetEmbeddingConfig(connectionId, model)),
+  aiEmbedStatus: () => unwrap(commands.aiEmbedStatus()),
+  aiBuildEmbeddings: () => unwrap(commands.aiBuildEmbeddings()),
+  aiFindRelated: (path: string, limit: number) =>
+    unwrap(commands.aiFindRelated(path, limit)),
 };
 
 export interface EventDraft {

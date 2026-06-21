@@ -108,6 +108,10 @@ pub fn remove_note(db: &Connection, path: &str) -> CoreResult<()> {
     db.execute("DELETE FROM tasks WHERE source_note = ?1", params![path])?;
     db.execute("DELETE FROM links WHERE source_path = ?1", params![path])?;
     db.execute("DELETE FROM events WHERE note_path = ?1", params![path])?;
+    // Drop the semantic vector too (table owned by `index::vectors`), so a
+    // deleted/renamed note doesn't strand a vector that could surface in
+    // "related notes" with a dangling path.
+    crate::index::vectors::remove_vector(db, path)?;
     Ok(())
 }
 
@@ -284,8 +288,11 @@ mod tests {
     fn remove_note_clears_index() {
         let db = mem_db();
         index_note(&db, &summary("a.md", "A"), "hello world").unwrap();
+        // A stored semantic vector must be cleared alongside the other indexes.
+        crate::index::vectors::upsert_vector(&db, "a.md", "h", "m", &[1.0, 2.0]).unwrap();
         remove_note(&db, "a.md").unwrap();
         assert!(search(&db, "hello", None, None).unwrap().is_empty());
+        assert!(crate::index::vectors::get_vector(&db, "a.md").unwrap().is_none());
     }
 
     #[test]

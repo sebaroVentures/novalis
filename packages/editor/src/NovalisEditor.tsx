@@ -18,6 +18,7 @@ import { Find } from "./Find";
 import { MathExtension } from "./Math";
 import { MermaidCodeBlock } from "./MermaidCodeBlock";
 import { SlashCommand } from "./SlashCommand";
+import { SuggestRewrite } from "./SuggestRewrite";
 import { TagSuggestion } from "./TagSuggestion";
 import { WikiLink } from "./WikiLink";
 import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
@@ -114,6 +115,10 @@ export interface NovalisEditorLabels {
   embedSectionMissing: string;
   /** Affordance to open the embedded note. */
   embedOpenNote: string;
+  /** Tooltip on a kept AI-rewrite change (clicking rejects it). */
+  suggestReject: string;
+  /** Tooltip on a rejected AI-rewrite change (clicking restores it). */
+  suggestRestore: string;
 }
 
 const DEFAULT_LABELS: NovalisEditorLabels = {
@@ -139,6 +144,8 @@ const DEFAULT_LABELS: NovalisEditorLabels = {
   embedMissing: "Note not found",
   embedSectionMissing: "Section not found",
   embedOpenNote: "Open note",
+  suggestReject: "Reject this change",
+  suggestRestore: "Restore this change",
 };
 
 /** Serialize the editor's current doc to markdown (the canonical serializer —
@@ -301,6 +308,9 @@ export function NovalisEditor({
         },
       }),
       Find,
+      SuggestRewrite.configure({
+        labels: { reject: lbl.suggestReject, restore: lbl.suggestRestore },
+      }),
       Callout,
       MathExtension,
     ],

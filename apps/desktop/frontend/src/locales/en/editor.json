@@ -67,6 +67,8 @@
   "splitDown": "Split down",
   "splitRight": "Split right",
   "strike": "Strikethrough",
+  "suggestReject": "Reject this change",
+  "suggestRestore": "Restore this change",
   "tags": "Tags",
   "taskList": "Tasks",
   "unsaved": "Unsaved",

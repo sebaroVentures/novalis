@@ -158,6 +158,18 @@ export const commands = {
 	 */
 	gitCommitNow: () => typedError<GitStatus, CommandError>(__TAURI_INVOKE("git_commit_now")),
 	/**
+	 *  Commit everything pending and return the resulting HEAD commit id — a
+	 *  checkpoint a later [`git_reset_hard`] can revert to (e.g. before/after an
+	 *  agentic editing session). Returns `None` if the vault isn't a repo.
+	 */
+	gitCheckpoint: () => typedError<string | null, CommandError>(__TAURI_INVOKE("git_checkpoint")),
+	/**
+	 *  Hard-reset the vault to `commit_id`, discarding all later changes — the
+	 *  "undo this AI session" primitive. Irreversible by design; the caller
+	 *  confirms first.
+	 */
+	gitResetHard: (commitId: string) => typedError<GitStatus, CommandError>(__TAURI_INVOKE("git_reset_hard", { commitId })),
+	/**
 	 *  Set or clear the vault's `origin` remote. HTTPS only — this build
 	 *  deliberately ships no ssh transport (engine-spike sign-off).
 	 */
@@ -242,10 +254,71 @@ export const commands = {
 	listPlugins: () => typedError<PluginInfo[], CommandError>(__TAURI_INVOKE("list_plugins")),
 	setPluginEnabled: (id: string, enabled: boolean) => typedError<null, CommandError>(__TAURI_INVOKE("set_plugin_enabled", { id, enabled })),
 	readPluginSource: (id: string) => typedError<string, CommandError>(__TAURI_INVOKE("read_plugin_source", { id })),
+	/**  The actions the editor can offer (metadata only). */
+	aiListActions: () => __TAURI_INVOKE<AiActionView[]>("ai_list_actions"),
+	/**  All configured connections, each enriched with runtime status. */
+	aiListConnections: () => typedError<AiConnectionView[], CommandError>(__TAURI_INVOKE("ai_list_connections")),
+	/**  Create or update a connection; returns the refreshed list. */
+	aiUpsertConnection: (config: AiConnectionConfig) => typedError<AiConnectionView[], CommandError>(__TAURI_INVOKE("ai_upsert_connection", { config })),
+	/**  Delete a connection and forget its key; returns the refreshed list. */
+	aiDeleteConnection: (id: string) => typedError<AiConnectionView[], CommandError>(__TAURI_INVOKE("ai_delete_connection", { id })),
+	/**  Store (or, with a blank string, clear) a connection's API key. */
+	aiSetApiKey: (id: string, key: string) => typedError<null, CommandError>(__TAURI_INVOKE("ai_set_api_key", { id, key })),
+	/**  Clear a connection's API key. */
+	aiClearApiKey: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("ai_clear_api_key", { id })),
+	/**  Whether a key is stored for `id` (the key itself never leaves the backend). */
+	aiHasApiKey: (id: string) => typedError<boolean, CommandError>(__TAURI_INVOKE("ai_has_api_key", { id })),
+	/**  Validate a connection's credentials without spending tokens. */
+	aiTestConnection: (id: string) => typedError<null, CommandError>(__TAURI_INVOKE("ai_test_connection", { id })),
+	/**
+	 *  Start running an action. Returns a `request_id`; text streams back as
+	 *  `ai-stream-chunk` events, ending with `ai-stream-done` or `ai-stream-error`.
+	 */
+	aiRunAction: (req: AiRunRequest) => typedError<string, CommandError>(__TAURI_INVOKE("ai_run_action", { req })),
+	/**  Cancel an in-flight run (no-op if it already finished). */
+	aiCancel: (requestId: string) => typedError<null, CommandError>(__TAURI_INVOKE("ai_cancel", { requestId })),
+	/**  User-defined prompt templates: global (every vault) + the open vault's own. */
+	aiListTemplates: () => typedError<AiTemplate[], CommandError>(__TAURI_INVOKE("ai_list_templates")),
+	/**  Create or overwrite a prompt template in the chosen scope; returns the list. */
+	aiSaveTemplate: (name: string, body: string, scope: AiTemplateScope) => typedError<AiTemplate[], CommandError>(__TAURI_INVOKE("ai_save_template", { name, body, scope })),
+	/**  Delete a prompt template (by file id within its scope); returns the list. */
+	aiDeleteTemplate: (id: string, scope: AiTemplateScope) => typedError<AiTemplate[], CommandError>(__TAURI_INVOKE("ai_delete_template", { id, scope })),
+	/**  The current embedding config (which connection + model), if any. */
+	aiEmbeddingConfig: () => typedError<{
+	/**  Id of the OpenAI-compatible connection that provides base URL + API key. */
+	connectionId: string,
+	/**  Embedding model id (e.g. `text-embedding-3-small`, `nomic-embed-text`). */
+	model: string,
+} | null, CommandError>(__TAURI_INVOKE("ai_embedding_config")),
+	/**  Set the embedding config, or clear it when `connection_id` is blank. */
+	aiSetEmbeddingConfig: (connectionId: string, model: string) => typedError<null, CommandError>(__TAURI_INVOKE("ai_set_embedding_config", { connectionId, model })),
+	/**
+	 *  Coverage of the semantic index for the settings panel (sync; counts only —
+	 *  no network, no per-note file reads).
+	 */
+	aiEmbedStatus: () => typedError<EmbedStatus, CommandError>(__TAURI_INVOKE("ai_embed_status")),
+	/**
+	 *  (Re)build the semantic index: embed every note new or changed since its last
+	 *  vector. Emits `ai-embed-progress` between batches and returns final coverage.
+	 *  Network + file IO stay OFF the engine lock (mirrors `git_sync_now`): the only
+	 *  times the lock is taken are short `.with()` bursts to snapshot, prune, and
+	 *  upsert one batch.
+	 */
+	aiBuildEmbeddings: () => typedError<EmbedStatus, CommandError>(__TAURI_INVOKE("ai_build_embeddings")),
+	/**
+	 *  Notes semantically nearest to `path`, from stored embeddings only (local, no
+	 *  network). Returns `aiEmbedStale` when the note isn't indexed for the current
+	 *  model yet, so the panel can nudge the user to build the index.
+	 */
+	aiFindRelated: (path: string, limit: number) => typedError<RelatedNote[], CommandError>(__TAURI_INVOKE("ai_find_related", { path, limit })),
 };
 
 /** Events */
 export const events = {
+	aiEmbedProgress: makeEvent<AiEmbedProgress>("ai-embed-progress"),
+	aiStreamChunk: makeEvent<AiStreamChunk>("ai-stream-chunk"),
+	aiStreamDone: makeEvent<AiStreamDone>("ai-stream-done"),
+	aiStreamError: makeEvent<AiStreamError>("ai-stream-error"),
 	conflictDetected: makeEvent<ConflictDetected>("conflict-detected"),
 	noteChanged: makeEvent<NoteChanged>("note-changed"),
 	noteDeleted: makeEvent<NoteDeleted>("note-deleted"),
@@ -267,6 +340,197 @@ export type AgendaItem = {
 	/**  Source note path, if any. */
 	notePath: string | null,
 };
+
+/**  Metadata describing one runnable action, surfaced to the editor picker. */
+export type AiActionView = {
+	id: string,
+	/**  i18n key (namespace `ai`) for the display title. */
+	titleKey: string,
+	input: AiInputKind,
+	scope: AiScope,
+	insertMode: AiInsertMode,
+};
+
+/**
+ *  Non-secret configuration for one connection. Persisted app-global in the
+ *  desktop settings file. The matching API key (HTTP kinds) lives in the OS
+ *  keychain under `ai:<id>` and is never stored here.
+ */
+export type AiConnectionConfig = {
+	/**  Stable identifier (also the keychain account suffix). */
+	id: string,
+	kind: AiProviderKind,
+	/**  Human-readable name shown in the picker. */
+	label: string,
+	/**
+	 *  Base URL for OpenAI-compatible services (e.g. `https://api.deepseek.com`).
+	 *  Optional for Anthropic (defaults to the public API) and unused for CLI.
+	 */
+	baseUrl?: string | null,
+	/**  Model identifier sent to the provider / passed to the CLI `--model`. */
+	model: string,
+	enabled?: boolean,
+	/**
+	 *  CLI kinds only: run the agent INSIDE the vault with a curated file
+	 *  toolset (open-ended edits) instead of the default sandboxed, no-tools
+	 *  text generation in a temp dir. Opt-in and ignored for HTTP kinds. Every
+	 *  agentic run is bracketed by a git checkpoint so it can be reverted.
+	 */
+	agentic?: boolean,
+};
+
+/**
+ *  A connection enriched with runtime status for the frontend: whether it has a
+ *  key (`configured`), whether the backend is reachable/installed (`available`),
+ *  and the suggested model catalog.
+ */
+export type AiConnectionView = {
+	id: string,
+	kind: AiProviderKind,
+	label: string,
+	baseUrl: string | null,
+	model: string,
+	enabled: boolean,
+	/**  Mirrors [`AiConnectionConfig::agentic`] (CLI kinds only). */
+	agentic: boolean,
+	/**  HTTP kinds: an API key is stored. CLI kinds: the binary is detected. */
+	configured: boolean,
+	/**  HTTP kinds: always true. CLI kinds: the binary is on PATH / configured. */
+	available: boolean,
+	models: AiModelInfo[],
+};
+
+/**  The note context an action runs against, sent from the editor. */
+export type AiContext = {
+	title?: string,
+	markdown?: string,
+	selection?: string | null,
+};
+
+/**
+ *  Progress of a semantic-index build (`ai_build_embeddings`): notes embedded so
+ *  far out of the total that need (re)embedding. Emitted between batches.
+ */
+export type AiEmbedProgress = {
+	done: number,
+	total: number,
+};
+
+/**
+ *  Which connection + model produce note embeddings. References an existing
+ *  [`AiConnectionConfig`] by id (so base URL + keychain key are not duplicated);
+ *  the embedding `model` is separate because it differs from the chat model on
+ *  the same endpoint. Persisted app-global in the desktop settings file; the
+ *  referenced connection must be [`AiProviderKind::OpenAiCompatible`].
+ */
+export type AiEmbeddingConfig = {
+	/**  Id of the OpenAI-compatible connection that provides base URL + API key. */
+	connectionId: string,
+	/**  Embedding model id (e.g. `text-embedding-3-small`, `nomic-embed-text`). */
+	model: string,
+};
+
+/**  Whether an action accepts a free-text user prompt in addition to the note. */
+export type AiInputKind = 
+/**  No extra input — the note is the whole task (e.g. summarize). */
+"none" | 
+/**  Optional extra instruction. */
+"optional" | 
+/**  A prompt is required (e.g. "write content from this brief"). */
+"required";
+
+/**
+ *  The default way the result should be applied to the note. A hint for the
+ *  frontend panel; the user can always override.
+ */
+export type AiInsertMode = 
+/**  Show in the panel only; the user chooses what to do. */
+"panelOnly" | 
+/**  Insert at the cursor. */
+"atCursor" | 
+/**  Replace the current selection. */
+"replaceSelection" | 
+/**  Append to the end of the note. */
+"append";
+
+/**  A suggested model for a provider, shown in the settings dropdown. */
+export type AiModelInfo = {
+	id: string,
+	label: string,
+};
+
+/**
+ *  Which kind of backend a connection talks to. The HTTP kinds hit a remote
+ *  API; the CLI kinds shell out to a locally-installed tool that uses the
+ *  user's own login/subscription.
+ */
+export type AiProviderKind = 
+/**  Anthropic Claude — `POST /v1/messages`. */
+"anthropic" | 
+/**
+ *  OpenAI and any OpenAI-compatible service (DeepSeek, …) —
+ *  `POST {base_url}/v1/chat/completions`. Distinguished only by `base_url`
+ *  and `model`.
+ */
+"openAiCompatible" | 
+/**  Locally-installed Claude Code (`claude`) CLI. (Adapter lands in Phase 2.) */
+"claudeCli" | 
+/**  Locally-installed OpenAI Codex (`codex`) CLI. (Adapter lands in Phase 2.) */
+"codexCli";
+
+/**  Input to `ai_run_action`. */
+export type AiRunRequest = {
+	connectionId: string,
+	actionId: string,
+	notePath?: string | null,
+	context: AiContext,
+	userInput?: string | null,
+};
+
+/**  Which slice of the note an action operates on. */
+export type AiScope = "wholeNote" | "selection" | 
+/**
+ *  Prefer the selection, fall back to the whole note when nothing is
+ *  selected.
+ */
+"selectionOrWholeNote";
+
+/**  A chunk of AI-generated text for an in-flight request (keyed by `requestId`). */
+export type AiStreamChunk = {
+	requestId: string,
+	delta: string,
+};
+
+/**  An AI request finished; carries token usage when the provider reported it. */
+export type AiStreamDone = {
+	requestId: string,
+	usage: Usage | null,
+};
+
+/**  An AI request failed (transport, auth, or a provider error mid-stream). */
+export type AiStreamError = {
+	requestId: string,
+	message: string,
+};
+
+/**
+ *  A user-defined prompt template stored as a `.md` file. The file name is the
+ *  display `name`; the file contents are the prompt `body`.
+ */
+export type AiTemplate = {
+	/**  File name (with extension) — the identifier for delete (within a scope). */
+	id: string,
+	name: string,
+	body: string,
+	scope: AiTemplateScope,
+};
+
+/**  Where a prompt template is stored. */
+export type AiTemplateScope = 
+/**  App config dir — available in every vault on this machine. */
+"global" | 
+/**  `<vault>/.novalis/ai-prompts/` — synced with the vault via git. */
+"vault";
 
 /**  Basic app/build information surfaced to the UI. */
 export type AppInfo = {
@@ -414,6 +678,18 @@ export type EmbedResolution = {
 	path: string | null,
 	title: string | null,
 	body: string | null,
+};
+
+/**  Coverage of the semantic index, for the settings panel. Carries no secret. */
+export type EmbedStatus = {
+	/**  A valid, enabled OpenAI-compatible embedding connection is configured. */
+	configured: boolean,
+	/**  The configured embedding model, when `configured`. */
+	model: string | null,
+	/**  Notes eligible to embed (local, non-placeholder). */
+	total: number,
+	/**  Notes that currently have a vector for the configured model. */
+	embedded: number,
 };
 
 /**
@@ -744,6 +1020,14 @@ export type RecentVault = {
 /**  Emitted when the vault finishes (re)indexing, so the UI can refresh fully. */
 export type ReindexedEvent = null;
 
+/**  A semantically related note returned by "find related" / semantic search. */
+export type RelatedNote = {
+	path: string,
+	title: string,
+	/**  Cosine similarity in `[-1, 1]` (typically `[0, 1]` for text embeddings). */
+	score: number | null,
+};
+
 export type ResolveConflictRequest = {
 	/**  "original" | "conflict" | "both" */
 	keep: string,
@@ -843,6 +1127,12 @@ export type UpdateMetaRequest = {
 	tags: string[] | null,
 	pinned: boolean | null,
 	aliases: string[] | null,
+};
+
+/**  Token usage reported by a provider when available. */
+export type Usage = {
+	inputTokens?: number | null,
+	outputTokens?: number | null,
 };
 
 /**

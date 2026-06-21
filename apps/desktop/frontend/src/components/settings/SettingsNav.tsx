@@ -13,6 +13,7 @@ import {
   PenLine,
   Puzzle,
   SlidersHorizontal,
+  Sparkles,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
@@ -28,6 +29,7 @@ export type CategoryId =
   | "keybindings"
   | "templates"
   | "plugins"
+  | "ai"
   | "about";
 
 type IconType = ComponentType<{ size?: number | string; className?: string }>;
@@ -44,6 +46,7 @@ export const CATEGORIES: { id: CategoryId; icon: IconType }[] = [
   { id: "keybindings", icon: Keyboard },
   { id: "templates", icon: FileText },
   { id: "plugins", icon: Puzzle },
+  { id: "ai", icon: Sparkles },
   { id: "about", icon: Info },
 ];
 
@@ -63,6 +66,7 @@ export function useCategoryLabels(): Record<CategoryId, string> {
     keybindings: t("nav.keybindings"),
     templates: t("nav.templates"),
     plugins: t("nav.plugins"),
+    ai: t("nav.ai"),
     about: t("nav.about"),
   };
 }

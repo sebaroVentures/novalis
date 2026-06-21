@@ -5,6 +5,7 @@
 //! database connections handed to it, which keeps it unit-testable in
 //! isolation and reusable across the desktop and (later) mobile shells.
 
+pub mod ai;
 pub mod calendar;
 pub mod change;
 pub mod conflict;

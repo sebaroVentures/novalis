@@ -13,6 +13,8 @@ export { extractHeadings } from "./outline";
 export type { OutlineItem } from "./outline";
 export { Find, findInfo } from "./Find";
 export type { FindMatchInfo } from "./Find";
+export { SuggestRewrite, rewriteInfo, computeRewrite, wordDiff } from "./SuggestRewrite";
+export type { RewriteInfo, RewritePlan, Hunk, DiffOp, SuggestRewriteLabels } from "./SuggestRewrite";
 export { findMatches } from "./findMatches";
 export { findMath } from "./mathMatches";
 export { findEmbeds } from "./embedMatches";

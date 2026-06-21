@@ -1,0 +1,122 @@
+{
+  "action": {
+    "challenge": {
+      "title": "Argumentation hinterfragen"
+    },
+    "compose": {
+      "title": "Aus Vorgabe schreiben"
+    },
+    "rewrite": {
+      "title": "Umformulierung vorschlagen (Auswahl)"
+    },
+    "summarize": {
+      "title": "Notiz zusammenfassen"
+    }
+  },
+  "kind": {
+    "anthropic": "Claude (Anthropic)",
+    "claudeCli": "Claude Code (CLI)",
+    "codexCli": "Codex (CLI)",
+    "openAiCompatible": "OpenAI-kompatibel"
+  },
+  "menu": {
+    "actionsHeading": "Aktionen",
+    "button": "KI",
+    "cancel": "Abbrechen",
+    "configureHint": "Füge eine unter Einstellungen → KI hinzu.",
+    "modelHeading": "Modell",
+    "noConnections": "Keine KI-Verbindungen konfiguriert.",
+    "promptPlaceholder": "Beschreibe, was geschrieben werden soll …",
+    "run": "Ausführen",
+    "selectFirst": "Text zum Umformulieren markieren",
+    "templatesHeading": "Vorlagen"
+  },
+  "meta": {
+    "add": "Hinzufügen",
+    "aliases": "Aliase",
+    "analyzing": "Notiz wird analysiert …",
+    "close": "Schließen",
+    "dismiss": "Verwerfen",
+    "error": "Vorschläge konnten nicht geladen werden.",
+    "none": "Keine Vorschläge.",
+    "properties": "Eigenschaften",
+    "retry": "Erneut",
+    "suggest": "Metadaten vorschlagen",
+    "tags": "Tags",
+    "title": "Vorgeschlagene Metadaten"
+  },
+  "rewrite": {
+    "apply": "Übernehmen",
+    "discard": "Verwerfen",
+    "generating": "Umformulierung wird erstellt …",
+    "kept": "{{kept}}/{{total}} Änderungen übernommen",
+    "label": "KI-Umformulierung"
+  },
+  "panel": {
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "copied": "Kopiert",
+    "copy": "Kopieren",
+    "error": "Etwas ist schiefgelaufen.",
+    "insert": "Einfügen",
+    "streaming": "Wird generiert…"
+  },
+  "settings": {
+    "add": "Hinzufügen",
+    "addKind": "Anbietertyp",
+    "apiKey": "API-Schlüssel",
+    "apiKeyPlaceholder": "API-Schlüssel einfügen",
+    "baseUrl": "Basis-URL",
+    "binaryPath": "Pfad zur Binärdatei",
+    "binaryPathPlaceholder": "Optional: vollständiger Pfad zur Binärdatei",
+    "cliHint": "Nutzt deine lokale CLI-Anmeldung — kein API-Schlüssel nötig.",
+    "agentic": {
+      "hint": "Erlaubt dieser CLI, die Dateien deines Tresors zu lesen und zu bearbeiten, um offene Aufgaben auszuführen. Jeder Lauf wird zuerst in Git committet, sodass du ihn rückgängig machen kannst. Mit Bedacht verwenden.",
+      "label": "Agentischer Tresorzugriff"
+    },
+    "configured": "Schlüssel gespeichert",
+    "desc": "Füge API-Schlüssel für Claude, OpenAI und OpenAI-kompatible Dienste (DeepSeek, …) hinzu oder nutze eine lokal installierte Claude-Code- / Codex-CLI. Schlüssel werden im Schlüsselbund deines Betriebssystems gespeichert.",
+    "detected": "Erkannt",
+    "empty": "Noch keine Verbindungen. Füge unten eine hinzu.",
+    "enabled": "Aktiviert",
+    "label": "Name",
+    "model": "Modell",
+    "modelDefault": "Standard (Modell des Tools)",
+    "notConfigured": "Kein Schlüssel",
+    "notFound": "Nicht gefunden",
+    "remove": "Verbindung entfernen",
+    "removeKey": "Entfernen",
+    "saveKey": "Speichern",
+    "embed": {
+      "title": "Semantische Suche",
+      "desc": "Erstellt einen geräteinternen Index aus Notiz-Embeddings, um verwandte Notizen zu finden. Embeddings werden einmalig über eine OpenAI-kompatible Verbindung berechnet; die Suche bleibt danach lokal.",
+      "connection": "Verbindung",
+      "connectionNone": "Keine (aus)",
+      "noConnections": "Füge oben eine OpenAI-kompatible Verbindung hinzu, um die semantische Suche zu aktivieren.",
+      "model": "Embedding-Modell",
+      "modelPlaceholder": "text-embedding-3-small",
+      "coverage": "{{embedded}} von {{total}} Notizen indexiert",
+      "notConfigured": "Wähle eine Verbindung und ein Modell, um zu aktivieren.",
+      "upToDate": "Index aktuell",
+      "build": "Index erstellen",
+      "rebuild": "Index aktualisieren",
+      "building": "Indexiere… {{done}}/{{total}}"
+    },
+    "templates": {
+      "add": "Vorlage hinzufügen",
+      "bodyPlaceholder": "Der Prompt — z. B. Übersetze die Notiz ins Deutsche.",
+      "desc": "Wiederverwendbare Prompts im KI-Menü des Editors, als bearbeitbare .md-Dateien gespeichert. Tresor-Vorlagen werden zwischen deinen Geräten synchronisiert; Geräte-Vorlagen bleiben auf diesem Rechner (in jedem Tresor verfügbar).",
+      "namePlaceholder": "Vorlagenname (z. B. Ins Deutsche übersetzen)",
+      "remove": "Vorlage entfernen",
+      "scope": "Speichern in",
+      "scopeGlobal": "Dieses Gerät",
+      "scopeVault": "Dieser Tresor",
+      "title": "Prompt-Vorlagen"
+    },
+    "test": {
+      "button": "Testen",
+      "ok": "Verbindung funktioniert"
+    },
+    "title": "KI-Verbindungen"
+  }
+}

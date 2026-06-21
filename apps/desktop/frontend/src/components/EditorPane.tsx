@@ -22,19 +22,24 @@ import {
   Link2,
   ListTree,
   Loader2,
+  Orbit,
   Trash2,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { api } from "../ipc/api";
+import { api, type PropertyValue } from "../ipc/api";
 import { revealLabel } from "../lib/reveal";
 import type { Pane } from "../lib/workspacePrefs";
 import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
 import { useVault, type SaveState } from "../stores/vaultStore";
+import { AiActionMenu } from "./ai/AiActionMenu";
+import { AiMetaSuggestions } from "./ai/AiMetaSuggestions";
+import { RewriteReviewBar } from "./ai/RewriteReviewBar";
 import { FindBar } from "./FindBar";
 import { LinksPanel } from "./LinksPanel";
 import { OutlinePanel } from "./OutlinePanel";
+import { RelatedPanel } from "./RelatedPanel";
 import { PropertiesPanel } from "./PropertiesPanel";
 import { ChipInput } from "./ui/ChipInput";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
@@ -46,21 +51,22 @@ const RIGHT_PANEL_KEY = "nv:rightPanel";
 interface RightPanels {
   links: boolean;
   outline: boolean;
+  related: boolean;
 }
 function loadRightPanels(): RightPanels {
   try {
     const v = localStorage.getItem(RIGHT_PANEL_KEY);
     // Back-compat with the old mutually-exclusive string value.
-    if (v === "links") return { links: true, outline: false };
-    if (v === "outline") return { links: false, outline: true };
-    if (v === "none") return { links: false, outline: false };
+    if (v === "links") return { links: true, outline: false, related: false };
+    if (v === "outline") return { links: false, outline: true, related: false };
+    if (v === "none") return { links: false, outline: false, related: false };
     if (v) {
       const p = JSON.parse(v) as Partial<RightPanels>;
-      return { links: !!p.links, outline: !!p.outline };
+      return { links: !!p.links, outline: !!p.outline, related: !!p.related };
     }
-    return { links: true, outline: false }; // default open on linked references
+    return { links: true, outline: false, related: false }; // default open on linked references
   } catch {
-    return { links: true, outline: false };
+    return { links: true, outline: false, related: false };
   }
 }
 function saveRightPanels(p: RightPanels): void {
@@ -149,7 +155,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
   const hoverTimer = useRef<number | null>(null);
   const { t } = useTranslation(["editor", "common", "trash", "versions", "links"]);
 
-  const togglePanel = (panel: "links" | "outline") =>
+  const togglePanel = (panel: "links" | "outline" | "related") =>
     setPanels((cur) => {
       const next = { ...cur, [panel]: !cur[panel] };
       saveRightPanels(next);
@@ -169,6 +175,27 @@ export function EditorPane({ pane }: { pane: Pane }) {
     if (!path) return;
     await flushPending();
     await setNoteMeta(path, meta);
+  };
+
+  // Apply an AI metadata suggestion. Read the latest tags/aliases from the live
+  // store (not a render-scope prop) so rapid successive accepts can't drop each
+  // other; `commitMeta` flushes the body autosave first, and `setProperty`
+  // flushes internally — both write frontmatter only, never the body.
+  const acceptSuggestedTag = async (tag: string) => {
+    if (!path) return;
+    const cur = useVault.getState().openNotes.get(path)?.frontmatter.tags ?? [];
+    if (cur.some((x) => x.toLowerCase() === tag.toLowerCase())) return;
+    await commitMeta({ tags: [...cur, tag] });
+  };
+  const acceptSuggestedAlias = async (alias: string) => {
+    if (!path) return;
+    const cur = useVault.getState().openNotes.get(path)?.frontmatter.aliases ?? [];
+    if (cur.some((x) => x.toLowerCase() === alias.toLowerCase())) return;
+    await commitMeta({ aliases: [...cur, alias] });
+  };
+  const acceptSuggestedProperty = async (key: string, value: PropertyValue) => {
+    if (!path) return;
+    await useVault.getState().setProperty(path, key, value);
   };
 
   // The pane's live editor instance, mirrored into a ref so cleanups can tell
@@ -674,6 +701,16 @@ export function EditorPane({ pane }: { pane: Pane }) {
             <ListTree size={15} />
           </button>
           <button
+            onClick={() => togglePanel("related")}
+            title={panels.related ? t("links:related.hide") : t("links:related.show")}
+            aria-pressed={panels.related}
+            className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
+              panels.related ? "bg-active text-fg" : "text-fg-muted"
+            }`}
+          >
+            <Orbit size={15} />
+          </button>
+          <button
             onClick={() => setHistoryOpen(true)}
             title={t("versions:open")}
             className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
@@ -689,6 +726,11 @@ export function EditorPane({ pane }: { pane: Pane }) {
           >
             <FolderOpen size={15} />
           </button>
+          <AiActionMenu
+            editor={editor}
+            notePath={path}
+            noteTitle={path ? (path.split("/").pop()?.replace(/\.md$/, "") ?? "") : ""}
+          />
           <div className="relative">
             <button
               onClick={() => setExportOpen((v) => !v)}
@@ -749,6 +791,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
         </div>
       )}
       {findOpen && editor && <FindBar editor={editor} onClose={() => setFindOpen(false)} />}
+      <RewriteReviewBar editor={editor} />
       <div className="flex flex-col gap-1 border-b border-border/60 px-4 py-1.5">
         <div className="flex items-center gap-2">
           <span className="w-12 shrink-0 text-[11px] uppercase tracking-wide text-fg-faint">
@@ -775,6 +818,18 @@ export function EditorPane({ pane }: { pane: Pane }) {
           />
         </div>
         <PropertiesPanel path={path} properties={note.properties ?? []} />
+        <AiMetaSuggestions
+          path={path}
+          noteTitle={note.title}
+          body={split.body}
+          knownTags={tagSuggestions}
+          existingTags={note.frontmatter.tags ?? []}
+          existingAliases={note.frontmatter.aliases ?? []}
+          existingPropertyKeys={(note.properties ?? []).map((p) => p.key)}
+          onAcceptTag={acceptSuggestedTag}
+          onAcceptAlias={acceptSuggestedAlias}
+          onAcceptProperty={acceptSuggestedProperty}
+        />
       </div>
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
@@ -819,10 +874,12 @@ export function EditorPane({ pane }: { pane: Pane }) {
               embedMissing: t("embedMissing"),
               embedSectionMissing: t("embedSectionMissing"),
               embedOpenNote: t("embedOpenNote"),
+              suggestReject: t("suggestReject"),
+              suggestRestore: t("suggestRestore"),
             }}
           />
         </div>
-        {(panels.links || panels.outline) && (
+        {(panels.links || panels.outline || panels.related) && (
           <div className="flex w-72 shrink-0 flex-col border-l border-border">
             {panels.outline && (
               <OutlinePanel
@@ -840,6 +897,12 @@ export function EditorPane({ pane }: { pane: Pane }) {
                 onClose={() => togglePanel("links")}
                 stacked
               />
+            )}
+            {(panels.outline || panels.links) && panels.related && (
+              <div className="border-t border-border" />
+            )}
+            {panels.related && (
+              <RelatedPanel path={path} onClose={() => togglePanel("related")} stacked />
             )}
           </div>
         )}

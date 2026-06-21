@@ -6,6 +6,7 @@
 import i18n, { type Resource } from "i18next";
 import { initReactI18next } from "react-i18next";
 
+import deAi from "../locales/de/ai.json";
 import deCalendar from "../locales/de/calendar.json";
 import deCommon from "../locales/de/common.json";
 import deConflict from "../locales/de/conflict.json";
@@ -18,6 +19,7 @@ import deToday from "../locales/de/today.json";
 import deTrash from "../locales/de/trash.json";
 import deVault from "../locales/de/vault.json";
 import deVersions from "../locales/de/versions.json";
+import esAi from "../locales/es/ai.json";
 import esCalendar from "../locales/es/calendar.json";
 import esCommon from "../locales/es/common.json";
 import esConflict from "../locales/es/conflict.json";
@@ -30,6 +32,7 @@ import esToday from "../locales/es/today.json";
 import esTrash from "../locales/es/trash.json";
 import esVault from "../locales/es/vault.json";
 import esVersions from "../locales/es/versions.json";
+import frAi from "../locales/fr/ai.json";
 import frCalendar from "../locales/fr/calendar.json";
 import frCommon from "../locales/fr/common.json";
 import frConflict from "../locales/fr/conflict.json";
@@ -42,6 +45,7 @@ import frToday from "../locales/fr/today.json";
 import frTrash from "../locales/fr/trash.json";
 import frVault from "../locales/fr/vault.json";
 import frVersions from "../locales/fr/versions.json";
+import ai from "../locales/en/ai.json";
 import calendar from "../locales/en/calendar.json";
 import common from "../locales/en/common.json";
 import conflict from "../locales/en/conflict.json";
@@ -58,6 +62,7 @@ import { getLanguage, type LanguageCode } from "./language";
 
 export const NAMESPACES = [
   "common",
+  "ai",
   "settings",
   "sidebar",
   "calendar",
@@ -112,9 +117,10 @@ function pseudoize(node: unknown): unknown {
 
 // ---------------------------------------------------------------------------
 
-const en = { common, settings, sidebar, calendar, tasks, today, editor, vault, trash, conflict, versions, links };
+const en = { common, ai, settings, sidebar, calendar, tasks, today, editor, vault, trash, conflict, versions, links };
 const de = {
   common: deCommon,
+  ai: deAi,
   settings: deSettings,
   sidebar: deSidebar,
   calendar: deCalendar,
@@ -129,6 +135,7 @@ const de = {
 };
 const fr = {
   common: frCommon,
+  ai: frAi,
   settings: frSettings,
   sidebar: frSidebar,
   calendar: frCalendar,
@@ -143,6 +150,7 @@ const fr = {
 };
 const es = {
   common: esCommon,
+  ai: esAi,
   settings: esSettings,
   sidebar: esSidebar,
   calendar: esCalendar,

@@ -2,6 +2,7 @@
 // t("ns:key") referencing a key absent from en/*.json is a compile error.
 import "i18next";
 
+import ai from "../locales/en/ai.json";
 import calendar from "../locales/en/calendar.json";
 import common from "../locales/en/common.json";
 import conflict from "../locales/en/conflict.json";
@@ -20,6 +21,7 @@ declare module "i18next" {
     defaultNS: "common";
     resources: {
       common: typeof common;
+      ai: typeof ai;
       settings: typeof settings;
       sidebar: typeof sidebar;
       calendar: typeof calendar;

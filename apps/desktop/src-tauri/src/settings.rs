@@ -10,6 +10,8 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 use tauri::{AppHandle, Manager};
 
+use novalis_core::models::{AiConnectionConfig, AiEmbeddingConfig};
+
 /// How many recent vault locations to remember.
 const RECENT_LIMIT: usize = 10;
 
@@ -35,6 +37,14 @@ struct Settings {
     // parseable after the upgrade.
     #[serde(default)]
     recent_vaults: Vec<RecentVault>,
+    // AI connection configs are user/machine-level (keys live in the OS
+    // keychain), so they belong here rather than in the git-synced vault prefs.
+    #[serde(default)]
+    ai_connections: Vec<AiConnectionConfig>,
+    // Which connection + model produce note embeddings (the semantic index).
+    // References an `ai_connections` entry by id; never holds a secret.
+    #[serde(default)]
+    ai_embedding: Option<AiEmbeddingConfig>,
 }
 
 fn settings_file(app: &AppHandle) -> Option<PathBuf> {
@@ -121,6 +131,54 @@ pub fn remove_recent_vault(app: &AppHandle, vault: &str) {
     let _guard = WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
     let mut settings = load(app);
     settings.recent_vaults.retain(|v| v.path != vault);
+    save(app, &settings);
+}
+
+/// All stored AI connection configs (non-secret; keys live in the keychain).
+pub fn load_ai_connections(app: &AppHandle) -> Vec<AiConnectionConfig> {
+    load(app).ai_connections
+}
+
+/// Insert or replace a connection by `id`. Read-modify-write so it never
+/// clobbers `last_vault`/`recent_vaults`.
+pub fn upsert_ai_connection(app: &AppHandle, conn: AiConnectionConfig) {
+    let _guard = WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut settings = load(app);
+    if let Some(existing) = settings.ai_connections.iter_mut().find(|c| c.id == conn.id) {
+        *existing = conn;
+    } else {
+        settings.ai_connections.push(conn);
+    }
+    save(app, &settings);
+}
+
+/// Remove a connection config by `id`. Also drops the embedding config if it
+/// referenced this connection, so a dangling reference can't linger.
+pub fn delete_ai_connection(app: &AppHandle, id: &str) {
+    let _guard = WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut settings = load(app);
+    settings.ai_connections.retain(|c| c.id != id);
+    if settings
+        .ai_embedding
+        .as_ref()
+        .is_some_and(|e| e.connection_id == id)
+    {
+        settings.ai_embedding = None;
+    }
+    save(app, &settings);
+}
+
+/// The embedding config (which connection + model), if set.
+pub fn load_ai_embedding(app: &AppHandle) -> Option<AiEmbeddingConfig> {
+    load(app).ai_embedding
+}
+
+/// Set or clear the embedding config. Read-modify-write so it never clobbers
+/// connections / last_vault / recent_vaults.
+pub fn set_ai_embedding(app: &AppHandle, cfg: Option<AiEmbeddingConfig>) {
+    let _guard = WRITE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+    let mut settings = load(app);
+    settings.ai_embedding = cfg;
     save(app, &settings);
 }
 
