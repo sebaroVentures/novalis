@@ -16,14 +16,14 @@
   "notCreated": "Not created yet",
   "outline": "Outline",
   "related": {
-    "title": "Related",
-    "show": "Show related notes",
-    "hide": "Hide related notes",
-    "refresh": "Refresh",
     "empty": "No related notes found.",
+    "error": "Couldn't load related notes.",
+    "hide": "Hide related notes",
     "notConfigured": "Turn on semantic search in Settings → AI to see related notes.",
+    "refresh": "Refresh",
+    "show": "Show related notes",
     "stale": "This note isn't in the semantic index yet. Build it in Settings → AI.",
-    "error": "Couldn't load related notes."
+    "title": "Related"
   },
   "show": "Show links",
   "showOutline": "Show outline",
