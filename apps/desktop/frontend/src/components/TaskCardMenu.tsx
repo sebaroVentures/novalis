@@ -219,6 +219,20 @@ export function TaskCardMenu() {
           />
         </Row>
 
+        <Row label={t("detail.repeat")}>
+          <select
+            value={task.repeat ?? ""}
+            onChange={(e) => void updateField(task.id, "repeat", e.target.value || null)}
+            className={selectCls}
+          >
+            <option value="">{t("detail.noRepeat")}</option>
+            <option value="daily">{t("repeat.daily")}</option>
+            <option value="weekly">{t("repeat.weekly")}</option>
+            <option value="monthly">{t("repeat.monthly")}</option>
+            <option value="yearly">{t("repeat.yearly")}</option>
+          </select>
+        </Row>
+
         <Row label={t("detail.remind")}>
           <input
             type="datetime-local"

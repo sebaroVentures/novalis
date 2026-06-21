@@ -101,7 +101,7 @@ pub fn set_status(db: &Connection, vault: &Path, id: &str, status: &str) -> Core
 /// key equals `field`). `value = None` removes it. Supported fields and their
 /// value rules: `project`/`epic` → slug `[a-z0-9-]+`; `priority` →
 /// `urgent|high|medium|low`; `due`/`start` → `YYYY-MM-DD`; `remind` →
-/// `YYYY-MM-DDTHH:MM`.
+/// `YYYY-MM-DDTHH:MM`; `repeat` → `daily|weekly|monthly|yearly`.
 pub fn update_task(
     db: &Connection,
     vault: &Path,
@@ -111,7 +111,7 @@ pub fn update_task(
 ) -> CoreResult<()> {
     if !matches!(
         field,
-        "project" | "epic" | "priority" | "due" | "start" | "remind"
+        "project" | "epic" | "priority" | "due" | "start" | "remind" | "repeat"
     ) {
         return Err(CoreError::BadRequest(format!(
             "Unsupported task field: {field}"
@@ -123,6 +123,7 @@ pub fn update_task(
             "priority" => matches!(v, "urgent" | "high" | "medium" | "low"),
             "due" | "start" => chrono::NaiveDate::parse_from_str(v, "%Y-%m-%d").is_ok(),
             "remind" => chrono::NaiveDateTime::parse_from_str(v, "%Y-%m-%dT%H:%M").is_ok(),
+            "repeat" => matches!(v, "daily" | "weekly" | "monthly" | "yearly"),
             _ => false,
         };
         if !ok {
@@ -344,6 +345,46 @@ mod tests {
         // Out-of-range priority and malformed date are rejected.
         assert!(update_task(&c.db, &c.vault, &task.id, "priority", Some("epic")).is_err());
         assert!(update_task(&c.db, &c.vault, &task.id, "due", Some("2026/06/10")).is_err());
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn update_task_sets_and_clears_repeat_and_rejects_invalid() {
+        let c = ctx();
+        let task = create(
+            &c.db,
+            &c.vault,
+            CreateTaskRequest {
+                text: "Standup".to_string(),
+                status: None,
+                priority: None,
+                due_date: None,
+                note_path: Some("_Inbox.md".to_string()),
+            },
+        )
+        .unwrap();
+
+        // Set, read back through the index.
+        update_task(&c.db, &c.vault, &task.id, "repeat", Some("weekly")).unwrap();
+        let t = list(&c.db, &TaskQuery::default())
+            .unwrap()
+            .into_iter()
+            .find(|t| t.id == task.id)
+            .unwrap();
+        assert_eq!(t.repeat.as_deref(), Some("weekly"));
+
+        // Clear it.
+        update_task(&c.db, &c.vault, &task.id, "repeat", None).unwrap();
+        let t = list(&c.db, &TaskQuery::default())
+            .unwrap()
+            .into_iter()
+            .find(|t| t.id == task.id)
+            .unwrap();
+        assert_eq!(t.repeat, None);
+
+        // Unknown interval is rejected without writing.
+        assert!(update_task(&c.db, &c.vault, &task.id, "repeat", Some("fortnightly")).is_err());
 
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }

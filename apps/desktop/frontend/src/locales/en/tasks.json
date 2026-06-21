@@ -23,10 +23,12 @@
     "noEpic": "No epic",
     "noPriority": "No priority",
     "noProject": "No project",
+    "noRepeat": "No repeat",
     "openNote": "Open note",
     "priority": "Priority",
     "project": "Project",
     "remind": "Remind",
+    "repeat": "Repeat",
     "start": "Start",
     "status": "Status",
     "subtasks": "Subtasks {{done}}/{{total}}",
@@ -76,5 +78,11 @@
     "low": "Low",
     "medium": "Medium",
     "urgent": "Urgent"
+  },
+  "repeat": {
+    "daily": "Daily",
+    "monthly": "Monthly",
+    "weekly": "Weekly",
+    "yearly": "Yearly"
   }
 }

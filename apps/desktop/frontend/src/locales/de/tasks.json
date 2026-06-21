@@ -19,7 +19,9 @@
     "openNote": "Notiz öffnen",
     "priority": "Priorität",
     "project": "Projekt",
+    "noRepeat": "Keine Wiederholung",
     "remind": "Erinnerung",
+    "repeat": "Wiederholung",
     "start": "Beginn",
     "status": "Status",
     "subtasks": "Unteraufgaben {{done}}/{{total}}",
@@ -76,5 +78,11 @@
     "low": "Niedrig",
     "medium": "Mittel",
     "urgent": "Dringend"
+  },
+  "repeat": {
+    "daily": "Täglich",
+    "monthly": "Monatlich",
+    "weekly": "Wöchentlich",
+    "yearly": "Jährlich"
   }
 }
