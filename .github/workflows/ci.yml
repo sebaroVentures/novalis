@@ -75,9 +75,12 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: pnpm --filter @novalis/frontend i18n:check
 
-      - name: Frontend tests
+      # Recursive so every workspace package with a `test` script runs
+      # (frontend + editor today); a new package's tests are picked up
+      # without editing CI.
+      - name: JS tests
         if: matrix.os == 'ubuntu-latest'
-        run: pnpm --filter @novalis/frontend test
+        run: pnpm -r test
 
       - name: Rust format check
         run: cargo fmt --all --check

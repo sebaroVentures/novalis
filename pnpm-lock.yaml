@@ -156,6 +156,9 @@ importers:
       '@types/react-dom':
         specifier: ^19.1.0
         version: 19.2.3(@types/react@19.2.15)
+      vitest:
+        specifier: ^4.1.7
+        version: 4.1.7(vite@7.3.3(jiti@2.7.0)(lightningcss@1.32.0))
 
   packages/ui:
     dependencies:
