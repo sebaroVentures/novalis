@@ -57,8 +57,13 @@ pub async fn embed_batch(
             Err(e) if e.kind == "aiBadRequest" && chunk.len() > 1 => {
                 // Single-input fallback for endpoints that reject array `input`.
                 for one in chunk {
-                    let mut v = embed_request(client, base, api_key, model, std::slice::from_ref(one)).await?;
-                    out.push(v.pop().ok_or_else(|| bad_request("embeddings: empty response"))?);
+                    let mut v =
+                        embed_request(client, base, api_key, model, std::slice::from_ref(one))
+                            .await?;
+                    out.push(
+                        v.pop()
+                            .ok_or_else(|| bad_request("embeddings: empty response"))?,
+                    );
                 }
             }
             Err(e) => return Err(e),
@@ -91,7 +96,11 @@ async fn embed_request(
     let status = resp.status();
     if !status.is_success() {
         let text = resp.text().await.unwrap_or_default();
-        return Err(super::map_status_error(status.as_u16(), &text, "embeddings"));
+        return Err(super::map_status_error(
+            status.as_u16(),
+            &text,
+            "embeddings",
+        ));
     }
 
     let parsed: EmbeddingsResponse = resp
@@ -129,7 +138,9 @@ async fn embed_request(
         any_nonzero |= v.iter().any(|x| *x != 0.0);
     }
     if !any_nonzero {
-        return Err(bad_request("embeddings: all-zero embeddings (check the model)"));
+        return Err(bad_request(
+            "embeddings: all-zero embeddings (check the model)",
+        ));
     }
 
     Ok(vecs)

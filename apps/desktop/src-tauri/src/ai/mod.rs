@@ -106,7 +106,14 @@ pub async fn run_stream<F: FnMut(&str)>(
         }
         AiProviderKind::OpenAiCompatible => {
             let rb = openai_compat::build_request(&client, &req);
-            stream_http(rb, cancel, |r| parse_openai_chunk(&r.data), on_text, "service").await
+            stream_http(
+                rb,
+                cancel,
+                |r| parse_openai_chunk(&r.data),
+                on_text,
+                "service",
+            )
+            .await
         }
         AiProviderKind::ClaudeCli | AiProviderKind::CodexCli => {
             cli::stream(req, cancel, on_text).await
@@ -122,10 +129,14 @@ pub async fn test_connection(
 ) -> Result<(), CommandError> {
     let client = reqwest::Client::new();
     let (rb, provider) = match kind {
-        AiProviderKind::Anthropic => (anthropic::build_test(&client, base_url, api_key), "Anthropic"),
-        AiProviderKind::OpenAiCompatible => {
-            (openai_compat::build_test(&client, base_url, api_key), "service")
-        }
+        AiProviderKind::Anthropic => (
+            anthropic::build_test(&client, base_url, api_key),
+            "Anthropic",
+        ),
+        AiProviderKind::OpenAiCompatible => (
+            openai_compat::build_test(&client, base_url, api_key),
+            "service",
+        ),
         AiProviderKind::ClaudeCli | AiProviderKind::CodexCli => {
             return cli::test(kind, base_url).await
         }

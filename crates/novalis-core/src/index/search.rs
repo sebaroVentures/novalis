@@ -292,7 +292,9 @@ mod tests {
         crate::index::vectors::upsert_vector(&db, "a.md", "h", "m", &[1.0, 2.0]).unwrap();
         remove_note(&db, "a.md").unwrap();
         assert!(search(&db, "hello", None, None).unwrap().is_empty());
-        assert!(crate::index::vectors::get_vector(&db, "a.md").unwrap().is_none());
+        assert!(crate::index::vectors::get_vector(&db, "a.md")
+            .unwrap()
+            .is_none());
     }
 
     #[test]

@@ -403,9 +403,14 @@ pub async fn ai_build_embeddings(app: AppHandle) -> CmdResult<EmbedStatus> {
     let mut done = 0u32;
     for batch in jobs.chunks(EMBED_BATCH) {
         let inputs: Vec<String> = batch.iter().map(|j| j.text.clone()).collect();
-        let vecs =
-            embeddings::embed_batch(&client, base_url.as_deref(), api_key.as_deref(), &model, &inputs)
-                .await?;
+        let vecs = embeddings::embed_batch(
+            &client,
+            base_url.as_deref(),
+            api_key.as_deref(),
+            &model,
+            &inputs,
+        )
+        .await?;
 
         app.state::<AppEngine>().with(|e| {
             for (job, vec) in batch.iter().zip(vecs.iter()) {
@@ -475,7 +480,9 @@ fn find_connection(app: &AppHandle, id: &str) -> CmdResult<AiConnectionConfig> {
 fn to_view(c: AiConnectionConfig) -> AiConnectionView {
     let (configured, available) = match c.kind {
         // HTTP providers are reachable; "configured" means a key is stored.
-        AiProviderKind::Anthropic | AiProviderKind::OpenAiCompatible => (keychain::has_key(&c.id), true),
+        AiProviderKind::Anthropic | AiProviderKind::OpenAiCompatible => {
+            (keychain::has_key(&c.id), true)
+        }
         // CLI providers need no key: "configured" == "available" == binary found.
         AiProviderKind::ClaudeCli | AiProviderKind::CodexCli => {
             let found = cli::is_available(c.kind, c.base_url.as_deref());
@@ -493,6 +500,7 @@ fn to_view(c: AiConnectionConfig) -> AiConnectionView {
         model: c.model,
         enabled: c.enabled,
         // Agentic vault access is meaningful only for CLI kinds.
-        agentic: c.agentic && matches!(c.kind, AiProviderKind::ClaudeCli | AiProviderKind::CodexCli),
+        agentic: c.agentic
+            && matches!(c.kind, AiProviderKind::ClaudeCli | AiProviderKind::CodexCli),
     }
 }

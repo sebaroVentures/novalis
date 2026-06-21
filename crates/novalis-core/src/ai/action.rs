@@ -129,8 +129,8 @@ pub fn build_messages(
     ctx: &AiContext,
     user_input: Option<&str>,
 ) -> CoreResult<BuiltPrompt> {
-    let spec =
-        action(action_id).ok_or_else(|| CoreError::BadRequest(format!("unknown AI action: {action_id}")))?;
+    let spec = action(action_id)
+        .ok_or_else(|| CoreError::BadRequest(format!("unknown AI action: {action_id}")))?;
 
     let user_input = user_input.map(str::trim).filter(|s| !s.is_empty());
     if spec.input == AiInputKind::Required && user_input.is_none() {
@@ -568,7 +568,9 @@ mod tests {
         )
         .unwrap();
         assert!(p.system.contains("JSON"));
-        assert!(p.messages[0].content.contains("A note about Rust ownership"));
+        assert!(p.messages[0]
+            .content
+            .contains("A note about Rust ownership"));
         assert!(p.messages[0].content.contains("knownTags"));
     }
 

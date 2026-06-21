@@ -317,8 +317,7 @@ pub fn prune_orphans(db: &Connection) -> CoreResult<usize> {
 /// Map of path → stored content-hash for one model — the freshness oracle the
 /// build uses to decide what needs (re)embedding.
 pub fn vector_index(db: &Connection, model: &str) -> CoreResult<HashMap<String, String>> {
-    let mut stmt =
-        db.prepare("SELECT path, content_hash FROM note_vectors WHERE model = ?1")?;
+    let mut stmt = db.prepare("SELECT path, content_hash FROM note_vectors WHERE model = ?1")?;
     let rows = stmt.query_map(params![model], |r| {
         Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
     })?;
@@ -376,11 +375,8 @@ pub fn eligible_count(db: &Connection) -> CoreResult<usize> {
 /// notes only — cloud-only placeholders are excluded (reading them would block
 /// on a network download, and there's no body to embed).
 pub fn eligible_notes(db: &Connection) -> CoreResult<Vec<(String, String)>> {
-    let mut stmt =
-        db.prepare("SELECT path, title FROM note_meta WHERE cloud_only = 0")?;
-    let rows = stmt.query_map([], |r| {
-        Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
-    })?;
+    let mut stmt = db.prepare("SELECT path, title FROM note_meta WHERE cloud_only = 0")?;
+    let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
     Ok(rows.filter_map(|r| r.ok()).collect())
 }
 
@@ -509,7 +505,10 @@ mod tests {
         let b = format!("{base}BBB");
         assert_ne!(content_hash(&a), content_hash(&b));
         // …even though their truncations are equal.
-        assert_eq!(truncate_chars(&a, EMBED_CHAR_BUDGET), truncate_chars(&b, EMBED_CHAR_BUDGET));
+        assert_eq!(
+            truncate_chars(&a, EMBED_CHAR_BUDGET),
+            truncate_chars(&b, EMBED_CHAR_BUDGET)
+        );
     }
 
     #[test]
@@ -525,7 +524,10 @@ mod tests {
         // Re-upsert overwrites (PK = path) and updates model/hash/dim.
         upsert_vector(&db, "a.md", "h2", "m2", &[4.0, 5.0]).unwrap();
         let v = get_vector(&db, "a.md").unwrap().unwrap();
-        assert_eq!((v.content_hash.as_str(), v.model.as_str(), v.dim), ("h2", "m2", 2));
+        assert_eq!(
+            (v.content_hash.as_str(), v.model.as_str(), v.dim),
+            ("h2", "m2", 2)
+        );
 
         remove_vector(&db, "a.md").unwrap();
         assert!(get_vector(&db, "a.md").unwrap().is_none());

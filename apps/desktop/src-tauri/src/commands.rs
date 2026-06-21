@@ -317,14 +317,18 @@ pub fn reveal_in_file_manager(
             .components()
             .any(|c| matches!(c, std::path::Component::ParentDir))
         {
-            return Err(CoreError::BadRequest(format!("path escapes the vault: {path}")));
+            return Err(CoreError::BadRequest(format!(
+                "path escapes the vault: {path}"
+            )));
         }
         let joined = e.vault_path.join(rel);
         // Defense in depth: when both sides canonicalize, the target must stay
         // inside the vault root.
         if let (Ok(root), Ok(target)) = (e.vault_path.canonicalize(), joined.canonicalize()) {
             if !target.starts_with(&root) {
-                return Err(CoreError::BadRequest(format!("path escapes the vault: {path}")));
+                return Err(CoreError::BadRequest(format!(
+                    "path escapes the vault: {path}"
+                )));
             }
         }
         Ok(joined)

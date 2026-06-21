@@ -48,7 +48,11 @@ pub fn build_request(client: &reqwest::Client, req: &AiRequest) -> reqwest::Requ
 }
 
 /// A key-only auth check: list models (no tokens spent).
-pub fn build_test(client: &reqwest::Client, base: Option<&str>, api_key: Option<&str>) -> reqwest::RequestBuilder {
+pub fn build_test(
+    client: &reqwest::Client,
+    base: Option<&str>,
+    api_key: Option<&str>,
+) -> reqwest::RequestBuilder {
     let base = base
         .map(str::trim)
         .filter(|s| !s.is_empty())

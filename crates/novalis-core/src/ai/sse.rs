@@ -163,7 +163,10 @@ pub fn parse_openai_chunk(data: &str) -> Option<StreamDelta> {
 
     // Final usage chunk: `choices` is empty and `usage` is populated.
     if let Some(usage) = v.get("usage").filter(|u| !u.is_null()) {
-        let input = usage.get("prompt_tokens").and_then(Value::as_u64).map(|n| n as u32);
+        let input = usage
+            .get("prompt_tokens")
+            .and_then(Value::as_u64)
+            .map(|n| n as u32);
         let output = usage
             .get("completion_tokens")
             .and_then(Value::as_u64)
@@ -176,7 +179,12 @@ pub fn parse_openai_chunk(data: &str) -> Option<StreamDelta> {
         }
     }
 
-    let content = v.get("choices")?.get(0)?.get("delta")?.get("content")?.as_str()?;
+    let content = v
+        .get("choices")?
+        .get(0)?
+        .get("delta")?
+        .get("content")?
+        .as_str()?;
     if content.is_empty() {
         return None;
     }
@@ -220,7 +228,8 @@ mod tests {
 
     #[test]
     fn anthropic_text_delta() {
-        let data = r#"{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}}"#;
+        let data =
+            r#"{"type":"content_block_delta","index":0,"delta":{"type":"text_delta","text":"Hi"}}"#;
         assert_eq!(
             parse_anthropic_event(Some("content_block_delta"), data),
             Some(StreamDelta::Text("Hi".into()))
@@ -229,8 +238,12 @@ mod tests {
 
     #[test]
     fn anthropic_ignores_thinking_and_ping() {
-        let thinking = r#"{"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"…"}}"#;
-        assert_eq!(parse_anthropic_event(Some("content_block_delta"), thinking), None);
+        let thinking =
+            r#"{"type":"content_block_delta","delta":{"type":"thinking_delta","thinking":"…"}}"#;
+        assert_eq!(
+            parse_anthropic_event(Some("content_block_delta"), thinking),
+            None
+        );
         assert_eq!(parse_anthropic_event(Some("ping"), "{}"), None);
     }
 
@@ -239,14 +252,23 @@ mod tests {
         let start = r#"{"type":"message_start","message":{"usage":{"input_tokens":42}}}"#;
         assert_eq!(
             parse_anthropic_event(Some("message_start"), start),
-            Some(StreamDelta::Usage(Usage { input_tokens: Some(42), output_tokens: None }))
+            Some(StreamDelta::Usage(Usage {
+                input_tokens: Some(42),
+                output_tokens: None
+            }))
         );
         let delta = r#"{"type":"message_delta","delta":{},"usage":{"output_tokens":7}}"#;
         assert_eq!(
             parse_anthropic_event(Some("message_delta"), delta),
-            Some(StreamDelta::Usage(Usage { input_tokens: None, output_tokens: Some(7) }))
+            Some(StreamDelta::Usage(Usage {
+                input_tokens: None,
+                output_tokens: Some(7)
+            }))
         );
-        assert_eq!(parse_anthropic_event(Some("message_stop"), "{}"), Some(StreamDelta::Done));
+        assert_eq!(
+            parse_anthropic_event(Some("message_stop"), "{}"),
+            Some(StreamDelta::Done)
+        );
     }
 
     #[test]
@@ -261,13 +283,17 @@ mod tests {
     #[test]
     fn openai_content_and_done() {
         let chunk = r#"{"choices":[{"delta":{"content":"Hello"},"finish_reason":null}]}"#;
-        assert_eq!(parse_openai_chunk(chunk), Some(StreamDelta::Text("Hello".into())));
+        assert_eq!(
+            parse_openai_chunk(chunk),
+            Some(StreamDelta::Text("Hello".into()))
+        );
         assert_eq!(parse_openai_chunk("[DONE]"), Some(StreamDelta::Done));
     }
 
     #[test]
     fn openai_role_only_chunk_is_ignored() {
-        let chunk = r#"{"choices":[{"delta":{"role":"assistant"},"finish_reason":null}],"usage":null}"#;
+        let chunk =
+            r#"{"choices":[{"delta":{"role":"assistant"},"finish_reason":null}],"usage":null}"#;
         assert_eq!(parse_openai_chunk(chunk), None);
     }
 
@@ -276,15 +302,36 @@ mod tests {
         let chunk = r#"{"choices":[],"usage":{"prompt_tokens":10,"completion_tokens":3}}"#;
         assert_eq!(
             parse_openai_chunk(chunk),
-            Some(StreamDelta::Usage(Usage { input_tokens: Some(10), output_tokens: Some(3) }))
+            Some(StreamDelta::Usage(Usage {
+                input_tokens: Some(10),
+                output_tokens: Some(3)
+            }))
         );
     }
 
     #[test]
     fn usage_merge_keeps_set_fields() {
         let mut acc = Usage::default();
-        merge_usage(&mut acc, Usage { input_tokens: Some(10), output_tokens: None });
-        merge_usage(&mut acc, Usage { input_tokens: None, output_tokens: Some(3) });
-        assert_eq!(acc, Usage { input_tokens: Some(10), output_tokens: Some(3) });
+        merge_usage(
+            &mut acc,
+            Usage {
+                input_tokens: Some(10),
+                output_tokens: None,
+            },
+        );
+        merge_usage(
+            &mut acc,
+            Usage {
+                input_tokens: None,
+                output_tokens: Some(3),
+            },
+        );
+        assert_eq!(
+            acc,
+            Usage {
+                input_tokens: Some(10),
+                output_tokens: Some(3)
+            }
+        );
     }
 }

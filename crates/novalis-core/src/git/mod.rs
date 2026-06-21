@@ -389,7 +389,8 @@ pub fn reset_hard(vault: &Path, commit_id: &str) -> CoreResult<()> {
     let oid = Oid::from_str(commit_id)
         .map_err(|_| CoreError::BadRequest(format!("not a valid commit id: {commit_id}")))?;
     let obj = repo.find_object(oid, None).map_err(gerr)?;
-    repo.reset(&obj, git2::ResetType::Hard, None).map_err(gerr)?;
+    repo.reset(&obj, git2::ResetType::Hard, None)
+        .map_err(gerr)?;
     Ok(())
 }
 
@@ -904,7 +905,11 @@ mod tests {
 
         // Undo the whole session by resetting to the pre-session checkpoint.
         reset_hard(dir.path(), &base).unwrap();
-        assert_eq!(head_id(dir.path()).unwrap(), base, "HEAD back at checkpoint");
+        assert_eq!(
+            head_id(dir.path()).unwrap(),
+            base,
+            "HEAD back at checkpoint"
+        );
         assert_eq!(
             std::fs::read_to_string(dir.path().join("a.md")).unwrap(),
             "# A\n",

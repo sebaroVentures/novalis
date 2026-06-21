@@ -35,7 +35,11 @@ fn bin_name(kind: AiProviderKind) -> &'static str {
 /// Executable filenames to try (Windows shims are `.cmd`/`.exe`).
 fn candidate_names(base: &str) -> Vec<String> {
     if cfg!(windows) {
-        vec![format!("{base}.cmd"), format!("{base}.exe"), base.to_string()]
+        vec![
+            format!("{base}.cmd"),
+            format!("{base}.exe"),
+            base.to_string(),
+        ]
     } else {
         vec![base.to_string()]
     }
@@ -146,7 +150,11 @@ fn build_args(kind: AiProviderKind, model: &str, agentic: bool) -> Vec<String> {
                 "--sandbox".into(),
                 // Agentic: let it write within its working directory (the
                 // vault); otherwise read-only.
-                if agentic { "workspace-write".into() } else { "read-only".into() },
+                if agentic {
+                    "workspace-write".into()
+                } else {
+                    "read-only".into()
+                },
             ];
             if !model.is_empty() {
                 a.push("--model".into());
@@ -199,7 +207,8 @@ pub async fn stream<F: FnMut(&str)>(
     cancel: Arc<Notify>,
     mut on_text: F,
 ) -> Result<Usage, CommandError> {
-    let bin = resolve_binary(req.kind, req.base_url.as_deref()).ok_or_else(|| not_found(req.kind))?;
+    let bin =
+        resolve_binary(req.kind, req.base_url.as_deref()).ok_or_else(|| not_found(req.kind))?;
 
     // Agentic runs execute INSIDE the vault with file tools; everything else
     // runs in a temp dir with no tools so the CLI can't touch the user's notes.

@@ -32,14 +32,21 @@ pub fn build_request(client: &reqwest::Client, req: &AiRequest) -> reqwest::Requ
     });
 
     client
-        .post(format!("{}/v1/chat/completions", base_url(req.base_url.as_deref())))
+        .post(format!(
+            "{}/v1/chat/completions",
+            base_url(req.base_url.as_deref())
+        ))
         .bearer_auth(req.api_key.clone().unwrap_or_default())
         .header("content-type", "application/json")
         .json(&body)
 }
 
 /// A key-only auth check: list models (no tokens spent).
-pub fn build_test(client: &reqwest::Client, base: Option<&str>, api_key: Option<&str>) -> reqwest::RequestBuilder {
+pub fn build_test(
+    client: &reqwest::Client,
+    base: Option<&str>,
+    api_key: Option<&str>,
+) -> reqwest::RequestBuilder {
     client
         .get(format!("{}/v1/models", base_url(base)))
         .bearer_auth(api_key.unwrap_or_default())
