@@ -1,6 +1,6 @@
 import { useEffect, useRef } from "react";
 import { createRoot } from "react-dom/client";
-import { mergeAttributes } from "@tiptap/core";
+import { mergeAttributes, type Extensions } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
@@ -15,6 +15,7 @@ import { Markdown } from "tiptap-markdown";
 import { Callout } from "./Callout";
 import { Embed, type EmbedResult } from "./Embed";
 import { Find } from "./Find";
+import { MarkdownText } from "./MarkdownText";
 import { MathExtension } from "./Math";
 import { MermaidCodeBlock } from "./MermaidCodeBlock";
 import { SlashCommand } from "./SlashCommand";
@@ -155,6 +156,117 @@ export function getMarkdown(editor: Editor): string {
   return (editor.storage.markdown as { getMarkdown(): string }).getMarkdown();
 }
 
+/** Options consumed by the extension stack itself — the subset of
+ *  NovalisEditorProps that affects extensions rather than the React shell. */
+export interface EditorExtensionsOptions {
+  labels?: Partial<NovalisEditorLabels>;
+  placeholder?: string;
+  resolveImageSrc?: (src: string) => string;
+  onWikiLinkClick?: (title: string) => void;
+  onWikiLinkHover?: (title: string, rect: DOMRect) => void;
+  onWikiLinkHoverEnd?: () => void;
+  onResolveEmbed?: (target: string) => Promise<EmbedResult>;
+  onOpenNote?: (target: string) => void;
+  renderNote?: (body: string, mount: HTMLElement) => (() => void) | void;
+  embedDepth?: number;
+  onSearchLinkTargets?: (query: string) => Promise<{ title: string; path: string }[]>;
+  onSearchTags?: (query: string) => Promise<string[]>;
+}
+
+/** The full extension stack. Exported (and used by the NovalisEditor component
+ *  itself) so the markdown round-trip tests instantiate exactly the schema and
+ *  serializers the app ships — the two can't drift. */
+export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Extensions {
+  const lbl = { ...DEFAULT_LABELS, ...opts.labels };
+  const resolveImageSrc = opts.resolveImageSrc;
+
+  // Image node that stores the relative `src` (for markdown round-trip) but
+  // renders a resolved URL so the webview can display vault images.
+  const VaultImage = Image.extend({
+    renderHTML({ HTMLAttributes }) {
+      const attrs = { ...HTMLAttributes };
+      if (typeof attrs.src === "string" && resolveImageSrc) {
+        attrs.src = resolveImageSrc(attrs.src);
+      }
+      return ["img", mergeAttributes(attrs)];
+    },
+  });
+
+  return [
+    // Disable StarterKit's plain code block; CodeBlockLowlight replaces it
+    // (same `codeBlock` node name + `language` attr, so Markdown round-trip
+    // via tiptap-markdown is unchanged). Its Text node is disabled too;
+    // MarkdownText below replaces it (same `text` node, plus a serializer
+    // that doesn't corrupt wikilinks/math/`<`/`>` on save).
+    StarterKit.configure({ codeBlock: false, text: false }),
+    MarkdownText,
+    MermaidCodeBlock.configure({
+      lowlight,
+      mermaidShowSource: lbl.mermaidShowSource,
+      mermaidShowDiagram: lbl.mermaidShowDiagram,
+    }),
+    Markdown.configure({
+      html: false,
+      linkify: true,
+      transformPastedText: true,
+      transformCopiedText: true,
+    }),
+    TaskList,
+    TaskItem.configure({ nested: true }),
+    Link.configure({ openOnClick: false, autolink: true }),
+    VaultImage,
+    Placeholder.configure({ placeholder: opts.placeholder ?? lbl.placeholder }),
+    WikiLink.configure({
+      onClick: opts.onWikiLinkClick,
+      onHover: opts.onWikiLinkHover,
+      onHoverEnd: opts.onWikiLinkHoverEnd,
+    }),
+    // Register transclusion only below the depth cap; at/above it the inner
+    // `![[…]]` of a maximally-nested embed renders as inert literal text.
+    ...((opts.embedDepth ?? 0) < MAX_EMBED_DEPTH
+      ? [
+          Embed.configure({
+            onResolve: opts.onResolveEmbed,
+            onOpenNote: opts.onOpenNote,
+            renderNote: opts.renderNote,
+            labels: {
+              loading: lbl.embedLoading,
+              missing: lbl.embedMissing,
+              sectionMissing: lbl.embedSectionMissing,
+              openNote: lbl.embedOpenNote,
+            },
+          }),
+        ]
+      : []),
+    WikiLinkSuggestion.configure({
+      onSearch: opts.onSearchLinkTargets,
+      createLabel: lbl.wikiCreateNew,
+    }),
+    TagSuggestion.configure({ onSearch: opts.onSearchTags }),
+    SlashCommand.configure({
+      labels: {
+        heading1: lbl.heading1,
+        heading2: lbl.heading2,
+        heading3: lbl.heading3,
+        bulletList: lbl.bulletList,
+        taskList: lbl.taskList,
+        codeBlock: lbl.codeBlock,
+        blockquote: lbl.blockquote,
+        callout: lbl.callout,
+        horizontalRule: lbl.horizontalRule,
+        math: lbl.slashMath,
+        mermaid: lbl.slashMermaid,
+      },
+    }),
+    Find,
+    SuggestRewrite.configure({
+      labels: { reject: lbl.suggestReject, restore: lbl.suggestRestore },
+    }),
+    Callout,
+    MathExtension,
+  ];
+}
+
 export function NovalisEditor({
   value,
   onChange,
@@ -192,18 +304,6 @@ export function NovalisEditor({
   // typing lag on large notes. Serialize at most every ~200ms and flush on
   // blur/unmount so the host still gets the latest content before it saves.
   const serializeTimer = useRef<number | null>(null);
-
-  // Image node that stores the relative `src` (for markdown round-trip) but
-  // renders a resolved URL so the webview can display vault images.
-  const VaultImage = Image.extend({
-    renderHTML({ HTMLAttributes }) {
-      const attrs = { ...HTMLAttributes };
-      if (typeof attrs.src === "string" && resolveImageSrc) {
-        attrs.src = resolveImageSrc(attrs.src);
-      }
-      return ["img", mergeAttributes(attrs)];
-    },
-  });
 
   const insertUploaded = (view: EditorView, file: File) => {
     if (!onUploadImage) return;
@@ -244,76 +344,20 @@ export function NovalisEditor({
 
   const editor = useEditor({
     editable,
-    extensions: [
-      // Disable StarterKit's plain code block; CodeBlockLowlight replaces it
-      // (same `codeBlock` node name + `language` attr, so Markdown round-trip
-      // via tiptap-markdown is unchanged).
-      StarterKit.configure({ codeBlock: false }),
-      MermaidCodeBlock.configure({
-        lowlight,
-        mermaidShowSource: lbl.mermaidShowSource,
-        mermaidShowDiagram: lbl.mermaidShowDiagram,
-      }),
-      Markdown.configure({
-        html: false,
-        linkify: true,
-        transformPastedText: true,
-        transformCopiedText: true,
-      }),
-      TaskList,
-      TaskItem.configure({ nested: true }),
-      Link.configure({ openOnClick: false, autolink: true }),
-      VaultImage,
-      Placeholder.configure({ placeholder: placeholder ?? lbl.placeholder }),
-      WikiLink.configure({
-        onClick: onWikiLinkClick,
-        onHover: onWikiLinkHover,
-        onHoverEnd: onWikiLinkHoverEnd,
-      }),
-      // Register transclusion only below the depth cap; at/above it the inner
-      // `![[…]]` of a maximally-nested embed renders as inert literal text.
-      ...((embedDepth ?? 0) < MAX_EMBED_DEPTH
-        ? [
-            Embed.configure({
-              onResolve: onResolveEmbed,
-              onOpenNote,
-              renderNote,
-              labels: {
-                loading: lbl.embedLoading,
-                missing: lbl.embedMissing,
-                sectionMissing: lbl.embedSectionMissing,
-                openNote: lbl.embedOpenNote,
-              },
-            }),
-          ]
-        : []),
-      WikiLinkSuggestion.configure({
-        onSearch: onSearchLinkTargets,
-        createLabel: lbl.wikiCreateNew,
-      }),
-      TagSuggestion.configure({ onSearch: onSearchTags }),
-      SlashCommand.configure({
-        labels: {
-          heading1: lbl.heading1,
-          heading2: lbl.heading2,
-          heading3: lbl.heading3,
-          bulletList: lbl.bulletList,
-          taskList: lbl.taskList,
-          codeBlock: lbl.codeBlock,
-          blockquote: lbl.blockquote,
-          callout: lbl.callout,
-          horizontalRule: lbl.horizontalRule,
-          math: lbl.slashMath,
-          mermaid: lbl.slashMermaid,
-        },
-      }),
-      Find,
-      SuggestRewrite.configure({
-        labels: { reject: lbl.suggestReject, restore: lbl.suggestRestore },
-      }),
-      Callout,
-      MathExtension,
-    ],
+    extensions: buildEditorExtensions({
+      labels: lbl,
+      placeholder,
+      resolveImageSrc,
+      onWikiLinkClick,
+      onWikiLinkHover,
+      onWikiLinkHoverEnd,
+      onResolveEmbed,
+      onOpenNote,
+      renderNote,
+      embedDepth: depth,
+      onSearchLinkTargets,
+      onSearchTags,
+    }),
     content: value,
     onUpdate: ({ editor }) => {
       if (!onChangeRef.current) return;

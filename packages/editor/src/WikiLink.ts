@@ -7,7 +7,11 @@ import { Extension } from "@tiptap/core";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
-const WIKI_LINK_RE = /\[\[([^\[\]\n]+?)\]\]/g;
+/** `[[Title]]` / `[[Title#Heading]]` / `[[Title|alias]]` — anything but
+ *  brackets/newlines between the double brackets. Exported so MarkdownText's
+ *  serializer protects exactly the spans this extension decorates (the two
+ *  must never disagree). Global regex: reset `lastIndex` before each scan. */
+export const WIKI_LINK_RE = /\[\[([^\[\]\n]+?)\]\]/g;
 
 export interface WikiLinkOptions {
   /** Called when the user clicks a wikilink. The host resolves it. */
