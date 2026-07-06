@@ -329,7 +329,8 @@ export const commands = {
 	/**
 	 *  Notes semantically nearest to `path`, from stored embeddings only (local, no
 	 *  network). Returns `aiEmbedStale` when the note isn't indexed for the current
-	 *  model yet, so the panel can nudge the user to build the index.
+	 *  model yet — or was edited since it was embedded — so the panel can nudge the
+	 *  user to build the index instead of silently serving neighbors of old text.
 	 */
 	aiFindRelated: (path: string, limit: number) => typedError<RelatedNote[], CommandError>(__TAURI_INVOKE("ai_find_related", { path, limit })),
 };
