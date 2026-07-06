@@ -16,6 +16,16 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
     db.execute("DELETE FROM note_meta", [])?;
     db.execute("DELETE FROM notes_fts", [])?;
     db.execute("DELETE FROM links", [])?;
+    // Tasks and own (note-derived) events are rebuilt per-note by `index_note`
+    // below, but — unlike the tables above — they were historically never cleared
+    // up front. Rows for a note that vanished while the app wasn't watching
+    // (offline delete/move, external dedup) then lingered as orphans that even a
+    // full reindex couldn't prune, surfacing later as "Note not found" when the
+    // ghost task was toggled/opened. Clear them here so the rebuild is truly full.
+    // Remote calendar events (source_id != 'local') are NOT note-derived — and a
+    // refreshing source clears those itself — so leave them untouched.
+    db.execute("DELETE FROM tasks", [])?;
+    db.execute("DELETE FROM events WHERE source_id = 'local'", [])?;
 
     let notes = vault_fs::list_notes(vault);
     for summary in &notes {
@@ -295,6 +305,44 @@ mod tests {
         assert!(crate::index::vectors::get_vector(&db, "a.md")
             .unwrap()
             .is_none());
+    }
+
+    #[test]
+    fn build_index_prunes_orphan_tasks_and_local_events() {
+        // A note that vanishes from disk while unobserved (offline delete, external
+        // dedup) must not strand task/event rows that a later full reindex can't
+        // reach — those orphans surfaced as "Note not found" when toggled/opened.
+        let dir = std::env::temp_dir().join(format!("novalis-vault-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let db = schema::open_db(&dir.join("notes.db")).unwrap();
+
+        let note = dir.join("ghost.md");
+        std::fs::write(
+            &note,
+            "---\ntitle: Ghost\ntype: event\ndate: 2026-01-01\n---\n- [ ] haunt the index\n",
+        )
+        .unwrap();
+
+        let count = |table: &str, col: &str| -> i64 {
+            db.query_row(
+                &format!("SELECT COUNT(*) FROM {table} WHERE {col} = 'ghost.md'"),
+                [],
+                |r| r.get(0),
+            )
+            .unwrap()
+        };
+
+        build_index(&db, &dir).unwrap();
+        assert_eq!(count("tasks", "source_note"), 1, "task should index");
+        assert_eq!(count("events", "note_path"), 1, "local event should index");
+
+        // The file disappears without the app observing the change.
+        std::fs::remove_file(&note).unwrap();
+
+        // A full reindex must leave NO orphan rows behind.
+        build_index(&db, &dir).unwrap();
+        assert_eq!(count("tasks", "source_note"), 0, "orphan task survived reindex");
+        assert_eq!(count("events", "note_path"), 0, "orphan local event survived reindex");
     }
 
     #[test]
