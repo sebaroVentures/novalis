@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { getMarkdown, type Editor } from "@novalis/editor";
 
+import { displayError } from "../lib/errors";
 import i18n from "../lib/i18n";
 import {
   api,
@@ -37,6 +38,9 @@ interface AiState {
   actions: AiActionView[];
   templates: AiTemplate[];
   loaded: boolean;
+  /** Set when `load()` failed — otherwise an unreachable backend renders as
+   *  "no connections configured", which is a lie. */
+  loadError: string | null;
   selectedConnectionId: string | null;
   run: AiRun | null;
 
@@ -135,6 +139,7 @@ export const useAi = create<AiState>((set, get) => ({
   actions: [],
   templates: [],
   loaded: false,
+  loadError: null,
   selectedConnectionId: localStorage.getItem(SELECTED_KEY),
   run: null,
 
@@ -151,9 +156,9 @@ export const useAi = create<AiState>((set, get) => ({
         saved != null &&
         connections.some((c) => c.id === saved && c.enabled && c.configured && c.available);
       const selectedConnectionId = stillUsable ? saved : (firstUsable(connections)?.id ?? null);
-      set({ connections, actions, templates, loaded: true, selectedConnectionId });
-    } catch {
-      set({ loaded: true });
+      set({ connections, actions, templates, loaded: true, loadError: null, selectedConnectionId });
+    } catch (e) {
+      set({ loaded: true, loadError: displayError(e) });
     }
   },
 

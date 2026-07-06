@@ -59,6 +59,7 @@ function defaultModel(kind: AiProviderKind): string {
 export function AiPanel() {
   const { t } = useTranslation("ai");
   const connections = useAi((s) => s.connections);
+  const loadError = useAi((s) => s.loadError);
   const [newKind, setNewKind] = useState<AiProviderKind>("anthropic");
 
   useEffect(() => {
@@ -81,8 +82,10 @@ export function AiPanel() {
   return (
     <>
     <SettingsSection title={t("settings.title")} description={t("settings.desc")}>
+      {/* A failed load must not masquerade as "no connections yet". */}
+      {loadError && <p className="py-1 text-sm text-danger">{loadError}</p>}
       {connections.length === 0 ? (
-        <p className="py-1 text-sm text-fg-faint">{t("settings.empty")}</p>
+        !loadError && <p className="py-1 text-sm text-fg-faint">{t("settings.empty")}</p>
       ) : (
         <div className="flex flex-col gap-3">
           {connections.map((c) => (
