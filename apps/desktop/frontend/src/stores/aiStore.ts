@@ -97,6 +97,38 @@ function firstUsable(connections: AiConnectionView[]): AiConnectionView | undefi
   return connections.find((c) => c.enabled && c.configured && c.available);
 }
 
+/** Stream events for one request id that arrived before the panel run learned
+ *  its id (the invoke result can lose the race against the first events). */
+interface PendingRunEvents {
+  text: string;
+  terminal: { ok: boolean; msg: string } | null;
+}
+
+// `ai-stream-*` events can beat the `aiRunAction` invoke result — e.g. a
+// missing CLI binary fails immediately, before the panel run knows its id —
+// and appendChunk/finishRun/failRun match on that id. Mirror collectAiAction's
+// fix: while the panel run awaits its id, buffer events per request id, then
+// replay the resolved id's buffer and discard the rest.
+const pending = new Map<string, PendingRunEvents>();
+
+function bufferFor(requestId: string): PendingRunEvents {
+  let p = pending.get(requestId);
+  if (!p) {
+    p = { text: "", terminal: null };
+    pending.set(requestId, p);
+  }
+  return p;
+}
+
+/** True while the panel run exists but its backend id is not yet known. */
+function awaitingRunId(run: AiRun | null): boolean {
+  return run != null && run.id === "" && run.status === "streaming";
+}
+
+// Monotonic token so a slow `aiRunAction` invoke can't attach its id (or
+// replay its buffer) onto a newer run that replaced it meanwhile.
+let runSeq = 0;
+
 export const useAi = create<AiState>((set, get) => ({
   connections: [],
   actions: [],
@@ -156,6 +188,8 @@ export const useAi = create<AiState>((set, get) => ({
   startRun: async (args) => {
     // Replace any previous run (cancel it first so its stream stops emitting).
     get().cancelRun();
+    const seq = ++runSeq;
+    pending.clear();
     set({
       run: {
         id: "",
@@ -175,8 +209,19 @@ export const useAi = create<AiState>((set, get) => ({
         context: args.context,
         userInput: args.userInput ?? null,
       });
+      if (seq !== runSeq) return; // superseded by a newer run
       set((s) => (s.run ? { run: { ...s.run, id: requestId } } : {}));
+      // Replay anything that streamed in before the id was known.
+      const buffered = pending.get(requestId);
+      pending.clear();
+      if (buffered?.text) get().appendChunk(requestId, buffered.text);
+      if (buffered?.terminal) {
+        if (buffered.terminal.ok) get().finishRun(requestId);
+        else get().failRun(requestId, buffered.terminal.msg);
+      }
     } catch (e) {
+      if (seq !== runSeq) return;
+      pending.clear();
       const message = e instanceof Error ? e.message : String(e);
       set((s) => (s.run ? { run: { ...s.run, status: "error", error: message } } : {}));
     }
@@ -285,24 +330,39 @@ export const useAi = create<AiState>((set, get) => ({
     }
   },
 
-  appendChunk: (requestId, delta) =>
+  appendChunk: (requestId, delta) => {
+    if (awaitingRunId(get().run)) {
+      bufferFor(requestId).text += delta;
+      return;
+    }
     set((s) =>
       s.run && s.run.id === requestId && s.run.status === "streaming"
         ? { run: { ...s.run, text: s.run.text + delta } }
         : {},
-    ),
+    );
+  },
 
-  finishRun: (requestId) =>
+  finishRun: (requestId) => {
+    if (awaitingRunId(get().run)) {
+      bufferFor(requestId).terminal = { ok: true, msg: "" };
+      return;
+    }
     set((s) =>
       s.run && s.run.id === requestId && s.run.status === "streaming"
         ? { run: { ...s.run, status: "done" } }
         : {},
-    ),
+    );
+  },
 
-  failRun: (requestId, message) =>
+  failRun: (requestId, message) => {
+    if (awaitingRunId(get().run)) {
+      bufferFor(requestId).terminal = { ok: false, msg: message };
+      return;
+    }
     set((s) =>
       s.run && s.run.id === requestId
         ? { run: { ...s.run, status: "error", error: message } }
         : {},
-    ),
+    );
+  },
 }));
