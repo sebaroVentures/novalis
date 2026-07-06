@@ -30,10 +30,10 @@ impl AppEngine {
     where
         F: FnOnce(&Engine) -> Result<R, CoreError>,
     {
-        let guard = self
-            .0
-            .lock()
-            .map_err(|_| CommandError::internal("engine lock poisoned"))?;
+        // Recover from poisoning: a command that panicked mid-call can't leave
+        // the `Option<Engine>` half-updated, so the state is still sound — and
+        // erroring forever would brick every later command until restart.
+        let guard = self.0.lock().unwrap_or_else(|p| p.into_inner());
         let engine = guard.as_ref().ok_or_else(CommandError::no_vault)?;
         f(engine).map_err(CommandError::from)
     }

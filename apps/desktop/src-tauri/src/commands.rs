@@ -65,10 +65,9 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
 
     let info = stats::vault_info(&vault_path);
 
-    *state
-        .0
-        .lock()
-        .map_err(|_| CommandError::internal("engine lock poisoned"))? = Some(Engine {
+    // Poison recovery matches [`AppEngine::with`]: the state is replaced
+    // wholesale here, so a previously poisoned lock is safe to reclaim.
+    *state.0.lock().unwrap_or_else(|p| p.into_inner()) = Some(Engine {
         db,
         vault_path: vault_path.clone(),
         data_dir,
@@ -135,10 +134,7 @@ pub async fn pick_vault_folder(app: AppHandle) -> Option<String> {
 #[tauri::command]
 #[specta::specta]
 pub fn close_vault(state: State<AppEngine>) -> CmdResult<()> {
-    *state
-        .0
-        .lock()
-        .map_err(|_| CommandError::internal("engine lock poisoned"))? = None;
+    *state.0.lock().unwrap_or_else(|p| p.into_inner()) = None;
     // Invalidate the vault-scoped background threads (watcher + git
     // auto-committer): they key their lifetime to this generation. Without
     // the bump the committer would keep WRITING into the closed vault.
@@ -151,10 +147,7 @@ pub fn close_vault(state: State<AppEngine>) -> CmdResult<()> {
 #[tauri::command]
 #[specta::specta]
 pub fn current_vault(state: State<AppEngine>) -> CmdResult<Option<String>> {
-    let guard = state
-        .0
-        .lock()
-        .map_err(|_| CommandError::internal("engine lock poisoned"))?;
+    let guard = state.0.lock().unwrap_or_else(|p| p.into_inner());
     Ok(guard
         .as_ref()
         .map(|e| e.vault_path.to_string_lossy().to_string()))

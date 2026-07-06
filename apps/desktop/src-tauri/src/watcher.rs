@@ -87,9 +87,12 @@ fn process(app: &AppHandle, vault: &Path, path: &Path, conflict_re: &regex::Rege
     }
     let rel_str = rel.to_string_lossy().replace('\\', "/");
 
-    // Keep the index current via the same path as a manual rescan.
+    // Keep the index current via the same path as a manual rescan. Poison
+    // recovery matches [`AppEngine::with`] — a poisoned lock must not stop
+    // the watcher from indexing forever.
     let state = app.state::<AppEngine>();
-    if let Ok(guard) = state.0.lock() {
+    {
+        let guard = state.0.lock().unwrap_or_else(|p| p.into_inner());
         if let Some(engine) = guard.as_ref() {
             let _ = change::reindex_path(&engine.db, &engine.vault_path, &rel_str);
         }
