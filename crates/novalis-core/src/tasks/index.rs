@@ -375,23 +375,26 @@ pub fn toggle_task(vault: &Path, note_path: &str, line: usize) -> CoreResult<boo
     }
 
     let line_str = &lines[idx];
+    // Anchor on the checkbox PREFIX (indent + marker), like the sibling
+    // editors below — a bare contains/replacen would flip a literal "- [ ]"
+    // occurring inside the task text instead of the checkbox itself.
+    let indent_end = line_str.len() - line_str.trim_start_matches([' ', '\t']).len();
+    let (indent, rest) = line_str.split_at(indent_end);
     let new_state;
-    if line_str.contains("- [ ] ") {
-        lines[idx] = line_str.replacen("- [ ] ", "- [x] ", 1);
+    lines[idx] = if let Some(text) = rest.strip_prefix("- [ ] ") {
         new_state = true;
-    } else if line_str.contains("- [x] ") || line_str.contains("- [X] ") {
-        let replaced = line_str.replacen("- [x] ", "- [ ] ", 1);
-        lines[idx] = if replaced == *line_str {
-            line_str.replacen("- [X] ", "- [ ] ", 1)
-        } else {
-            replaced
-        };
+        format!("{indent}- [x] {text}")
+    } else if let Some(text) = rest
+        .strip_prefix("- [x] ")
+        .or_else(|| rest.strip_prefix("- [X] "))
+    {
         new_state = false;
+        format!("{indent}- [ ] {text}")
     } else {
         return Err(CoreError::BadRequest(format!(
             "Line {line} is not a task checkbox"
         )));
-    }
+    };
 
     write_lines(&abs, &content, &lines)?;
     Ok(new_state)
@@ -754,6 +757,36 @@ mod tests {
         // Remove (drops the leading space too).
         update_task_annotation(&dir, rel, 1, "project", None).unwrap();
         assert_eq!(std::fs::read_to_string(&abs).unwrap(), "- [ ] Task\n");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn toggle_task_anchors_on_the_checkbox_prefix() {
+        let dir = std::env::temp_dir().join(format!("novalis-tgl-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let abs = dir.join("n.md");
+        std::fs::write(
+            &abs,
+            "- [x] document the - [ ] syntax\n  - [ ] child about - [x] markers\n",
+        )
+        .unwrap();
+
+        // A completed task whose TEXT contains a literal "- [ ]" must toggle
+        // its anchored checkbox to open — not flip the literal in the text.
+        assert!(!toggle_task(&dir, "n.md", 1).unwrap());
+        // An indented open task toggles to done, keeping indent and text.
+        assert!(toggle_task(&dir, "n.md", 2).unwrap());
+        assert_eq!(
+            std::fs::read_to_string(&abs).unwrap(),
+            "- [ ] document the - [ ] syntax\n  - [x] child about - [x] markers\n"
+        );
+        // And back again.
+        assert!(toggle_task(&dir, "n.md", 1).unwrap());
+        assert_eq!(
+            std::fs::read_to_string(&abs).unwrap(),
+            "- [x] document the - [ ] syntax\n  - [x] child about - [x] markers\n"
+        );
 
         std::fs::remove_dir_all(&dir).ok();
     }
