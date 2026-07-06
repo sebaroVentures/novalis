@@ -430,7 +430,8 @@ pub async fn ai_build_embeddings(app: AppHandle) -> CmdResult<EmbedStatus> {
 
 /// Notes semantically nearest to `path`, from stored embeddings only (local, no
 /// network). Returns `aiEmbedStale` when the note isn't indexed for the current
-/// model yet, so the panel can nudge the user to build the index.
+/// model yet — or was edited since it was embedded — so the panel can nudge the
+/// user to build the index instead of silently serving neighbors of old text.
 #[tauri::command]
 #[specta::specta]
 pub fn ai_find_related(
@@ -440,33 +441,51 @@ pub fn ai_find_related(
     limit: u32,
 ) -> CmdResult<Vec<RelatedNote>> {
     let (_, model) = resolve_embedding(&app)?;
-    let hits = state.with(|e| {
-        let stored = match vectors::get_vector(&e.db, &path)? {
-            Some(s) if s.model == model => s,
-            _ => return Ok(None),
-        };
-        let cands = vectors::candidates_for_model(&e.db, &model)?;
-        Ok(Some(vectors::nearest(
-            &cands,
-            &stored.vec,
-            limit as usize,
-            &path,
-        )))
-    })?;
-    match hits {
-        None => Err(CommandError {
+
+    fn stale() -> CommandError {
+        CommandError {
             kind: "aiEmbedStale".to_string(),
             message: "this note isn't in the semantic index yet".to_string(),
-        }),
-        Some(hits) => Ok(hits
-            .into_iter()
-            .map(|h| RelatedNote {
-                path: h.path,
-                title: h.title,
-                score: h.score as f64,
-            })
-            .collect()),
+        }
     }
+
+    // Take the engine lock only to snapshot: the anchor row + its title, the
+    // raw candidate rows, and the vault path. The per-row f32 decoding, the
+    // cosine scan, and the freshness file read all happen off the lock.
+    let (stored, title, rows, vault) = state.with(|e| {
+        Ok((
+            vectors::get_vector(&e.db, &path)?,
+            vectors::note_title(&e.db, &path)?,
+            vectors::candidate_rows_for_model(&e.db, &model)?,
+            e.vault_path.clone(),
+        ))
+    })?;
+
+    let stored = match stored {
+        Some(s) if s.model == model => s,
+        _ => return Err(stale()),
+    };
+
+    // Freshness: hash what a build would embed right now (same pipeline as
+    // collect_stale) and compare with the stored hash. A note that is missing,
+    // empty, or a cloud placeholder can't match either — it needs a rebuild.
+    let current = title
+        .as_deref()
+        .and_then(|t| vectors::read_embed_text(&vault, &path, t))
+        .map(|full| vectors::content_hash(&full));
+    if current.as_deref() != Some(stored.content_hash.as_str()) {
+        return Err(stale());
+    }
+
+    let cands = vectors::decode_candidates(rows);
+    Ok(vectors::nearest(&cands, &stored.vec, limit as usize, &path)
+        .into_iter()
+        .map(|h| RelatedNote {
+            path: h.path,
+            title: h.title,
+            score: h.score as f64,
+        })
+        .collect())
 }
 
 fn find_connection(app: &AppHandle, id: &str) -> CmdResult<AiConnectionConfig> {

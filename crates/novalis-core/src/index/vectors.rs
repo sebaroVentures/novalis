@@ -324,13 +324,13 @@ pub fn vector_index(db: &Connection, model: &str) -> CoreResult<HashMap<String, 
     Ok(rows.filter_map(|r| r.ok()).collect())
 }
 
-/// All (path, title, vector) for one model, joined against `note_meta` so
-/// orphaned vectors (path missing from the live index) are excluded and titles
-/// come from the index. Corrupt BLOBs are skipped.
-pub fn candidates_for_model(
+/// Raw `(path, title, vec-BLOB)` rows for one model — the undecoded form of
+/// [`candidates_for_model`], for callers that must do the f32 decoding outside
+/// a DB lock (decoding a whole table is the expensive half).
+pub fn candidate_rows_for_model(
     db: &Connection,
     model: &str,
-) -> CoreResult<Vec<(String, String, Vec<f32>)>> {
+) -> CoreResult<Vec<(String, String, Vec<u8>)>> {
     let mut stmt = db.prepare(
         "SELECT v.path, m.title, v.vec
          FROM note_vectors v
@@ -344,10 +344,38 @@ pub fn candidates_for_model(
             r.get::<_, Vec<u8>>(2)?,
         ))
     })?;
-    Ok(rows
-        .filter_map(|r| r.ok())
+    Ok(rows.filter_map(|r| r.ok()).collect())
+}
+
+/// Decode raw candidate rows into vectors, skipping corrupt BLOBs. Pure — the
+/// no-DB second half of [`candidates_for_model`].
+pub fn decode_candidates(rows: Vec<(String, String, Vec<u8>)>) -> Vec<(String, String, Vec<f32>)> {
+    rows.into_iter()
         .filter_map(|(path, title, bytes)| decode(&bytes).map(|vec| (path, title, vec)))
-        .collect())
+        .collect()
+}
+
+/// All (path, title, vector) for one model, joined against `note_meta` so
+/// orphaned vectors (path missing from the live index) are excluded and titles
+/// come from the index. Corrupt BLOBs are skipped.
+pub fn candidates_for_model(
+    db: &Connection,
+    model: &str,
+) -> CoreResult<Vec<(String, String, Vec<f32>)>> {
+    Ok(decode_candidates(candidate_rows_for_model(db, model)?))
+}
+
+/// Title of one note from `note_meta` (the same source the candidates join
+/// reads), for recomputing the anchor's embed text at lookup time.
+pub fn note_title(db: &Connection, path: &str) -> CoreResult<Option<String>> {
+    let title = db
+        .query_row(
+            "SELECT title FROM note_meta WHERE path = ?1",
+            params![path],
+            |r| r.get(0),
+        )
+        .optional()?;
+    Ok(title)
 }
 
 /// Number of stored vectors for one model.
@@ -410,25 +438,9 @@ pub fn collect_stale(
 ) -> Vec<EmbedJob> {
     let mut jobs = Vec::new();
     for (path, title) in eligible {
-        let abs = vault.join(path);
-        let meta = match std::fs::metadata(&abs) {
-            Ok(m) => m,
-            Err(_) => continue,
-        };
-        if vault_fs::is_cloud_placeholder(&meta) {
+        let Some(full) = read_embed_text(vault, path, title) else {
             continue;
-        }
-        let content = match std::fs::read_to_string(&abs) {
-            Ok(c) => c,
-            Err(_) => continue,
         };
-        let (_, body) = frontmatter::parse_frontmatter(&content);
-        // Skip notes with no body — embedding a bare title (or nothing) wastes a
-        // provider call for ~no semantic signal.
-        if body.trim().is_empty() {
-            continue;
-        }
-        let full = embed_text(title, &body);
         let hash = content_hash(&full);
         if index.get(path).map(String::as_str) == Some(hash.as_str()) {
             continue; // up to date
@@ -440,6 +452,26 @@ pub fn collect_stale(
         });
     }
     jobs
+}
+
+/// Read one note's current embed text (title + body) from disk — the same
+/// metadata/placeholder/read/frontmatter pipeline [`collect_stale`] applies per
+/// note, shared so freshness checks hash exactly what a build would embed.
+/// `None` when the file is missing or unreadable, a cloud-only placeholder
+/// (reading would block on a network download), or the body is empty
+/// (embedding a bare title wastes a provider call for ~no semantic signal).
+pub fn read_embed_text(vault: &Path, path: &str, title: &str) -> Option<String> {
+    let abs = vault.join(path);
+    let meta = std::fs::metadata(&abs).ok()?;
+    if vault_fs::is_cloud_placeholder(&meta) {
+        return None;
+    }
+    let content = std::fs::read_to_string(&abs).ok()?;
+    let (_, body) = frontmatter::parse_frontmatter(&content);
+    if body.trim().is_empty() {
+        return None;
+    }
+    Some(embed_text(title, &body))
 }
 
 #[cfg(test)]
@@ -677,6 +709,25 @@ mod tests {
         let jobs = collect_stale(&dir, &eligible, &index);
         assert_eq!(jobs.len(), 1);
         assert_eq!(jobs[0].path, "b.md");
+
+        std::fs::remove_dir_all(&dir).ok();
+    }
+
+    #[test]
+    fn read_embed_text_mirrors_collect_stale_skips() {
+        let dir = std::env::temp_dir().join(format!("novalis-ret-{}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&dir).unwrap();
+        std::fs::write(dir.join("a.md"), "---\ntitle: A\n---\nalpha body").unwrap();
+        std::fs::write(dir.join("empty.md"), "   \n").unwrap();
+
+        // Normal note: title + body, frontmatter stripped.
+        assert_eq!(
+            read_embed_text(&dir, "a.md", "A").as_deref(),
+            Some("A\n\nalpha body")
+        );
+        // Empty body and missing file: not embeddable right now.
+        assert_eq!(read_embed_text(&dir, "empty.md", "E"), None);
+        assert_eq!(read_embed_text(&dir, "gone.md", "G"), None);
 
         std::fs::remove_dir_all(&dir).ok();
     }
