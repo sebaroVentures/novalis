@@ -65,6 +65,6 @@ pub fn write_preferences(vault: &Path, prefs: &Preferences) -> CoreResult<()> {
     let dir = config_dir(vault);
     std::fs::create_dir_all(&dir)?;
     let json = serde_json::to_string_pretty(prefs).map_err(|e| CoreError::Serde(e.to_string()))?;
-    std::fs::write(dir.join(PREFS_FILE), json)?;
+    crate::vault::fs::write_atomic(&dir.join(PREFS_FILE), &json)?;
     Ok(())
 }

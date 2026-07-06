@@ -122,7 +122,7 @@ pub fn update_meta(db: &Connection, vault: &Path, req: UpdateMetaRequest) -> Cor
     fm.modified = chrono::Utc::now().to_rfc3339();
 
     let new_content = frontmatter::serialize_frontmatter(&fm, &body);
-    std::fs::write(vault_fs::vault_rel(vault, &path)?, &new_content)?;
+    vault_fs::write_atomic(&vault_fs::vault_rel(vault, &path)?, &new_content)?;
 
     let updated = vault_fs::read_note(vault, &path)?;
     change::reindex_path(db, vault, &path)?;
@@ -240,7 +240,7 @@ fn mutate_extra(
     fm.modified = chrono::Utc::now().to_rfc3339();
 
     let new_content = frontmatter::serialize_frontmatter(&fm, &body);
-    std::fs::write(vault_fs::vault_rel(vault, path)?, &new_content)?;
+    vault_fs::write_atomic(&vault_fs::vault_rel(vault, path)?, &new_content)?;
 
     let updated = vault_fs::read_note(vault, path)?;
     change::reindex_path(db, vault, path)?;

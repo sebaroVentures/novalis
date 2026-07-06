@@ -67,6 +67,34 @@ pub fn vault_rel(base: &Path, relative: &str) -> CoreResult<PathBuf> {
     Ok(base.join(rel))
 }
 
+/// Write `contents` to `path` atomically: write into a same-directory hidden
+/// temp file, fsync it, then rename over the destination. A crash mid-save
+/// leaves either the old or the new content — never a truncated file. The
+/// temp name is dot-prefixed so the walker, watcher, and index all ignore it.
+pub fn write_atomic(path: &Path, contents: &str) -> CoreResult<()> {
+    use std::io::Write;
+
+    let parent = path
+        .parent()
+        .filter(|p| !p.as_os_str().is_empty())
+        .ok_or_else(|| {
+            CoreError::Internal(format!("no parent directory for {}", path.display()))
+        })?;
+    let name = path.file_name().unwrap_or_default().to_string_lossy();
+    let tmp = parent.join(format!(".{name}.{}.tmp", uuid::Uuid::new_v4()));
+
+    let result = (|| -> std::io::Result<()> {
+        let mut f = std::fs::File::create(&tmp)?;
+        f.write_all(contents.as_bytes())?;
+        f.sync_all()?;
+        std::fs::rename(&tmp, path)
+    })();
+    if result.is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    Ok(result?)
+}
+
 /// Convert an absolute path to a vault-relative, forward-slashed path.
 fn to_relative(vault: &Path, abs: &Path) -> String {
     abs.strip_prefix(vault)
@@ -216,7 +244,7 @@ pub fn write_note(vault: &Path, relative: &str, content: &str) -> CoreResult<()>
     }
 
     let updated = frontmatter::update_modified(content);
-    std::fs::write(&abs, &updated)?;
+    write_atomic(&abs, &updated)?;
     Ok(())
 }
 
@@ -268,7 +296,7 @@ pub fn create_note(vault: &Path, relative: &str, content: &str) -> CoreResult<No
         frontmatter::serialize_frontmatter(&fm, &body)
     };
 
-    std::fs::write(&abs, &final_content)?;
+    write_atomic(&abs, &final_content)?;
     read_note(vault, relative)
 }
 
@@ -287,7 +315,7 @@ pub fn append_line(vault: &Path, relative: &str, line: &str) -> CoreResult<()> {
     content.push_str(line);
     content.push('\n');
 
-    std::fs::write(&abs, &content)?;
+    write_atomic(&abs, &content)?;
     Ok(())
 }
 
@@ -492,6 +520,26 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("novalis-test-{}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&dir).unwrap();
         dir
+    }
+
+    #[test]
+    fn write_atomic_writes_complete_content_and_replaces_existing() {
+        let vault = temp_vault();
+        let p = vault.join("a.md");
+        write_atomic(&p, "first content").unwrap();
+        assert_eq!(std::fs::read_to_string(&p).unwrap(), "first content");
+        // Replaces existing content wholesale.
+        write_atomic(&p, "second").unwrap();
+        assert_eq!(std::fs::read_to_string(&p).unwrap(), "second");
+        // No temp files are left behind.
+        let leftovers: Vec<String> = std::fs::read_dir(&vault)
+            .unwrap()
+            .filter_map(|e| e.ok())
+            .map(|e| e.file_name().to_string_lossy().to_string())
+            .filter(|n| n != "a.md")
+            .collect();
+        assert!(leftovers.is_empty(), "unexpected files: {leftovers:?}");
+        std::fs::remove_dir_all(&vault).ok();
     }
 
     #[test]

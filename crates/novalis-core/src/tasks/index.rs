@@ -581,8 +581,7 @@ fn write_lines(abs: &Path, original: &str, lines: &[String]) -> CoreResult<()> {
     if original.ends_with('\n') {
         joined.push('\n');
     }
-    std::fs::write(abs, &joined)?;
-    Ok(())
+    crate::vault::fs::write_atomic(abs, &joined)
 }
 
 #[cfg(test)]
