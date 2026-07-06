@@ -47,7 +47,10 @@ jobs:
           node-version: 22
           cache: pnpm
 
-      - name: Setup Rust (pinned by rust-toolchain.toml)
+      # dtolnay/rust-toolchain can't read rust-toolchain.toml (its `toolchain`
+      # input is required at @master), so the pin is duplicated here — keep it
+      # in sync with rust-toolchain.toml when bumping.
+      - name: Setup Rust
         uses: dtolnay/rust-toolchain@master
         with:
           toolchain: "1.93.0"
