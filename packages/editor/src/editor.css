@@ -144,6 +144,16 @@
 .nv-editor-content ul[data-type="taskList"] { list-style: none; padding-left: 0.2em; }
 .nv-editor-content ul[data-type="taskList"] li { display: flex; gap: 0.5em; align-items: flex-start; }
 .nv-editor-content ul[data-type="taskList"] li > label { margin-top: 0.35em; }
+/* GFM tables (round-tripped via tiptap-markdown's pipe-table serializer). */
+.nv-editor-content table { border-collapse: collapse; width: 100%; }
+.nv-editor-content th,
+.nv-editor-content td {
+  border: 1px solid var(--nv-border);
+  padding: 0.3em 0.6em;
+  text-align: left;
+  vertical-align: top;
+}
+.nv-editor-content th { font-weight: 650; }
 .nv-editor-content p.is-editor-empty:first-child::before {
   content: attr(data-placeholder);
   color: var(--nv-muted);

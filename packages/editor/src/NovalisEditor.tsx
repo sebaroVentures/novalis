@@ -4,6 +4,10 @@ import { mergeAttributes, type Extensions } from "@tiptap/core";
 import Image from "@tiptap/extension-image";
 import Link from "@tiptap/extension-link";
 import Placeholder from "@tiptap/extension-placeholder";
+import Table from "@tiptap/extension-table";
+import TableCell from "@tiptap/extension-table-cell";
+import TableHeader from "@tiptap/extension-table-header";
+import TableRow from "@tiptap/extension-table-row";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
 import { EditorContent, type Editor, useEditor } from "@tiptap/react";
@@ -213,6 +217,14 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
     }),
     TaskList,
     TaskItem.configure({ nested: true }),
+    // GFM tables. Without these nodes a `| a | b |` table is flattened to
+    // plain paragraph text on the first edit (markdown-it parses it into a
+    // <table> the schema had nowhere to put). tiptap-markdown ships a
+    // pipe-table serializer keyed to these standard node names.
+    Table,
+    TableRow,
+    TableHeader,
+    TableCell,
     Link.configure({ openOnClick: false, autolink: true }),
     VaultImage,
     Placeholder.configure({ placeholder: opts.placeholder ?? lbl.placeholder }),
