@@ -2,6 +2,7 @@
 //! (toggle completion, update `@status`). Ported from the reference module.
 
 use std::path::Path;
+use std::sync::OnceLock;
 
 use regex::Regex;
 use rusqlite::{params, Connection};
@@ -12,17 +13,33 @@ use crate::models::{Task, TaskQuery};
 
 /// Extract tasks (markdown checkboxes) from note content.
 pub fn extract_tasks(content: &str, note_path: &str) -> Vec<Task> {
-    let task_re = Regex::new(r"^([ \t]*)- \[([ xX])\] (.+)$").unwrap();
-    let heading_re = Regex::new(r"^ {0,3}#{1,6}\s+(.+)$").unwrap();
-    let due_re = Regex::new(r"@due\((\d{4}-\d{2}-\d{2})\)").unwrap();
-    let start_re = Regex::new(r"@start\((\d{4}-\d{2}-\d{2})\)").unwrap();
-    let remind_re = Regex::new(r"@remind\((\d{4}-\d{2}-\d{2}T\d{2}:\d{2})\)").unwrap();
-    let priority_re = Regex::new(r"@priority\((urgent|high|medium|low)\)").unwrap();
-    let status_re = Regex::new(r"@status\(([a-z0-9-]+)\)").unwrap();
-    let repeat_re = Regex::new(r"@repeat\((daily|weekly|monthly|yearly)\)").unwrap();
-    let project_re = Regex::new(r"@project\(([a-z0-9-]+)\)").unwrap();
-    let epic_re = Regex::new(r"@epic\(([a-z0-9-]+)\)").unwrap();
-    let tag_re = Regex::new(r"#(\w+)").unwrap();
+    // Compiled once — this runs per note on every (re)index, and compiling
+    // 11 regexes per call dominated the scan cost.
+    static TASK_RE: OnceLock<Regex> = OnceLock::new();
+    static HEADING_RE: OnceLock<Regex> = OnceLock::new();
+    static DUE_RE: OnceLock<Regex> = OnceLock::new();
+    static START_RE: OnceLock<Regex> = OnceLock::new();
+    static REMIND_RE: OnceLock<Regex> = OnceLock::new();
+    static PRIORITY_RE: OnceLock<Regex> = OnceLock::new();
+    static STATUS_RE: OnceLock<Regex> = OnceLock::new();
+    static REPEAT_RE: OnceLock<Regex> = OnceLock::new();
+    static PROJECT_RE: OnceLock<Regex> = OnceLock::new();
+    static EPIC_RE: OnceLock<Regex> = OnceLock::new();
+    static TAG_RE: OnceLock<Regex> = OnceLock::new();
+    let task_re = TASK_RE.get_or_init(|| Regex::new(r"^([ \t]*)- \[([ xX])\] (.+)$").unwrap());
+    let heading_re = HEADING_RE.get_or_init(|| Regex::new(r"^ {0,3}#{1,6}\s+(.+)$").unwrap());
+    let due_re = DUE_RE.get_or_init(|| Regex::new(r"@due\((\d{4}-\d{2}-\d{2})\)").unwrap());
+    let start_re = START_RE.get_or_init(|| Regex::new(r"@start\((\d{4}-\d{2}-\d{2})\)").unwrap());
+    let remind_re = REMIND_RE
+        .get_or_init(|| Regex::new(r"@remind\((\d{4}-\d{2}-\d{2}T\d{2}:\d{2})\)").unwrap());
+    let priority_re =
+        PRIORITY_RE.get_or_init(|| Regex::new(r"@priority\((urgent|high|medium|low)\)").unwrap());
+    let status_re = STATUS_RE.get_or_init(|| Regex::new(r"@status\(([a-z0-9-]+)\)").unwrap());
+    let repeat_re =
+        REPEAT_RE.get_or_init(|| Regex::new(r"@repeat\((daily|weekly|monthly|yearly)\)").unwrap());
+    let project_re = PROJECT_RE.get_or_init(|| Regex::new(r"@project\(([a-z0-9-]+)\)").unwrap());
+    let epic_re = EPIC_RE.get_or_init(|| Regex::new(r"@epic\(([a-z0-9-]+)\)").unwrap());
+    let tag_re = TAG_RE.get_or_init(|| Regex::new(r"#(\w+)").unwrap());
 
     // Display title for the note, derived the same way as the search index.
     let (fm, body) = crate::vault::frontmatter::parse_frontmatter(content);

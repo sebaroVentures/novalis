@@ -13,6 +13,13 @@ use crate::vault::{frontmatter, fs as vault_fs};
 pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
     log::info!("building full search index for vault: {}", vault.display());
 
+    // One transaction for the whole rebuild: the per-statement autocommits
+    // (~7 per note) made a full rebuild fsync-bound, and a concurrent search
+    // mid-rebuild saw a half-empty index. `unchecked_transaction` because the
+    // connection is behind a shared reference; dropping without commit (any
+    // `?` below) rolls the whole rebuild back, leaving the old index intact.
+    let tx = db.unchecked_transaction()?;
+
     db.execute("DELETE FROM note_meta", [])?;
     db.execute("DELETE FROM notes_fts", [])?;
     db.execute("DELETE FROM links", [])?;
@@ -49,6 +56,7 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
         }
     }
 
+    tx.commit()?;
     log::info!("indexed {} notes", notes.len());
     Ok(())
 }
