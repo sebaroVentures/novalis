@@ -243,7 +243,7 @@ pub fn write_note(vault: &Path, relative: &str, content: &str) -> CoreResult<()>
         return Err(CoreError::NotFound(format!("Note not found: {relative}")));
     }
 
-    let updated = frontmatter::update_modified(content);
+    let updated = frontmatter::update_modified(content)?;
     write_atomic(&abs, &updated)?;
     Ok(())
 }
@@ -539,6 +539,44 @@ mod tests {
             .filter(|n| n != "a.md")
             .collect();
         assert!(leftovers.is_empty(), "unexpected files: {leftovers:?}");
+        std::fs::remove_dir_all(&vault).ok();
+    }
+
+    #[test]
+    fn write_note_fails_loud_on_malformed_frontmatter() {
+        let vault = temp_vault();
+        // `tags` must be a sequence — this deserializes to an error, and a
+        // lenient parse would fall back to default frontmatter, erasing
+        // `title` (and any custom keys) on re-serialize.
+        let broken = "---\ntitle: Keep Me\ntags: notalist\n---\nbody\n";
+        std::fs::write(vault.join("broken.md"), broken).unwrap();
+
+        assert!(write_note(&vault, "broken.md", broken).is_err());
+        // The file is left byte-identical.
+        assert_eq!(
+            std::fs::read_to_string(vault.join("broken.md")).unwrap(),
+            broken
+        );
+        std::fs::remove_dir_all(&vault).ok();
+    }
+
+    #[test]
+    fn write_note_saves_valid_and_frontmatterless_content() {
+        let vault = temp_vault();
+        create_note(&vault, "ok.md", "---\ntitle: Ok\n---\nold").unwrap();
+        write_note(
+            &vault,
+            "ok.md",
+            "---\ntitle: Ok\ntags:\n  - a\n---\nnew body",
+        )
+        .unwrap();
+        let content = std::fs::read_to_string(vault.join("ok.md")).unwrap();
+        assert!(content.contains("new body"));
+        assert!(content.contains("title: Ok"));
+        // Content without any frontmatter block still saves (default added).
+        write_note(&vault, "ok.md", "just a body").unwrap();
+        let content = std::fs::read_to_string(vault.join("ok.md")).unwrap();
+        assert!(content.contains("just a body"));
         std::fs::remove_dir_all(&vault).ok();
     }
 

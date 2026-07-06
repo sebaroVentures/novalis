@@ -125,10 +125,15 @@ fn number_property(n: &serde_json::Number) -> PropertyValue {
 }
 
 /// Update the `modified` field in frontmatter to the current UTC time.
-pub fn update_modified(content: &str) -> String {
-    let (mut fm, body) = parse_frontmatter(content);
+///
+/// STRICT parse: this re-serializes the parsed struct, so a lenient
+/// fall-back-to-default on malformed YAML would silently erase the user's
+/// title/created/tags/custom keys on every save. Broken frontmatter errors
+/// instead — the caller surfaces it and leaves the file untouched.
+pub fn update_modified(content: &str) -> CoreResult<String> {
+    let (mut fm, body) = parse_frontmatter_strict(content)?;
     fm.modified = Utc::now().to_rfc3339();
-    serialize_frontmatter(&fm, &body)
+    Ok(serialize_frontmatter(&fm, &body))
 }
 
 /// Extract a display title from frontmatter, first H1 heading, or filename.

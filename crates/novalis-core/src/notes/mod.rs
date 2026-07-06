@@ -99,7 +99,9 @@ pub fn restore_version(
 pub fn update_meta(db: &Connection, vault: &Path, req: UpdateMetaRequest) -> CoreResult<Note> {
     let path = req.path.clone().unwrap_or_default();
     let note = vault_fs::read_note(vault, &path)?;
-    let (mut fm, body) = frontmatter::parse_frontmatter(&note.content);
+    // STRICT parse: broken frontmatter must error, not fall back to a default
+    // we would then serialize over the user's hand-written metadata.
+    let (mut fm, body) = frontmatter::parse_frontmatter_strict(&note.content)?;
 
     if let Some(title) = req.title {
         // Empty title clears it (display falls back to the first H1, then filename).
@@ -710,6 +712,36 @@ mod tests {
         assert_eq!(
             vault_fs::build_summary(&c.vault, "Note.md").unwrap().title,
             "Renamed"
+        );
+
+        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn update_meta_fails_loud_on_malformed_frontmatter() {
+        let c = ctx();
+        // Deserialization fails (`tags` is not a sequence); with a lenient
+        // parse the default would be re-serialized over the hand-written
+        // metadata. The update must error and leave the file untouched.
+        let broken = "---\ntitle: Keep\ntags: notalist\n---\nbody";
+        std::fs::write(c.vault.join("B.md"), broken).unwrap();
+        crate::change::reindex_path(&c.db, &c.vault, "B.md").unwrap();
+
+        let res = update_meta(
+            &c.db,
+            &c.vault,
+            UpdateMetaRequest {
+                path: Some("B.md".to_string()),
+                title: Some("New".to_string()),
+                tags: None,
+                pinned: None,
+                aliases: None,
+            },
+        );
+        assert!(res.is_err());
+        assert_eq!(
+            std::fs::read_to_string(c.vault.join("B.md")).unwrap(),
+            broken
         );
 
         std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
