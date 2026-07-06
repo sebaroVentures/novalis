@@ -57,6 +57,17 @@ async function flushAll(): Promise<void> {
   // last-writer-wins with indeterminate order.
   for (const entry of flushRegistry.values()) await entry.flush();
 }
+/** True while any pane holds an unflushed edit for `path` — a debounced
+ *  autosave snapshot or live typing the editor's serialize debounce hasn't
+ *  captured yet (see PaneFlush.pendingPath). The per-path save state turns
+ *  "dirty" only after that debounce, so this is the source of truth for edits
+ *  made inside the debounce window. */
+function hasPendingEdit(path: string): boolean {
+  for (const entry of flushRegistry.values()) {
+    if (entry.pendingPath() === path) return true;
+  }
+  return false;
+}
 
 // Set while stepping through back/forward history, so openNote doesn't record
 // the navigation as a new history entry.
@@ -99,9 +110,12 @@ function patchOpenNote(
  *    must never remount mid-edit).
  *  - `skipPending`: also spare panes that hold their OWN unflushed edit for
  *    the path (mirror-on-save must not wipe a pane the user is typing in —
- *    its content converges on its own next flush). Reload/external-adopt
- *    paths pass false: there the pending edit is being deliberately replaced
- *    (the pane's epoch-discard effect drops it). */
+ *    its content converges on its own next flush). External clean-adopt also
+ *    passes it — it only runs when no pane has a pending edit (a pending edit
+ *    takes handleExternalChange's conflict path), so this is a structural
+ *    guard, not a behavior fork. Reload passes false: there the pending edit
+ *    is being deliberately discarded (the pane's epoch-discard effect drops
+ *    it). */
 function bumpPaneEpochs(
   get: () => VaultState,
   set: (partial: Partial<VaultState>) => void,
@@ -922,14 +936,21 @@ export const useVault = create<VaultState>((set, get) => ({
     const cached = noteCache.get(path);
     // Self-write echo (our own save re-fires the watcher) or no real change.
     if (cached && cached.content === disk.content) return;
-    if ((get().saveStates.get(path) ?? "idle") === "dirty") {
-      // Unsaved edits: let the user choose rather than clobber either side.
+    // Unsaved edits: let the user choose rather than clobber either side. The
+    // per-path save state alone is NOT enough — it turns "dirty" only after
+    // the editor's serialize debounce, so a watcher event landing inside that
+    // window would look clean while a pane holds live typing. The flush
+    // registry (hasPendingEdit) covers exactly that window, plus a pending
+    // edit retained for retry after a failed save.
+    if ((get().saveStates.get(path) ?? "idle") === "dirty" || hasPendingEdit(path)) {
       set({ externalChange: path });
     } else {
       // Clean: adopt the external content and remount every pane showing it.
+      // skipPending mirrors mirror-on-save so an actively-editing pane can
+      // never be wiped by the bump (none exists here — see the guard above).
       noteCache.set(path, disk);
       patchOpenNote(get, set, path, disk);
-      bumpPaneEpochs(get, set, path);
+      bumpPaneEpochs(get, set, path, { skipPending: true });
       if (get().externalChange === path) set({ externalChange: null });
       patchSave(get, set, path, "idle");
     }
