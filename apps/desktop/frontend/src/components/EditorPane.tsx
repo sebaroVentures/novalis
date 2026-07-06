@@ -146,6 +146,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
   const markDirty = useVault((s) => s.markDirty);
   const reloadNote = useVault((s) => s.reloadNote);
   const dismissExternalChange = useVault((s) => s.dismissExternalChange);
+  const reportError = useVault((s) => s.reportError);
   const saveState = useVault((s) => (path ? (s.saveStates.get(path) ?? "idle") : "idle"));
   const setNoteMeta = useVault((s) => s.setNoteMeta);
   const externalChange = useVault((s) => s.externalChange);
@@ -627,7 +628,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
 
   const doExport = (format: "html" | "docx") => {
     setExportOpen(false);
-    void api.exportNote(path, format).catch(() => {});
+    void api.exportNote(path, format).catch((e) => reportError(e));
   };
 
   // Commit (or discard) an inline title edit from the header. Renaming a note

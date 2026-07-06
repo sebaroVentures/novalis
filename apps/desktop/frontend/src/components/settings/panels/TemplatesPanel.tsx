@@ -4,10 +4,12 @@ import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, type NoteTemplate } from "../../../ipc/api";
+import { useVault } from "../../../stores/vaultStore";
 import { SettingsSection, TextField } from "../../ui";
 
 export function TemplatesPanel() {
   const { t } = useTranslation("settings");
+  const reportError = useVault((s) => s.reportError);
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
   const [name, setName] = useState("");
   const [content, setContent] = useState("");
@@ -26,9 +28,10 @@ export function TemplatesPanel() {
         setContent("");
         reload();
       })
-      .catch(() => {});
+      .catch((e) => reportError(e));
   };
-  const remove = (id: string) => void api.deleteTemplate(id).then(reload).catch(() => {});
+  const remove = (id: string) =>
+    void api.deleteTemplate(id).then(reload).catch((e) => reportError(e));
 
   return (
     <SettingsSection title={t("templates.section")} description={t("templates.desc")}>

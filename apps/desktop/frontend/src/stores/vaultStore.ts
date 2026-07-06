@@ -341,6 +341,10 @@ interface VaultState {
   handleExternalChange: (path: string) => Promise<void>;
   /** Dismiss the "changed on disk" prompt without reloading. */
   dismissExternalChange: () => void;
+  /** Surface a failure in the global error toast (App.tsx) — the shared error
+   *  surface other stores/components route user-initiated action errors
+   *  through (same `displayError` shape as vaultStore's own failures). */
+  reportError: (e: unknown) => void;
   clearError: () => void;
 
   // Sidebar actions.
@@ -932,6 +936,8 @@ export const useVault = create<VaultState>((set, get) => ({
   },
 
   dismissExternalChange: () => set({ externalChange: null }),
+
+  reportError: (e) => set({ error: displayError(e) }),
 
   clearError: () => set({ error: null }),
 

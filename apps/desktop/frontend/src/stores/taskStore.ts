@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import { api, type KanbanColumnDef, type Task } from "../ipc/api";
 import { topFolderFromPath } from "../lib/taskDisplay";
+import { useVault } from "./vaultStore";
 
 export type TaskFilter = "open" | "completed" | "all";
 export type TaskMode = "list" | "kanban";
@@ -253,8 +254,8 @@ export const useTasks = create<TaskState>((set, get) => ({
     try {
       await api.toggleTask(id);
       await get().load();
-    } catch {
-      /* surfaced elsewhere */
+    } catch (e) {
+      useVault.getState().reportError(e);
     }
   },
 
@@ -262,8 +263,8 @@ export const useTasks = create<TaskState>((set, get) => ({
     try {
       await api.setTaskStatus(id, status);
       await get().load();
-    } catch {
-      /* ignore */
+    } catch (e) {
+      useVault.getState().reportError(e);
     }
   },
 
@@ -271,8 +272,8 @@ export const useTasks = create<TaskState>((set, get) => ({
     try {
       await api.updateTask(id, field, value);
       await get().load();
-    } catch {
-      /* surfaced elsewhere */
+    } catch (e) {
+      useVault.getState().reportError(e);
     }
   },
 
@@ -281,8 +282,8 @@ export const useTasks = create<TaskState>((set, get) => ({
       await api.deleteTask(id);
       await get().load();
       get().closeCardMenu();
-    } catch {
-      /* surfaced elsewhere */
+    } catch (e) {
+      useVault.getState().reportError(e);
     }
   },
 
@@ -293,8 +294,8 @@ export const useTasks = create<TaskState>((set, get) => ({
       // rebuilds the list under the new note.
       await get().load();
       get().closeCardMenu();
-    } catch {
-      /* surfaced elsewhere */
+    } catch (e) {
+      useVault.getState().reportError(e);
     }
   },
 
@@ -304,8 +305,8 @@ export const useTasks = create<TaskState>((set, get) => ({
     try {
       await api.createTask(trimmed, { notePath: opts?.notePath, status: opts?.status });
       await get().load();
-    } catch {
-      /* ignore */
+    } catch (e) {
+      useVault.getState().reportError(e);
     }
   },
 

@@ -45,6 +45,7 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
   const [tags, setTags] = useState<TagCount[]>([]);
   const openInWorkspace = useUi((s) => s.openInWorkspace);
   const tree = useVault((s) => s.tree);
+  const reportError = useVault((s) => s.reportError);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const folders = useMemo(() => {
@@ -85,11 +86,17 @@ export function SearchModal({ open, onClose }: { open: boolean; onClose: () => v
           setSelected(0);
         }
       })
-      .catch(() => {});
+      .catch((e) => {
+        // Don't leave the previous query's hits standing under a failed search.
+        if (!cancelled) {
+          setResults([]);
+          reportError(e);
+        }
+      });
     return () => {
       cancelled = true;
     };
-  }, [query, folder, tag, open]);
+  }, [query, folder, tag, open, reportError]);
 
   if (!open) return null;
 

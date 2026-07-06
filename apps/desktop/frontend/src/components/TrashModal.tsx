@@ -16,6 +16,7 @@ export function TrashModal({ open, onClose }: { open: boolean; onClose: () => vo
   const [items, setItems] = useState<TrashItem[]>([]);
   const [confirm, setConfirm] = useState<Pending>(null);
   const refreshTree = useVault((s) => s.refreshTree);
+  const reportError = useVault((s) => s.reportError);
   const openInWorkspace = useUi((s) => s.openInWorkspace);
 
   const load = () => void api.listTrash().then(setItems).catch(() => setItems([]));
@@ -37,15 +38,19 @@ export function TrashModal({ open, onClose }: { open: boolean; onClose: () => vo
       load();
       await refreshTree();
       if (path.endsWith(".md")) openInWorkspace(path);
-    } catch {
-      /* surfaced via the global error banner */
+    } catch (e) {
+      reportError(e);
     }
   };
 
   const runConfirm = async () => {
     if (!confirm) return;
-    if (confirm.kind === "item") await api.deleteTrashItem(confirm.item.id).catch(() => {});
-    else await api.emptyTrash().catch(() => {});
+    try {
+      if (confirm.kind === "item") await api.deleteTrashItem(confirm.item.id);
+      else await api.emptyTrash();
+    } catch (e) {
+      reportError(e);
+    }
     setConfirm(null);
     load();
   };
