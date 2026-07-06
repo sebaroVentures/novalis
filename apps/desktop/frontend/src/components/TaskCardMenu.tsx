@@ -4,6 +4,7 @@ import { ArrowUpRight, FolderInput } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { displayText, noteTitleFromPath } from "../lib/taskDisplay";
+import { useDismiss } from "../lib/useDismiss";
 import { allEpics, allProjects, useTasks } from "../stores/taskStore";
 import { useUi } from "../stores/uiStore";
 import { NotePickerModal } from "./NotePickerModal";
@@ -62,23 +63,7 @@ export function TaskCardMenu() {
     });
   }, [menu]);
 
-  useEffect(() => {
-    if (!menu) return;
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) close();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") close();
-    };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("resize", close);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", close);
-    };
-  }, [menu, close]);
+  useDismiss(ref, !!menu, close, { closeOnResize: true });
 
   if (!menu || !task) return null;
 

@@ -1,4 +1,6 @@
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useLayoutEffect, useRef, useState } from "react";
+
+import { useDismiss } from "../lib/useDismiss";
 
 export interface MenuItem {
   label: string;
@@ -36,22 +38,7 @@ export function ContextMenu({
     });
   }, [x, y]);
 
-  useEffect(() => {
-    const onDown = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) onClose();
-    };
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape") onClose();
-    };
-    window.addEventListener("mousedown", onDown);
-    window.addEventListener("keydown", onKey);
-    window.addEventListener("resize", onClose);
-    return () => {
-      window.removeEventListener("mousedown", onDown);
-      window.removeEventListener("keydown", onKey);
-      window.removeEventListener("resize", onClose);
-    };
-  }, [onClose]);
+  useDismiss(ref, true, onClose, { closeOnResize: true });
 
   return (
     <div

@@ -1,10 +1,28 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
-import { Loader2, Plus, Sparkles, X } from "lucide-react";
+import { ChevronDown, ChevronRight, Loader2, Plus, Sparkles, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { PropertyValue } from "../../ipc/api";
 import { useAi } from "../../stores/aiStore";
+
+// Device-local "is the suggestions list expanded" bit (expanded default — a
+// fresh run reopens it; see run()). Mirrors PropertiesPanel's nv:propsOpen.
+const META_OPEN_KEY = "nv:aiMetaOpen";
+function loadMetaOpen(): boolean {
+  try {
+    return localStorage.getItem(META_OPEN_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+function saveMetaOpen(open: boolean): void {
+  try {
+    localStorage.setItem(META_OPEN_KEY, open ? "1" : "0");
+  } catch {
+    /* ignore */
+  }
+}
 
 interface Suggestions {
   tags: string[];
@@ -142,6 +160,26 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
   const [sug, setSug] = useState<Suggestions>({ tags: [], aliases: [], properties: [] });
+  const [open, setOpen] = useState(loadMetaOpen);
+
+  const toggleOpen = () =>
+    setOpen((v) => {
+      saveMetaOpen(!v);
+      return !v;
+    });
+
+  // Suggestions are note-specific: switching notes (the pane re-renders without
+  // remounting us) resets back to the "Suggest metadata" affordance so we never
+  // show — or accept — the previous note's chips against the current one. The
+  // device-local `open` pref is intentionally preserved (mirrors PropertiesPanel).
+  // `pathRef` lets an in-flight run() detect it resolved after such a switch.
+  const pathRef = useRef(props.path);
+  useEffect(() => {
+    pathRef.current = props.path;
+    setStatus("idle");
+    setError(null);
+    setSug({ tags: [], aliases: [], properties: [] });
+  }, [props.path]);
 
   const usable = connections.filter((c) => c.enabled && c.configured && c.available);
   const selected = usable.find((c) => c.id === selectedId) ?? usable[0] ?? null;
@@ -155,6 +193,11 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
 
   const run = async () => {
     if (!props.body.trim()) return;
+    const runPath = props.path;
+    // A deliberate "Suggest metadata" always reveals its result, even if the
+    // list was left collapsed from a previous note.
+    setOpen(true);
+    saveMetaOpen(true);
     setStatus("loading");
     setError(null);
     try {
@@ -171,6 +214,7 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
         context: { title: props.noteTitle, markdown: props.body },
         userInput,
       });
+      if (pathRef.current !== runPath) return; // navigated away mid-request
       setSug(
         parseSuggestions(raw, {
           existingTags: props.existingTags,
@@ -180,6 +224,7 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
       );
       setStatus("ready");
     } catch (e) {
+      if (pathRef.current !== runPath) return; // navigated away mid-request
       setError(e instanceof Error ? e.message : String(e));
       setStatus("error");
     }
@@ -217,15 +262,25 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
     );
   }
 
-  const empty = sug.tags.length === 0 && sug.aliases.length === 0 && sug.properties.length === 0;
+  const total = sug.tags.length + sug.aliases.length + sug.properties.length;
+  const empty = total === 0;
 
   return (
     <div className="flex flex-col gap-1.5 rounded-lg border border-border bg-surface-2/40 px-2.5 py-2">
       <div className="flex items-center justify-between gap-2">
-        <span className="flex items-center gap-1.5 text-[11px] font-medium uppercase tracking-wide text-fg-faint">
+        <button
+          type="button"
+          onClick={toggleOpen}
+          aria-expanded={open}
+          className="flex min-w-0 items-center gap-1.5 rounded text-[11px] font-medium uppercase tracking-wide text-fg-faint transition-colors hover:text-fg-muted"
+        >
+          {open ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
           <Sparkles size={12} className="text-accent" />
           {t("meta.title")}
-        </span>
+          {!open && status === "ready" && !empty && (
+            <span className="tabular-nums">({total})</span>
+          )}
+        </button>
         <button
           type="button"
           onClick={reset}
@@ -256,11 +311,11 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
         </div>
       )}
 
-      {status === "ready" && empty && (
+      {open && status === "ready" && empty && (
         <span className="py-0.5 text-xs text-fg-faint">{t("meta.none")}</span>
       )}
 
-      {status === "ready" && !empty && (
+      {open && status === "ready" && !empty && (
         <div className="flex flex-col gap-1.5">
           {sug.tags.length > 0 && (
             <SuggestionRow label={t("meta.tags")}>

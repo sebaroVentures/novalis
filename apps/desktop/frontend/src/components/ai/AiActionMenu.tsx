@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { Check, ChevronDown, Globe, Sparkles } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { getMarkdown, type Editor } from "@novalis/editor";
 
 import type { AiActionView, AiTemplate } from "../../ipc/api";
+import { useDismiss } from "../../lib/useDismiss";
 import { useAi } from "../../stores/aiStore";
 
 // Static id → i18n key map (typed i18next rejects template-built keys).
@@ -41,6 +42,7 @@ export function AiActionMenu({
   // When set, the dropdown shows a prompt box for a required-input action.
   const [prompting, setPrompting] = useState<AiActionView | null>(null);
   const [promptText, setPromptText] = useState("");
+  const ref = useRef<HTMLDivElement>(null);
 
   const closeMenu = () => {
     setOpen(false);
@@ -51,6 +53,8 @@ export function AiActionMenu({
   useEffect(() => {
     if (!useAi.getState().loaded) void useAi.getState().load();
   }, []);
+
+  useDismiss(ref, open, closeMenu);
 
   const usable = connections.filter((c) => c.enabled && c.configured && c.available);
   const selected = usable.find((c) => c.id === selectedId) ?? usable[0] ?? null;
@@ -129,7 +133,7 @@ export function AiActionMenu({
   };
 
   return (
-    <div className="relative">
+    <div ref={ref} className="relative">
       <button
         onClick={() => {
           if (open) {

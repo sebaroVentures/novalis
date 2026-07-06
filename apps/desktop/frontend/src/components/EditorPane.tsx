@@ -29,6 +29,7 @@ import { useTranslation } from "react-i18next";
 
 import { api, type PropertyValue } from "../ipc/api";
 import { revealLabel } from "../lib/reveal";
+import { useDismiss } from "../lib/useDismiss";
 import type { Pane } from "../lib/workspacePrefs";
 import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
@@ -72,6 +73,24 @@ function loadRightPanels(): RightPanels {
 function saveRightPanels(p: RightPanels): void {
   try {
     localStorage.setItem(RIGHT_PANEL_KEY, JSON.stringify(p));
+  } catch {
+    /* ignore */
+  }
+}
+
+// Device-local "is the note's metadata strip (tags / aliases / properties /
+// suggestions) expanded" bit (expanded default), persisted globally.
+const META_OPEN_KEY = "nv:metaOpen";
+function loadMetaOpen(): boolean {
+  try {
+    return localStorage.getItem(META_OPEN_KEY) !== "0";
+  } catch {
+    return true;
+  }
+}
+function saveMetaOpen(open: boolean): void {
+  try {
+    localStorage.setItem(META_OPEN_KEY, open ? "1" : "0");
   } catch {
     /* ignore */
   }
@@ -138,11 +157,13 @@ export function EditorPane({ pane }: { pane: Pane }) {
   // writes to the correct path even mid-switch.
   const pending = useRef<{ path: string; content: string } | null>(null);
   const [exportOpen, setExportOpen] = useState(false);
+  const exportRef = useRef<HTMLDivElement>(null);
   const [historyOpen, setHistoryOpen] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
   // Non-null while the header title is being edited inline (holds the draft).
   const [titleDraft, setTitleDraft] = useState<string | null>(null);
   const [panels, setPanels] = useState<RightPanels>(loadRightPanels);
+  const [metaOpen, setMetaOpen] = useState(loadMetaOpen);
   const readingDefault = editorPrefs?.defaultReadingMode ?? false;
   // Per-note, ephemeral: reading mode resets to the configured default on every
   // note switch (never persisted per note — only the default is a preference).
@@ -160,6 +181,12 @@ export function EditorPane({ pane }: { pane: Pane }) {
       const next = { ...cur, [panel]: !cur[panel] };
       saveRightPanels(next);
       return next;
+    });
+
+  const toggleMetaOpen = () =>
+    setMetaOpen((v) => {
+      saveMetaOpen(!v);
+      return !v;
     });
 
   // Flush any pending edit before entering reading mode (belt-and-suspenders;
@@ -220,6 +247,8 @@ export function EditorPane({ pane }: { pane: Pane }) {
       ui.setActiveEditor(null);
     }
   }, [focused, editor]);
+
+  useDismiss(exportRef, exportOpen, () => setExportOpen(false));
 
   const jumpToHeading = useCallback(
     (pos: number) => {
@@ -512,6 +541,13 @@ export function EditorPane({ pane }: { pane: Pane }) {
     );
   }
 
+  // Count of set metadata fields, shown beside the strip's header when collapsed
+  // so hidden tags/aliases/properties stay discoverable.
+  const metaCount =
+    (note.frontmatter.tags?.length ?? 0) +
+    (note.frontmatter.aliases?.length ?? 0) +
+    (note.properties?.length ?? 0);
+
   const onChange = (body: string) => {
     // Between a discard and the remount that resolves it, every serialization
     // carries the doomed pre-discard doc — drop it (see `discarded`).
@@ -731,7 +767,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
             notePath={path}
             noteTitle={path ? (path.split("/").pop()?.replace(/\.md$/, "") ?? "") : ""}
           />
-          <div className="relative">
+          <div ref={exportRef} className="relative">
             <button
               onClick={() => setExportOpen((v) => !v)}
               className="flex items-center gap-1 rounded-md px-2 py-1 text-xs text-fg-muted transition-colors hover:bg-active hover:text-fg"
@@ -793,43 +829,59 @@ export function EditorPane({ pane }: { pane: Pane }) {
       {findOpen && editor && <FindBar editor={editor} onClose={() => setFindOpen(false)} />}
       <RewriteReviewBar editor={editor} />
       <div className="flex flex-col gap-1 border-b border-border/60 px-4 py-1.5">
-        <div className="flex items-center gap-2">
-          <span className="w-12 shrink-0 text-[11px] uppercase tracking-wide text-fg-faint">
-            {t("tags")}
-          </span>
-          <ChipInput
-            values={note.frontmatter.tags ?? []}
-            onChange={(next) => void commitMeta({ tags: next })}
-            suggestions={tagSuggestions}
-            placeholder={t("addTag")}
-            ariaLabel={t("tags")}
-            renderChip={(v) => `#${v}`}
+        <button
+          onClick={toggleMetaOpen}
+          aria-expanded={metaOpen}
+          className="flex items-center gap-1 self-start rounded px-0.5 text-[11px] uppercase tracking-wide text-fg-faint transition-colors hover:text-fg-muted"
+        >
+          {metaOpen ? <ChevronDown size={11} /> : <ChevronRight size={11} />}
+          {t("metadata")}
+          {!metaOpen && metaCount > 0 && (
+            <span className="tabular-nums">({metaCount})</span>
+          )}
+        </button>
+        {/* Hidden, not unmounted, when collapsed: preserves in-progress chip
+            drafts and unaccepted AI suggestions — the same "hide, don't destroy"
+            contract the inner PropertiesPanel / AiMetaSuggestions collapses keep. */}
+        <div className={metaOpen ? "flex flex-col gap-1" : "hidden"}>
+          <div className="flex items-center gap-2">
+            <span className="w-12 shrink-0 text-[11px] uppercase tracking-wide text-fg-faint">
+              {t("tags")}
+            </span>
+            <ChipInput
+              values={note.frontmatter.tags ?? []}
+              onChange={(next) => void commitMeta({ tags: next })}
+              suggestions={tagSuggestions}
+              placeholder={t("addTag")}
+              ariaLabel={t("tags")}
+              renderChip={(v) => `#${v}`}
+            />
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-12 shrink-0 text-[11px] uppercase tracking-wide text-fg-faint">
+              {t("aliases")}
+            </span>
+            <ChipInput
+              values={note.frontmatter.aliases ?? []}
+              onChange={(next) => void commitMeta({ aliases: next })}
+              placeholder={t("addAlias")}
+              ariaLabel={t("aliases")}
+            />
+          </div>
+          <PropertiesPanel path={path} properties={note.properties ?? []} />
+          <AiMetaSuggestions
+            path={path}
+            noteTitle={note.title}
+            body={split.body}
+            knownTags={tagSuggestions}
+            existingTags={note.frontmatter.tags ?? []}
+            existingAliases={note.frontmatter.aliases ?? []}
+            existingPropertyKeys={(note.properties ?? []).map((p) => p.key)}
+            onAcceptTag={acceptSuggestedTag}
+            onAcceptAlias={acceptSuggestedAlias}
+            onAcceptProperty={acceptSuggestedProperty}
           />
         </div>
-        <div className="flex items-center gap-2">
-          <span className="w-12 shrink-0 text-[11px] uppercase tracking-wide text-fg-faint">
-            {t("aliases")}
-          </span>
-          <ChipInput
-            values={note.frontmatter.aliases ?? []}
-            onChange={(next) => void commitMeta({ aliases: next })}
-            placeholder={t("addAlias")}
-            ariaLabel={t("aliases")}
-          />
-        </div>
-        <PropertiesPanel path={path} properties={note.properties ?? []} />
-        <AiMetaSuggestions
-          path={path}
-          noteTitle={note.title}
-          body={split.body}
-          knownTags={tagSuggestions}
-          existingTags={note.frontmatter.tags ?? []}
-          existingAliases={note.frontmatter.aliases ?? []}
-          existingPropertyKeys={(note.properties ?? []).map((p) => p.key)}
-          onAcceptTag={acceptSuggestedTag}
-          onAcceptAlias={acceptSuggestedAlias}
-          onAcceptProperty={acceptSuggestedProperty}
-        />
       </div>
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
