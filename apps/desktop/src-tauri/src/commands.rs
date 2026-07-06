@@ -2,7 +2,10 @@
 //! call a `novalis_core` function. The vault/index lifecycle lives in
 //! [`open_vault`] / [`close_vault`].
 
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::{LazyLock, Mutex};
+use std::time::{Duration, Instant};
 
 use tauri::{AppHandle, Emitter, Manager, State};
 
@@ -25,6 +28,75 @@ use novalis_core::{calendar, export, git, media, templates, AppInfo, CoreError};
 use crate::engine::{AppEngine, CommandError, Engine};
 
 type CmdResult<T> = Result<T, CommandError>;
+
+// ── Self-write suppression ──────────────────────────────────────────────────
+//
+// App-initiated writes still hit the file watcher, which would redundantly
+// reindex the path and echo a `note-changed`/`note-deleted` event back at the
+// frontend for a change it just made (a storm on folder moves). Write commands
+// register the paths they touch; the watcher skips events for paths registered
+// within [`SELF_WRITE_WINDOW`].
+
+/// How long after an app-initiated write the watcher treats events for that
+/// path as self-inflicted. Comfortably covers the watcher's 300ms debounce
+/// without masking real external edits for long.
+const SELF_WRITE_WINDOW: Duration = Duration::from_secs(2);
+
+/// Vault-relative (forward-slashed) paths the app recently wrote, with when.
+static RECENT_SELF_WRITES: LazyLock<Mutex<HashMap<String, Instant>>> =
+    LazyLock::new(|| Mutex::new(HashMap::new()));
+
+/// Record that the app itself just wrote (or removed) `path`. Prunes expired
+/// entries so the map can't grow unboundedly.
+pub(crate) fn mark_self_write(path: &str) {
+    let now = Instant::now();
+    let mut map = RECENT_SELF_WRITES.lock().unwrap_or_else(|p| p.into_inner());
+    map.retain(|_, t| now.duration_since(*t) < SELF_WRITE_WINDOW);
+    map.insert(path.to_string(), now);
+}
+
+/// Whether the app wrote `path` within the suppression window.
+pub(crate) fn is_recent_self_write(path: &str) -> bool {
+    RECENT_SELF_WRITES
+        .lock()
+        .unwrap_or_else(|p| p.into_inner())
+        .get(path)
+        .is_some_and(|t| t.elapsed() < SELF_WRITE_WINDOW)
+}
+
+/// Pass through a note-returning command result, registering the note's path
+/// as a self-write on success.
+fn track_note_write(result: CmdResult<Note>) -> CmdResult<Note> {
+    if let Ok(note) = &result {
+        mark_self_write(&note.path);
+    }
+    result
+}
+
+/// Collect the vault-relative (forward-slashed) paths of all `.md` files under
+/// `folder_rel`, so bulk operations (folder move/trash) can register the whole
+/// subtree as self-writes. Hidden entries are skipped like the watcher does.
+fn collect_md_rel_paths(vault: &std::path::Path, folder_rel: &str, out: &mut Vec<String>) {
+    let Ok(entries) = std::fs::read_dir(vault.join(folder_rel)) else {
+        return;
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        if name.starts_with('.') {
+            continue;
+        }
+        let rel = if folder_rel.is_empty() {
+            name.clone()
+        } else {
+            format!("{}/{}", folder_rel.trim_end_matches('/'), name)
+        };
+        if entry.path().is_dir() {
+            collect_md_rel_paths(vault, &rel, out);
+        } else if name.ends_with(".md") {
+            out.push(rel);
+        }
+    }
+}
 
 /// Returns app/build info from the core. Works without a vault open.
 #[tauri::command]
@@ -226,19 +298,25 @@ pub async fn resolve_embed(app: AppHandle, target: String) -> CmdResult<EmbedRes
 #[tauri::command]
 #[specta::specta]
 pub fn create_note(state: State<AppEngine>, req: CreateNoteRequest) -> CmdResult<Note> {
-    state.with(|e| novalis_core::notes::create(&e.db, &e.vault_path, &e.data_dir, req))
+    track_note_write(
+        state.with(|e| novalis_core::notes::create(&e.db, &e.vault_path, &e.data_dir, req)),
+    )
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn update_note(state: State<AppEngine>, path: String, content: String) -> CmdResult<Note> {
-    state.with(|e| novalis_core::notes::update(&e.db, &e.vault_path, &e.data_dir, &path, &content))
+    track_note_write(
+        state.with(|e| {
+            novalis_core::notes::update(&e.db, &e.vault_path, &e.data_dir, &path, &content)
+        }),
+    )
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn update_note_meta(state: State<AppEngine>, req: UpdateMetaRequest) -> CmdResult<Note> {
-    state.with(|e| novalis_core::notes::update_meta(&e.db, &e.vault_path, req))
+    track_note_write(state.with(|e| novalis_core::notes::update_meta(&e.db, &e.vault_path, req)))
 }
 
 #[tauri::command]
@@ -249,13 +327,17 @@ pub fn set_property(
     key: String,
     value: PropertyValue,
 ) -> CmdResult<Note> {
-    state.with(|e| novalis_core::notes::set_property(&e.db, &e.vault_path, &path, &key, value))
+    track_note_write(
+        state.with(|e| novalis_core::notes::set_property(&e.db, &e.vault_path, &path, &key, value)),
+    )
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn remove_property(state: State<AppEngine>, path: String, key: String) -> CmdResult<Note> {
-    state.with(|e| novalis_core::notes::remove_property(&e.db, &e.vault_path, &path, &key))
+    track_note_write(
+        state.with(|e| novalis_core::notes::remove_property(&e.db, &e.vault_path, &path, &key)),
+    )
 }
 
 #[tauri::command]
@@ -266,27 +348,38 @@ pub fn rename_property(
     from: String,
     to: String,
 ) -> CmdResult<Note> {
-    state.with(|e| novalis_core::notes::rename_property(&e.db, &e.vault_path, &path, &from, &to))
+    track_note_write(
+        state.with(|e| {
+            novalis_core::notes::rename_property(&e.db, &e.vault_path, &path, &from, &to)
+        }),
+    )
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn move_note(state: State<AppEngine>, path: String, new_path: String) -> CmdResult<Note> {
-    state.with(|e| {
+    let note = state.with(|e| {
         novalis_core::notes::move_note(&e.db, &e.vault_path, &e.data_dir, &path, &new_path)
-    })
+    })?;
+    // The old path produces a delete event, the new one a change event — both
+    // echoes of this command.
+    mark_self_write(&path);
+    mark_self_write(&note.path);
+    Ok(note)
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn duplicate_note(state: State<AppEngine>, path: String) -> CmdResult<Note> {
-    state.with(|e| novalis_core::notes::duplicate(&e.db, &e.vault_path, &path))
+    track_note_write(state.with(|e| novalis_core::notes::duplicate(&e.db, &e.vault_path, &path)))
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn delete_note(state: State<AppEngine>, path: String) -> CmdResult<()> {
-    state.with(|e| novalis_core::notes::delete(&e.db, &e.vault_path, &path))
+    state.with(|e| novalis_core::notes::delete(&e.db, &e.vault_path, &path))?;
+    mark_self_write(&path);
+    Ok(())
 }
 
 /// Reveal a note file or folder in the OS file manager (Finder/Explorer/file
@@ -387,7 +480,18 @@ pub fn delete_folder(state: State<AppEngine>, path: String) -> CmdResult<()> {
 pub async fn move_folder(app: AppHandle, path: String, new_path: String) -> CmdResult<()> {
     tauri::async_runtime::spawn_blocking(move || {
         app.state::<AppEngine>().with(|e| {
+            // Every note in the subtree is a self-write: old paths produce
+            // delete events, new ones change events — all echoes of this
+            // command (an event storm on big folders).
+            let mut old_paths = Vec::new();
+            collect_md_rel_paths(&e.vault_path, &path, &mut old_paths);
             vault_fs::move_folder(&e.vault_path, &path, &new_path)?;
+            let (old_prefix, new_prefix) =
+                (path.trim_end_matches('/'), new_path.trim_end_matches('/'));
+            for old in &old_paths {
+                mark_self_write(old);
+                mark_self_write(&format!("{new_prefix}{}", &old[old_prefix.len()..]));
+            }
             search::build_index(&e.db, &e.vault_path)
         })
     })
@@ -407,7 +511,15 @@ pub async fn move_folder(app: AppHandle, path: String, new_path: String) -> CmdR
 pub async fn delete_folder_recursive(app: AppHandle, path: String) -> CmdResult<()> {
     tauri::async_runtime::spawn_blocking(move || {
         app.state::<AppEngine>().with(|e| {
+            // Every removed note produces a delete event — echoes of this
+            // command. (The trash destination is under `.novalis/`, which the
+            // watcher already skips as hidden.)
+            let mut old_paths = Vec::new();
+            collect_md_rel_paths(&e.vault_path, &path, &mut old_paths);
             trash::trash_folder(&e.vault_path, &path)?;
+            for old in &old_paths {
+                mark_self_write(old);
+            }
             search::build_index(&e.db, &e.vault_path)
         })
     })
@@ -485,9 +597,9 @@ pub fn link_mention(
     title: String,
     line: usize,
 ) -> CmdResult<Note> {
-    state.with(|e| {
+    track_note_write(state.with(|e| {
         novalis_core::notes::link_mention(&e.db, &e.vault_path, &e.data_dir, &path, &title, line)
-    })
+    }))
 }
 
 /// The 1-hop link neighborhood of `path` for the local graph view. Index-only.
@@ -590,11 +702,13 @@ pub fn list_trash(state: State<AppEngine>) -> CmdResult<Vec<TrashItem>> {
 #[tauri::command]
 #[specta::specta]
 pub fn restore_trash(state: State<AppEngine>, id: String) -> CmdResult<String> {
-    state.with(|e| {
+    let restored = state.with(|e| {
         let restored = trash::restore_note(&e.vault_path, &id)?;
         change::reindex_path(&e.db, &e.vault_path, &restored)?;
         Ok(restored)
-    })
+    })?;
+    mark_self_write(&restored);
+    Ok(restored)
 }
 
 #[tauri::command]
@@ -645,9 +759,9 @@ pub fn restore_version(
     path: String,
     version_id: String,
 ) -> CmdResult<Note> {
-    state.with(|e| {
+    track_note_write(state.with(|e| {
         novalis_core::notes::restore_version(&e.db, &e.vault_path, &e.data_dir, &path, &version_id)
-    })
+    }))
 }
 
 // ── Preferences ────────────────────────────────────────────────────────────
@@ -905,7 +1019,9 @@ pub fn move_task(state: State<AppEngine>, id: String, dest_note: String) -> CmdR
 #[tauri::command]
 #[specta::specta]
 pub fn quick_capture(state: State<AppEngine>, req: CaptureRequest) -> CmdResult<String> {
-    state.with(|e| task_svc::quick_capture(&e.db, &e.vault_path, req))
+    let dest = state.with(|e| task_svc::quick_capture(&e.db, &e.vault_path, req))?;
+    mark_self_write(&dest);
+    Ok(dest)
 }
 
 // ── Export / templates / media ─────────────────────────────────────────────
@@ -1014,19 +1130,29 @@ pub fn list_events(
 #[tauri::command]
 #[specta::specta]
 pub fn create_event(state: State<AppEngine>, input: EventInput) -> CmdResult<CalendarEvent> {
-    state.with(|e| calendar::create_event(&e.db, &e.vault_path, input))
+    let ev = state.with(|e| calendar::create_event(&e.db, &e.vault_path, input))?;
+    if let Some(p) = &ev.note_path {
+        mark_self_write(p);
+    }
+    Ok(ev)
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn update_event(state: State<AppEngine>, input: EventInput) -> CmdResult<CalendarEvent> {
-    state.with(|e| calendar::update_event(&e.db, &e.vault_path, input))
+    let ev = state.with(|e| calendar::update_event(&e.db, &e.vault_path, input))?;
+    if let Some(p) = &ev.note_path {
+        mark_self_write(p);
+    }
+    Ok(ev)
 }
 
 #[tauri::command]
 #[specta::specta]
 pub fn delete_event(state: State<AppEngine>, note_path: String) -> CmdResult<()> {
-    state.with(|e| calendar::delete_event(&e.db, &e.vault_path, &note_path))
+    state.with(|e| calendar::delete_event(&e.db, &e.vault_path, &note_path))?;
+    mark_self_write(&note_path);
+    Ok(())
 }
 
 #[tauri::command]
@@ -1190,7 +1316,10 @@ pub fn import_ics(app: AppHandle, state: State<AppEngine>) -> CmdResult<u32> {
 
     state.with(|e| {
         for ev in &events {
-            calendar::create_event(&e.db, &e.vault_path, event_to_input(ev))?;
+            let created = calendar::create_event(&e.db, &e.vault_path, event_to_input(ev))?;
+            if let Some(p) = &created.note_path {
+                mark_self_write(p);
+            }
         }
         Ok(events.len() as u32)
     })
@@ -1288,6 +1417,23 @@ fn now_ms() -> i64 {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn self_write_suppression_tracks_marked_paths() {
+        assert!(
+            !is_recent_self_write("suppress-test/never-written.md"),
+            "unmarked paths are not suppressed"
+        );
+        mark_self_write("suppress-test/note.md");
+        assert!(
+            is_recent_self_write("suppress-test/note.md"),
+            "a just-marked path is suppressed"
+        );
+        assert!(
+            !is_recent_self_write("suppress-test/other.md"),
+            "suppression is per path"
+        );
+    }
 
     #[test]
     fn validate_vault_accepts_existing_dir_and_rejects_missing() {

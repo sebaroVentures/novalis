@@ -87,6 +87,12 @@ fn process(app: &AppHandle, vault: &Path, path: &Path, conflict_re: &regex::Rege
     }
     let rel_str = rel.to_string_lossy().replace('\\', "/");
 
+    // App-initiated writes already updated the index in the command that made
+    // them; skip the redundant reindex and don't echo events back at the UI.
+    if crate::commands::is_recent_self_write(&rel_str) {
+        return;
+    }
+
     // Keep the index current via the same path as a manual rescan. Poison
     // recovery matches [`AppEngine::with`] — a poisoned lock must not stop
     // the watcher from indexing forever.
