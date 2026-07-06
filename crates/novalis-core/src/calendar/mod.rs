@@ -90,17 +90,57 @@ pub fn create_event(db: &Connection, vault: &Path, input: EventInput) -> CoreRes
         .ok_or_else(|| CoreError::Internal("event was not persisted".to_string()))
 }
 
-/// Update an existing own event's frontmatter (body preserved).
+/// Set an event-owned `extra` key to `value`, or remove it when the input
+/// cleared the field — mirroring [`build_frontmatter`], which omits absent
+/// optionals.
+fn set_or_clear(
+    map: &mut serde_json::Map<String, serde_json::Value>,
+    key: &str,
+    value: Option<&str>,
+) {
+    match value {
+        Some(v) => {
+            map.insert(key.to_string(), json!(v));
+        }
+        None => {
+            map.remove(key);
+        }
+    }
+}
+
+/// Update an existing own event's frontmatter (body preserved). MERGES into
+/// the note's existing frontmatter — only the title and the event-owned keys
+/// (`type`/`date`/`allDay`/`startTime`/`endTime`/`rrule`/`location`) are
+/// rewritten; created/tags/aliases/pinned and custom keys pass through
+/// untouched (the `notes::mutate_extra` pattern).
 pub fn update_event(db: &Connection, vault: &Path, input: EventInput) -> CoreResult<CalendarEvent> {
     let rel = input.note_path.clone().ok_or_else(|| {
         CoreError::BadRequest("notePath is required to update an event".to_string())
     })?;
 
     let note = vault_fs::read_note(vault, &rel)?;
-    let (_, body) = frontmatter::parse_frontmatter(&note.content);
-    let fm = build_frontmatter(&input);
+    // STRICT parse: broken frontmatter must error, not be replaced wholesale.
+    let (mut fm, body) = frontmatter::parse_frontmatter_strict(&note.content)?;
+
+    fm.title = Some(input.title.clone());
+    fm.modified = chrono::Utc::now().to_rfc3339();
+
+    // `extra` is Null on a fresh default; normalize to an object to mutate.
+    let mut extra = match fm.extra.take() {
+        serde_json::Value::Object(m) => m,
+        _ => serde_json::Map::new(),
+    };
+    extra.insert("type".into(), json!("event"));
+    extra.insert("date".into(), json!(input.date));
+    extra.insert("allDay".into(), json!(input.all_day));
+    set_or_clear(&mut extra, "startTime", input.start_time.as_deref());
+    set_or_clear(&mut extra, "endTime", input.end_time.as_deref());
+    set_or_clear(&mut extra, "rrule", input.rrule.as_deref());
+    set_or_clear(&mut extra, "location", input.location.as_deref());
+    fm.extra = serde_json::Value::Object(extra);
+
     let content = frontmatter::serialize_frontmatter(&fm, &body);
-    std::fs::write(vault_fs::vault_rel(vault, &rel)?, &content)?;
+    vault_fs::write_atomic(&vault_fs::vault_rel(vault, &rel)?, &content)?;
     change::reindex_path(db, vault, &rel)?;
 
     events::event_from_note(&fm.extra, &input.title, &rel)
@@ -208,6 +248,58 @@ mod tests {
         let listed = list_events(&db, "2026-06-01", "2026-06-30").unwrap();
         assert_eq!(listed.len(), 1);
         assert_eq!(listed[0].title, "Sprint review");
+
+        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn update_event_preserves_unrelated_frontmatter() {
+        let (vault, db) = ctx();
+        // An event note that also carries tags, a custom key, and a body.
+        std::fs::create_dir_all(vault.join("Calendar")).unwrap();
+        std::fs::write(
+            vault.join("Calendar/Standup.md"),
+            "---\ntitle: Standup\ncreated: \"2026-01-01T00:00:00Z\"\ntags:\n  - work\ncolor: red\ntype: event\ndate: \"2026-06-02\"\nallDay: false\nstartTime: \"09:00\"\nendTime: \"09:15\"\n---\n\nAgenda notes body\n",
+        )
+        .unwrap();
+        crate::change::reindex_path(&db, &vault, "Calendar/Standup.md").unwrap();
+
+        let e = update_event(
+            &db,
+            &vault,
+            EventInput {
+                title: "Standup (moved)".into(),
+                date: "2026-06-03".into(),
+                all_day: false,
+                start_time: Some("10:00".into()),
+                end_time: None,
+                rrule: None,
+                location: Some("Room 2".into()),
+                note_path: Some("Calendar/Standup.md".into()),
+            },
+        )
+        .unwrap();
+        assert_eq!(e.start, "2026-06-03T10:00");
+
+        let raw = std::fs::read_to_string(vault.join("Calendar/Standup.md")).unwrap();
+        // Unrelated frontmatter and the body survive the update.
+        assert!(raw.contains("- work"), "tags must survive:\n{raw}");
+        assert!(
+            raw.contains("color: red"),
+            "custom key must survive:\n{raw}"
+        );
+        assert!(
+            raw.contains("2026-01-01T00:00:00Z"),
+            "created must survive:\n{raw}"
+        );
+        assert!(raw.contains("Agenda notes body"));
+        // Event fields are updated; a cleared optional is removed.
+        assert!(raw.contains("2026-06-03"));
+        assert!(raw.contains("location: Room 2"));
+        assert!(
+            !raw.contains("endTime"),
+            "cleared endTime must be removed:\n{raw}"
+        );
 
         std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }
