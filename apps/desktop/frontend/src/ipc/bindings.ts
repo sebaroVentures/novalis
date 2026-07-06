@@ -81,8 +81,20 @@ export const commands = {
 	 *  Delete a folder and all its contents by moving the whole subtree to trash.
 	 *  Unlike [`delete_folder`] (which only removes an empty folder), this is
 	 *  recoverable. The index is rebuilt so the removed notes leave it immediately.
+	 * 
+	 *  `async` + `spawn_blocking` for the same reason as [`reindex_vault`]: the
+	 *  full index rebuild reads every note and would freeze the UI on the main
+	 *  thread.
 	 */
 	deleteFolderRecursive: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_folder_recursive", { path })),
+	/**
+	 *  Notes move with the folder; rebuild the index so paths stay correct even
+	 *  before the file watcher catches up.
+	 * 
+	 *  `async` + `spawn_blocking` for the same reason as [`reindex_vault`]: the
+	 *  full index rebuild reads every note and would freeze the UI on the main
+	 *  thread.
+	 */
 	moveFolder: (path: string, newPath: string) => typedError<null, CommandError>(__TAURI_INVOKE("move_folder", { path, newPath })),
 	search: (query: string, folder: string | null, tag: string | null) => typedError<SearchResult[], CommandError>(__TAURI_INVOKE("search", { query, folder, tag })),
 	quickSearch: (query: string) => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("quick_search", { query })),
@@ -236,6 +248,10 @@ export const commands = {
 	/**
 	 *  Refresh a source's cached events. ICS-URL sources are fetched over HTTP;
 	 *  Google/Outlook sources use stored OAuth tokens. Returns the number cached.
+	 * 
+	 *  `async` + `spawn_blocking`: the refresh does blocking network I/O (ICS
+	 *  download or provider API round-trips), which would freeze the UI on the
+	 *  main thread.
 	 */
 	refreshCalendarSource: (id: string) => typedError<number, CommandError>(__TAURI_INVOKE("refresh_calendar_source", { id })),
 	/**  Import an `.ics` file (native picker), creating own events. Returns the count. */
@@ -245,6 +261,11 @@ export const commands = {
 	/**
 	 *  Run the interactive OAuth flow for `provider` ("google" | "outlook") and
 	 *  register it as a calendar source.
+	 * 
+	 *  `async` + `spawn_blocking`: the flow blocks on the loopback listener for up
+	 *  to 180s waiting for the browser redirect, then does the token exchange over
+	 *  the network — on the main thread that would freeze the UI for the whole
+	 *  flow. The engine lock is only taken afterwards, to register the source.
 	 */
 	oauthBegin: (provider: string) => typedError<null, CommandError>(__TAURI_INVOKE("oauth_begin", { provider })),
 	/**  Whether a provider is currently connected. */

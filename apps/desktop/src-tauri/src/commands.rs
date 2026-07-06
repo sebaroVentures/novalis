@@ -376,27 +376,43 @@ pub fn delete_folder(state: State<AppEngine>, path: String) -> CmdResult<()> {
     state.with(|e| vault_fs::delete_folder(&e.vault_path, &path))
 }
 
+/// Notes move with the folder; rebuild the index so paths stay correct even
+/// before the file watcher catches up.
+///
+/// `async` + `spawn_blocking` for the same reason as [`reindex_vault`]: the
+/// full index rebuild reads every note and would freeze the UI on the main
+/// thread.
 #[tauri::command]
 #[specta::specta]
-pub fn move_folder(state: State<AppEngine>, path: String, new_path: String) -> CmdResult<()> {
-    // Notes move with the folder; rebuild the index so paths stay correct even
-    // before the file watcher catches up.
-    state.with(|e| {
-        vault_fs::move_folder(&e.vault_path, &path, &new_path)?;
-        search::build_index(&e.db, &e.vault_path)
+pub async fn move_folder(app: AppHandle, path: String, new_path: String) -> CmdResult<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<AppEngine>().with(|e| {
+            vault_fs::move_folder(&e.vault_path, &path, &new_path)?;
+            search::build_index(&e.db, &e.vault_path)
+        })
     })
+    .await
+    .map_err(|e| CommandError::internal(format!("move_folder task panicked: {e}")))?
 }
 
 /// Delete a folder and all its contents by moving the whole subtree to trash.
 /// Unlike [`delete_folder`] (which only removes an empty folder), this is
 /// recoverable. The index is rebuilt so the removed notes leave it immediately.
+///
+/// `async` + `spawn_blocking` for the same reason as [`reindex_vault`]: the
+/// full index rebuild reads every note and would freeze the UI on the main
+/// thread.
 #[tauri::command]
 #[specta::specta]
-pub fn delete_folder_recursive(state: State<AppEngine>, path: String) -> CmdResult<()> {
-    state.with(|e| {
-        trash::trash_folder(&e.vault_path, &path)?;
-        search::build_index(&e.db, &e.vault_path)
+pub async fn delete_folder_recursive(app: AppHandle, path: String) -> CmdResult<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<AppEngine>().with(|e| {
+            trash::trash_folder(&e.vault_path, &path)?;
+            search::build_index(&e.db, &e.vault_path)
+        })
     })
+    .await
+    .map_err(|e| CommandError::internal(format!("delete_folder_recursive task panicked: {e}")))?
 }
 
 // ── Search & links ─────────────────────────────────────────────────────────
@@ -1046,75 +1062,93 @@ pub fn remove_calendar_source(state: State<AppEngine>, id: String) -> CmdResult<
 
 /// Refresh a source's cached events. ICS-URL sources are fetched over HTTP;
 /// Google/Outlook sources use stored OAuth tokens. Returns the number cached.
+///
+/// `async` + `spawn_blocking`: the refresh does blocking network I/O (ICS
+/// download or provider API round-trips), which would freeze the UI on the
+/// main thread.
 #[tauri::command]
 #[specta::specta]
-pub fn refresh_calendar_source(state: State<AppEngine>, id: String) -> CmdResult<u32> {
-    let (kind, url) = state.with(|e| {
-        calendar::source::list_sources(&e.vault_path)
-            .into_iter()
-            .find(|s| s.id == id)
-            .ok_or_else(|| CoreError::NotFound(format!("Calendar source not found: {id}")))
-            .map(|s| (s.kind, s.url))
-    })?;
+pub async fn refresh_calendar_source(app: AppHandle, id: String) -> CmdResult<u32> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let state = app.state::<AppEngine>();
+        let (kind, url) = state.with(|e| {
+            calendar::source::list_sources(&e.vault_path)
+                .into_iter()
+                .find(|s| s.id == id)
+                .ok_or_else(|| CoreError::NotFound(format!("Calendar source not found: {id}")))
+                .map(|s| (s.kind, s.url))
+        })?;
 
-    // Broad rolling window for the cache.
-    let today = chrono::Local::now().date_naive();
-    let start = (today - chrono::Days::new(31))
-        .format("%Y-%m-%d")
-        .to_string();
-    let end = (today + chrono::Days::new(365))
-        .format("%Y-%m-%d")
-        .to_string();
+        // Broad rolling window for the cache.
+        let today = chrono::Local::now().date_naive();
+        let start = (today - chrono::Days::new(31))
+            .format("%Y-%m-%d")
+            .to_string();
+        let end = (today + chrono::Days::new(365))
+            .format("%Y-%m-%d")
+            .to_string();
 
-    // Network fetch happens outside the engine lock.
-    let events = match kind.as_str() {
-        "icsUrl" => {
-            let Some(url) = url else {
-                return Ok(0);
-            };
-            let bytes = reqwest::blocking::get(&url)
-                .and_then(|r| r.bytes())
-                .map_err(|err| CommandError::internal(format!("fetch failed: {err}")))?;
-            calendar::source::import_ics(&bytes, &id)?
-        }
-        "google" | "outlook" => crate::oauth::fetch_events(&kind, &id, &start, &end)?,
-        _ => return Ok(0),
-    };
+        // Network fetch happens outside the engine lock.
+        let events = match kind.as_str() {
+            "icsUrl" => {
+                let Some(url) = url else {
+                    return Ok(0);
+                };
+                let bytes = reqwest::blocking::get(&url)
+                    .and_then(|r| r.bytes())
+                    .map_err(|err| CommandError::internal(format!("fetch failed: {err}")))?;
+                calendar::source::import_ics(&bytes, &id)?
+            }
+            "google" | "outlook" => crate::oauth::fetch_events(&kind, &id, &start, &end)?,
+            _ => return Ok(0),
+        };
 
-    state.with(|e| {
-        novalis_core::index::events::clear_source(&e.db, &id)?;
-        for ev in &events {
-            novalis_core::index::events::upsert(&e.db, ev)?;
-        }
-        Ok(events.len() as u32)
+        state.with(|e| {
+            novalis_core::index::events::clear_source(&e.db, &id)?;
+            for ev in &events {
+                novalis_core::index::events::upsert(&e.db, ev)?;
+            }
+            Ok(events.len() as u32)
+        })
     })
+    .await
+    .map_err(|e| CommandError::internal(format!("refresh_calendar_source task panicked: {e}")))?
 }
 
 // ── OAuth (Google / Outlook) ──────────────────────────────────────────────
 
 /// Run the interactive OAuth flow for `provider` ("google" | "outlook") and
 /// register it as a calendar source.
+///
+/// `async` + `spawn_blocking`: the flow blocks on the loopback listener for up
+/// to 180s waiting for the browser redirect, then does the token exchange over
+/// the network — on the main thread that would freeze the UI for the whole
+/// flow. The engine lock is only taken afterwards, to register the source.
 #[tauri::command]
 #[specta::specta]
-pub fn oauth_begin(app: AppHandle, state: State<AppEngine>, provider: String) -> CmdResult<()> {
-    crate::oauth::connect(&app, &provider)?;
-    let name = match provider.as_str() {
-        "google" => "Google Calendar",
-        "outlook" => "Outlook Calendar",
-        _ => "Calendar",
-    };
-    state.with(|e| {
-        calendar::source::add_source(
-            &e.vault_path,
-            CalendarSourceConfig {
-                id: provider.clone(),
-                kind: provider.clone(),
-                name: name.to_string(),
-                url: None,
-                enabled: true,
-            },
-        )
+pub async fn oauth_begin(app: AppHandle, provider: String) -> CmdResult<()> {
+    tauri::async_runtime::spawn_blocking(move || {
+        crate::oauth::connect(&app, &provider)?;
+        let name = match provider.as_str() {
+            "google" => "Google Calendar",
+            "outlook" => "Outlook Calendar",
+            _ => "Calendar",
+        };
+        app.state::<AppEngine>().with(|e| {
+            calendar::source::add_source(
+                &e.vault_path,
+                CalendarSourceConfig {
+                    id: provider.clone(),
+                    kind: provider.clone(),
+                    name: name.to_string(),
+                    url: None,
+                    enabled: true,
+                },
+            )
+        })
     })
+    .await
+    .map_err(|e| CommandError::internal(format!("oauth_begin task panicked: {e}")))?
 }
 
 /// Whether a provider is currently connected.
