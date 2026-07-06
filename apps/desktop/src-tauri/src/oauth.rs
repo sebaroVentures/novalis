@@ -120,7 +120,16 @@ fn tokens_from_resp(
     let access = resp
         .get("access_token")
         .and_then(|v| v.as_str())
-        .ok_or_else(|| CommandError::internal(format!("no access_token in response: {resp}")))?
+        .ok_or_else(|| {
+            // Never echo the raw provider response to the frontend; log the
+            // provider's error code (not the body) for diagnosis.
+            let code = resp
+                .get("error")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            log::warn!("oauth token endpoint returned no access_token (error: {code})");
+            CommandError::internal("token endpoint returned no access token")
+        })?
         .to_string();
     let refresh = resp
         .get("refresh_token")
