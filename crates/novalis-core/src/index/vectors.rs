@@ -88,7 +88,7 @@ pub fn encode(vec: &[f32]) -> Vec<u8> {
 /// corrupt BLOB (length not a multiple of 4) rather than panicking, so a damaged
 /// row degrades to "no vector" instead of crashing a query.
 pub fn decode(bytes: &[u8]) -> Option<Vec<f32>> {
-    if bytes.len() % 4 != 0 {
+    if !bytes.len().is_multiple_of(4) {
         return None;
     }
     Some(
