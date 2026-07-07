@@ -25,7 +25,7 @@ pub fn create(db: &Connection, vault: &Path, req: CreateTaskRequest) -> CoreResu
         ));
     }
 
-    let prefs = config::read_preferences(vault);
+    let prefs = config::try_read_preferences(vault)?;
     let today = chrono::Local::now().date_naive();
     let dest = prefs
         .task_view
@@ -193,7 +193,7 @@ pub fn quick_capture(db: &Connection, vault: &Path, req: CaptureRequest) -> Core
         ));
     }
 
-    let prefs = config::read_preferences(vault);
+    let prefs = config::try_read_preferences(vault)?;
     let today = chrono::Local::now().date_naive();
     let dest = prefs
         .task_view
@@ -216,17 +216,22 @@ mod tests {
     use crate::index::schema;
 
     struct Ctx {
+        _tmp: tempfile::TempDir,
         vault: std::path::PathBuf,
         db: Connection,
     }
 
     fn ctx() -> Ctx {
-        let base = std::env::temp_dir().join(format!("novalis-tasks-{}", uuid::Uuid::new_v4()));
-        let vault = base.join("vault");
+        let base = tempfile::tempdir().unwrap();
+        let vault = base.path().join("vault");
         std::fs::create_dir_all(&vault).unwrap();
-        std::fs::create_dir_all(base.join("data/db")).unwrap();
-        let db = schema::open_db(&base.join("data/db/notes.db")).unwrap();
-        Ctx { vault, db }
+        std::fs::create_dir_all(base.path().join("data/db")).unwrap();
+        let db = schema::open_db(&base.path().join("data/db/notes.db")).unwrap();
+        Ctx {
+            _tmp: base,
+            vault,
+            db,
+        }
     }
 
     #[test]
@@ -267,8 +272,6 @@ mod tests {
         )
         .unwrap();
         assert!(still_open.is_empty());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -303,8 +306,6 @@ mod tests {
         // Unknown field and invalid slug are rejected without writing.
         assert!(update_task(&c.db, &c.vault, &task.id, "bogus", Some("x")).is_err());
         assert!(update_task(&c.db, &c.vault, &task.id, "project", Some("Bad Slug")).is_err());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -345,8 +346,6 @@ mod tests {
         // Out-of-range priority and malformed date are rejected.
         assert!(update_task(&c.db, &c.vault, &task.id, "priority", Some("epic")).is_err());
         assert!(update_task(&c.db, &c.vault, &task.id, "due", Some("2026/06/10")).is_err());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -385,8 +384,6 @@ mod tests {
 
         // Unknown interval is rejected without writing.
         assert!(update_task(&c.db, &c.vault, &task.id, "repeat", Some("fortnightly")).is_err());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -421,8 +418,6 @@ mod tests {
         let remaining = list(&c.db, &TaskQuery::default()).unwrap();
         assert!(remaining.iter().all(|t| !t.text.starts_with("First")));
         assert!(remaining.iter().any(|t| t.text.starts_with("Second")));
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -452,8 +447,6 @@ mod tests {
         assert!(!std::fs::read_to_string(c.vault.join("_Inbox.md"))
             .unwrap()
             .contains("Relocate me"));
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -482,8 +475,6 @@ mod tests {
             assert_eq!(c_task.source_note, "Projects/Plan.md");
             assert_eq!(c_task.parent_id.as_deref(), Some(new_parent.id.as_str()));
         }
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -509,7 +500,6 @@ mod tests {
             std::fs::read_to_string(c.vault.join("_Inbox.md")).unwrap(),
             before
         );
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -533,8 +523,6 @@ mod tests {
         assert!(move_task(&c.db, &c.vault, &task.id, "   ").is_err());
         // Unknown id is a NotFound.
         assert!(move_task(&c.db, &c.vault, "does-not-exist", "Projects/Work.md").is_err());
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -562,8 +550,6 @@ mod tests {
         assert!(after
             .iter()
             .any(|t| !t.completed && t.due_date.as_deref() == Some("2026-05-25")));
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 
     #[test]
@@ -590,7 +576,5 @@ mod tests {
         assert!(after
             .iter()
             .any(|t| !t.completed && t.due_date.as_deref() == Some("2026-06-08")));
-
-        std::fs::remove_dir_all(c.vault.parent().unwrap()).ok();
     }
 }

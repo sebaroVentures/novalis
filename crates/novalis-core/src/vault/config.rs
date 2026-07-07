@@ -51,13 +51,28 @@ fn prefs_path(vault: &Path) -> PathBuf {
     config_dir(vault).join(PREFS_FILE)
 }
 
-/// Read preferences from `<vault>/.novalis/config.json`, defaulting if missing
-/// or unparseable.
-pub fn read_preferences(vault: &Path) -> Preferences {
-    match std::fs::read_to_string(prefs_path(vault)) {
-        Ok(contents) => serde_json::from_str(&contents).unwrap_or_default(),
-        Err(_) => Preferences::default(),
+/// Read preferences from `<vault>/.novalis/config.json`. A missing file is
+/// legitimate (fresh vault) and yields defaults; an unreadable or malformed
+/// file is an error — silently defaulting here meant one bad edit plus any
+/// later [`write_preferences`] permanently replaced the user's file.
+pub fn try_read_preferences(vault: &Path) -> CoreResult<Preferences> {
+    let path = prefs_path(vault);
+    match std::fs::read_to_string(&path) {
+        Ok(contents) => serde_json::from_str(&contents)
+            .map_err(|e| CoreError::Serde(format!("{}: {e}", path.display()))),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Preferences::default()),
+        Err(e) => Err(e.into()),
     }
+}
+
+/// Shim for callers that cannot surface errors: failures are logged and fall
+/// back to defaults. Prefer [`try_read_preferences`].
+#[deprecated(note = "use try_read_preferences — this swallows parse errors")]
+pub fn read_preferences(vault: &Path) -> Preferences {
+    try_read_preferences(vault).unwrap_or_else(|e| {
+        log::warn!("read_preferences: falling back to defaults: {e}");
+        Preferences::default()
+    })
 }
 
 /// Write preferences to `<vault>/.novalis/config.json`, creating the dir.
@@ -67,4 +82,29 @@ pub fn write_preferences(vault: &Path, prefs: &Preferences) -> CoreResult<()> {
     let json = serde_json::to_string_pretty(prefs).map_err(|e| CoreError::Serde(e.to_string()))?;
     crate::vault::fs::write_atomic(&dir.join(PREFS_FILE), &json)?;
     Ok(())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn missing_prefs_file_yields_defaults() {
+        let dir = tempfile::tempdir().unwrap();
+        let prefs = try_read_preferences(dir.path()).unwrap();
+        assert_eq!(
+            serde_json::to_value(&prefs).unwrap(),
+            serde_json::to_value(Preferences::default()).unwrap()
+        );
+    }
+
+    #[test]
+    fn malformed_prefs_file_is_an_error_not_a_silent_default() {
+        let dir = tempfile::tempdir().unwrap();
+        let cfg = config_dir(dir.path());
+        std::fs::create_dir_all(&cfg).unwrap();
+        std::fs::write(cfg.join(PREFS_FILE), "{ not json").unwrap();
+        let err = try_read_preferences(dir.path()).unwrap_err();
+        assert!(matches!(err, CoreError::Serde(_)), "got: {err:?}");
+    }
 }

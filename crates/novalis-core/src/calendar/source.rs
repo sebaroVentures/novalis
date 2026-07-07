@@ -19,12 +19,28 @@ fn sources_path(vault: &Path) -> PathBuf {
         .join(SOURCES_FILE)
 }
 
-/// Configured calendar sources for the vault.
-pub fn list_sources(vault: &Path) -> Vec<CalendarSourceConfig> {
-    match std::fs::read_to_string(sources_path(vault)) {
-        Ok(s) => serde_json::from_str(&s).unwrap_or_default(),
-        Err(_) => Vec::new(),
+/// Configured calendar sources for the vault. A missing file is legitimate
+/// (no sources yet) and yields an empty list; an unreadable or malformed file
+/// is an error — silently defaulting meant one bad edit plus any later
+/// [`write_sources`] permanently replaced the user's subscriptions.
+pub fn try_list_sources(vault: &Path) -> CoreResult<Vec<CalendarSourceConfig>> {
+    let path = sources_path(vault);
+    match std::fs::read_to_string(&path) {
+        Ok(s) => serde_json::from_str(&s)
+            .map_err(|e| CoreError::Serde(format!("{}: {e}", path.display()))),
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(Vec::new()),
+        Err(e) => Err(e.into()),
     }
+}
+
+/// Shim for callers that cannot surface errors: failures are logged and fall
+/// back to an empty list. Prefer [`try_list_sources`].
+#[deprecated(note = "use try_list_sources — this swallows parse errors")]
+pub fn list_sources(vault: &Path) -> Vec<CalendarSourceConfig> {
+    try_list_sources(vault).unwrap_or_else(|e| {
+        log::warn!("list_sources: falling back to no sources: {e}");
+        Vec::new()
+    })
 }
 
 fn write_sources(vault: &Path, sources: &[CalendarSourceConfig]) -> CoreResult<()> {
@@ -40,7 +56,7 @@ fn write_sources(vault: &Path, sources: &[CalendarSourceConfig]) -> CoreResult<(
 
 /// Add (or replace, by id) a calendar source.
 pub fn add_source(vault: &Path, cfg: CalendarSourceConfig) -> CoreResult<()> {
-    let mut sources = list_sources(vault);
+    let mut sources = try_list_sources(vault)?;
     sources.retain(|s| s.id != cfg.id);
     sources.push(cfg);
     write_sources(vault, &sources)
@@ -48,7 +64,7 @@ pub fn add_source(vault: &Path, cfg: CalendarSourceConfig) -> CoreResult<()> {
 
 /// Remove a calendar source by id.
 pub fn remove_source(vault: &Path, id: &str) -> CoreResult<()> {
-    let mut sources = list_sources(vault);
+    let mut sources = try_list_sources(vault)?;
     sources.retain(|s| s.id != id);
     write_sources(vault, &sources)
 }
@@ -187,5 +203,35 @@ mod tests {
         let (start, all_day) = parse_ical_dt("20260704");
         assert_eq!(start, "2026-07-04");
         assert!(all_day);
+    }
+
+    #[test]
+    fn missing_sources_file_yields_empty_list() {
+        let dir = tempfile::tempdir().unwrap();
+        assert!(try_list_sources(dir.path()).unwrap().is_empty());
+    }
+
+    #[test]
+    fn malformed_sources_file_errors_and_is_never_clobbered() {
+        let dir = tempfile::tempdir().unwrap();
+        let path = sources_path(dir.path());
+        std::fs::create_dir_all(path.parent().unwrap()).unwrap();
+        std::fs::write(&path, "[ not json").unwrap();
+
+        let err = try_list_sources(dir.path()).unwrap_err();
+        assert!(matches!(err, CoreError::Serde(_)), "got: {err:?}");
+
+        // add/remove must refuse to write through a parse error — otherwise
+        // the user's subscriptions file would be silently replaced.
+        let cfg = CalendarSourceConfig {
+            id: "sub1".into(),
+            kind: "ics".into(),
+            name: "Team".into(),
+            url: Some("https://example.com/cal.ics".into()),
+            enabled: true,
+        };
+        assert!(add_source(dir.path(), cfg).is_err());
+        assert!(remove_source(dir.path(), "sub1").is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), "[ not json");
     }
 }
