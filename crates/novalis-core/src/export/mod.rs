@@ -9,11 +9,24 @@ use pulldown_cmark::{html, CodeBlockKind, Event, HeadingLevel, Options, Parser, 
 
 use crate::error::{CoreError, CoreResult};
 
+/// Escape text for interpolation into HTML. The body is escaped by
+/// pulldown-cmark's renderer; this covers the raw note title (a hostile
+/// `</title><script>…` title must not produce script-bearing export HTML).
+/// The docx path needs no equivalent: docx-rs XML-escapes text runs itself.
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+        .replace('\'', "&#39;")
+}
+
 /// Render a note body to a standalone, styled HTML document.
 pub fn note_html(title: &str, body: &str) -> String {
     let parser = Parser::new_ext(body, Options::all());
     let mut html_body = String::new();
     html::push_html(&mut html_body, parser);
+    let title = escape_html(title);
 
     format!(
         r#"<!DOCTYPE html>
@@ -286,10 +299,25 @@ mod tests {
     }
 
     #[test]
+    fn html_escapes_hostile_title() {
+        let html = note_html("</title><script>alert(1)</script>", "body");
+        assert!(!html.contains("<script>"), "title must not inject markup");
+        assert!(html.contains("&lt;/title&gt;&lt;script&gt;alert(1)&lt;/script&gt;"));
+    }
+
+    #[test]
     fn docx_produces_nonempty_zip() {
         let bytes = note_docx("My Note", "# Hello\n\n- a\n- b").unwrap();
         // .docx is a zip; it starts with "PK".
         assert!(bytes.len() > 100);
+        assert_eq!(&bytes[..2], b"PK");
+    }
+
+    #[test]
+    fn docx_survives_hostile_title() {
+        // docx-rs escapes text runs itself; a markup-laden title must still
+        // pack into a valid archive rather than corrupt the document XML.
+        let bytes = note_docx("</w:t></w:r><script>", "body").unwrap();
         assert_eq!(&bytes[..2], b"PK");
     }
 }
