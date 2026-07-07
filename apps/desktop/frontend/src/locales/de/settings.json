@@ -184,6 +184,24 @@
       "desc": "Wartezeit zwischen automatischen Commits.",
       "label": "Auto-Commit-Intervall"
     },
+    "merge": {
+      "absentBase": "Existierte noch nicht",
+      "base": "Gemeinsamer Ursprung",
+      "deletedOurs": "Auf diesem Gerät gelöscht",
+      "deletedTheirs": "Auf dem Remote gelöscht",
+      "description": "Diese Dateien wurden auf diesem Gerät und auf dem Remote bearbeitet. Für jede Datei die zu behaltende Version wählen — Novalis schließt den Merge dann ab und synchronisiert.",
+      "editManually": "Manuell bearbeiten",
+      "empty": "Nichts aufzulösen — die Historien haben sich womöglich weiterbewegt. Dialog schließen und erneut synchronisieren.",
+      "finalize": "Merge abschließen",
+      "keepMine": "Meine Version behalten",
+      "keepTheirs": "Remote-Version behalten",
+      "manualLabel": "Zusammengeführter Inhalt",
+      "ours": "Dieses Gerät",
+      "progress": "{{done}}/{{total}} aufgelöst",
+      "theirs": "Remote",
+      "title": "Merge-Konflikte auflösen",
+      "unsavedError": "„{{path}}“ hat ungespeicherte Änderungen, die nicht gespeichert werden konnten — zuerst beheben. Der Merge wurde nicht abgeschlossen."
+    },
     "outcome": {
       "conflicted": "Beide Seiten haben {{n}} Datei(en) geändert — Merge gestoppt",
       "diverged": "Beide Seiten haben neue Commits ({{ahead}} lokal, {{behind}} remote) — manuell auflösen",
@@ -195,10 +213,11 @@
     },
     "remote": {
       "aheadBehind": "{{ahead}} zu pushen · {{behind}} zu holen",
-      "conflictedHint": "Diese Dateien wurden auf beiden Seiten bearbeitet und lassen sich nicht automatisch zusammenführen. Novalis hat alle Dateien unangetastet gelassen — eine integrierte Konfliktauflösung folgt in einem späteren Update; bis dahin den Konflikt mit einem Git-Client auflösen, dann erneut synchronisieren.",
+      "conflictedHint": "Diese Dateien wurden auf beiden Seiten bearbeitet und lassen sich nicht automatisch zusammenführen. Novalis hat alle Dateien unangetastet gelassen — jede Datei in der Konfliktansicht auflösen, dann schließt Novalis den Merge ab und synchronisiert.",
       "desc": "Gleicht den Vault über HTTPS mit einem Git-Host ab (GitHub, GitLab, self-hosted). Benötigt ein Personal Access Token mit Schreibzugriff.",
       "divergedHint": "Lokale und Remote-Historie sind auseinandergelaufen. Novalis force-pusht nie — die Divergenz mit einem Git-Client auflösen, dann erneut synchronisieren.",
       "notConfigured": "Zuerst eine Remote-URL festlegen",
+      "resolve": "Konflikte auflösen…",
       "syncNow": "Jetzt synchronisieren",
       "title": "Remote",
       "token": {

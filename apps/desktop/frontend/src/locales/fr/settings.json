@@ -184,6 +184,24 @@
       "desc": "Délai entre les commits automatiques.",
       "label": "Intervalle d'auto-commit"
     },
+    "merge": {
+      "absentBase": "N'existait pas encore",
+      "base": "Ancêtre commun",
+      "deletedOurs": "Supprimé sur cet appareil",
+      "deletedTheirs": "Supprimé sur le dépôt distant",
+      "description": "Ces fichiers ont été modifiés sur cet appareil et sur le dépôt distant. Choisissez la version à conserver pour chaque fichier — Novalis finalisera ensuite la fusion et synchronisera.",
+      "editManually": "Modifier manuellement",
+      "empty": "Rien à résoudre — les historiques ont peut-être évolué. Fermez cette fenêtre et resynchronisez.",
+      "finalize": "Finaliser la fusion",
+      "keepMine": "Garder la mienne",
+      "keepTheirs": "Garder la distante",
+      "manualLabel": "Contenu fusionné",
+      "ours": "Cet appareil",
+      "progress": "{{done}}/{{total}} résolus",
+      "theirs": "Distant",
+      "title": "Résoudre les conflits de fusion",
+      "unsavedError": "« {{path}} » comporte des modifications non enregistrées qui n'ont pas pu être sauvegardées — corrigez cela d'abord. La fusion n'a pas été finalisée."
+    },
     "outcome": {
       "conflicted": "Les deux côtés ont modifié {{n}} fichier(s) — fusion interrompue",
       "diverged": "Les deux côtés ont de nouveaux commits ({{ahead}} locaux, {{behind}} distants) — à résoudre manuellement",
@@ -195,10 +213,11 @@
     },
     "remote": {
       "aheadBehind": "{{ahead}} à envoyer · {{behind}} à récupérer",
-      "conflictedHint": "Ces fichiers ont été modifiés des deux côtés et ne peuvent pas être fusionnés automatiquement. Novalis n'a rien touché — une résolution de conflits intégrée arrivera dans une prochaine mise à jour ; d'ici là, résolvez le conflit avec un client Git, puis resynchronisez.",
+      "conflictedHint": "Ces fichiers ont été modifiés des deux côtés et ne peuvent pas être fusionnés automatiquement. Novalis n'a rien touché — résolvez chaque fichier dans la vue des conflits, puis Novalis finalisera la fusion et synchronisera.",
       "desc": "Synchronise le Vault avec un hébergeur Git via HTTPS (GitHub, GitLab, auto-hébergé). Nécessite un jeton d'accès personnel avec droit d'écriture.",
       "divergedHint": "Les historiques local et distant ont divergé. Novalis ne force jamais le push — résolvez la divergence avec un client Git, puis resynchronisez.",
       "notConfigured": "Définissez d'abord une URL distante",
+      "resolve": "Résoudre les conflits…",
       "syncNow": "Synchroniser maintenant",
       "title": "Dépôt distant",
       "token": {

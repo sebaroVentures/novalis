@@ -184,6 +184,24 @@
       "desc": "How long to wait between automatic commits.",
       "label": "Auto-commit interval"
     },
+    "merge": {
+      "absentBase": "Did not exist yet",
+      "base": "Common ancestor",
+      "deletedOurs": "Deleted on this device",
+      "deletedTheirs": "Deleted on the remote",
+      "description": "These files were edited on this device and on the remote. Choose which version to keep for each file — Novalis then completes the merge and syncs.",
+      "editManually": "Edit manually",
+      "empty": "Nothing to resolve — the histories may have moved on. Close this dialog and sync again.",
+      "finalize": "Complete merge",
+      "keepMine": "Keep mine",
+      "keepTheirs": "Keep theirs",
+      "manualLabel": "Merged content",
+      "ours": "This device",
+      "progress": "{{done}}/{{total}} resolved",
+      "theirs": "Remote",
+      "title": "Resolve merge conflicts",
+      "unsavedError": "“{{path}}” has unsaved changes that could not be saved — fix that first. The merge was not completed."
+    },
     "outcome": {
       "conflicted": "Both sides edited {{n}} file(s) — merge stopped",
       "diverged": "Both sides have new commits ({{ahead}} local, {{behind}} remote) — resolve manually",
@@ -195,10 +213,11 @@
     },
     "remote": {
       "aheadBehind": "{{ahead}} to push · {{behind}} to pull",
-      "conflictedHint": "These files were edited on both sides and can't be merged automatically. Novalis left your files untouched — a built-in resolution view is coming in a later update; until then, resolve the conflict with a git client, then sync again.",
+      "conflictedHint": "These files were edited on both sides and can't be merged automatically. Novalis left your files untouched — resolve each file in the conflict view, then Novalis completes the merge and syncs.",
       "desc": "Sync the vault with a Git host over HTTPS (GitHub, GitLab, self-hosted). Requires a personal access token with write access.",
       "divergedHint": "Local and remote histories have diverged. Novalis never force-pushes — resolve the divergence with a git client, then sync again.",
       "notConfigured": "Set a remote URL first",
+      "resolve": "Resolve conflicts…",
       "syncNow": "Sync now",
       "title": "Remote",
       "token": {

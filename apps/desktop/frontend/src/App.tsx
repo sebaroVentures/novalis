@@ -10,6 +10,7 @@ import { Cheatsheet } from "./components/Cheatsheet";
 import { CloudHint } from "./components/CloudHint";
 import { CommandPalette } from "./components/CommandPalette";
 import { ConflictModal } from "./components/ConflictModal";
+import { MergeConflictModal } from "./components/MergeConflictModal";
 import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { Sidebar, type MainView } from "./components/Sidebar";
@@ -364,6 +365,10 @@ export default function App() {
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
       <ConflictModal open={conflictsOpen} onClose={() => setConflictsOpen(false)} />
+      {/* Git merge conflicts (sync P3a) — store-driven open, sibling of the
+          OneDrive ConflictModal above. Mounted after SettingsModal so it
+          stacks above the settings dialog that triggered the sync. */}
+      <MergeConflictModal />
       <TrashModal open={trashOpen} onClose={() => setTrashOpen(false)} />
       <Cheatsheet open={cheatsheetOpen} onClose={() => setCheatsheetOpen(false)} />
       <AiActionPanel />

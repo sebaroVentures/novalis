@@ -184,6 +184,24 @@
       "desc": "Tiempo de espera entre commits automáticos.",
       "label": "Intervalo de auto-commit"
     },
+    "merge": {
+      "absentBase": "Aún no existía",
+      "base": "Ancestro común",
+      "deletedOurs": "Eliminado en este dispositivo",
+      "deletedTheirs": "Eliminado en el remoto",
+      "description": "Estos archivos se editaron en este dispositivo y en el remoto. Elige qué versión conservar de cada archivo: Novalis completará la fusión y sincronizará.",
+      "editManually": "Editar manualmente",
+      "empty": "Nada que resolver: puede que los historiales hayan avanzado. Cierra este diálogo y sincroniza de nuevo.",
+      "finalize": "Completar fusión",
+      "keepMine": "Conservar la mía",
+      "keepTheirs": "Conservar la remota",
+      "manualLabel": "Contenido fusionado",
+      "ours": "Este dispositivo",
+      "progress": "{{done}}/{{total}} resueltos",
+      "theirs": "Remoto",
+      "title": "Resolver conflictos de fusión",
+      "unsavedError": "«{{path}}» tiene cambios sin guardar que no se pudieron guardar: corrígelo primero. La fusión no se completó."
+    },
     "outcome": {
       "conflicted": "Ambos lados modificaron {{n}} archivo(s): fusión detenida",
       "diverged": "Ambos lados tienen commits nuevos ({{ahead}} locales, {{behind}} remotos): resolver manualmente",
@@ -195,10 +213,11 @@
     },
     "remote": {
       "aheadBehind": "{{ahead}} por enviar · {{behind}} por recibir",
-      "conflictedHint": "Estos archivos se editaron en ambos lados y no pueden fusionarse automáticamente. Novalis no ha tocado nada: la resolución de conflictos integrada llegará en una próxima actualización; mientras tanto, resuelve el conflicto con un cliente Git y sincroniza de nuevo.",
+      "conflictedHint": "Estos archivos se editaron en ambos lados y no pueden fusionarse automáticamente. Novalis no ha tocado nada: resuelve cada archivo en la vista de conflictos y Novalis completará la fusión y sincronizará.",
       "desc": "Sincroniza el Vault con un servidor Git por HTTPS (GitHub, GitLab, autoalojado). Requiere un token de acceso personal con permiso de escritura.",
       "divergedHint": "Los historiales local y remoto han divergido. Novalis nunca fuerza el push: resuelve la divergencia con un cliente Git y sincroniza de nuevo.",
       "notConfigured": "Configura primero una URL remota",
+      "resolve": "Resolver conflictos…",
       "syncNow": "Sincronizar ahora",
       "title": "Remoto",
       "token": {

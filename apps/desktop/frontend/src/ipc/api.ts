@@ -93,6 +93,10 @@ export const api = {
   gitSetToken: (token: string) => unwrap(commands.gitSetToken(token)),
   gitHasToken: () => unwrap(commands.gitHasToken()),
   gitSyncNow: () => unwrap(commands.gitSyncNow()),
+  // 3-way merge conflict resolution (P3a)
+  gitMergeConflicts: () => unwrap(commands.gitMergeConflicts()),
+  gitFinalizeMerge: (resolutions: Parameters<typeof commands.gitFinalizeMerge>[0]) =>
+    unwrap(commands.gitFinalizeMerge(resolutions)),
 
   // Tasks
   listTasks: (status: "open" | "completed" | "all" = "open") =>

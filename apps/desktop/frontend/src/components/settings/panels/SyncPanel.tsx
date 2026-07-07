@@ -4,6 +4,7 @@ import { GitCommitHorizontal, Loader2, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, type GitStatus, type GitSyncKind, type GitSyncOutcome } from "../../../ipc/api";
+import { useGitConflicts } from "../../../stores/gitConflictStore";
 import { resolveGitPrefs, useSettings } from "../../../stores/settingsStore";
 import { NumberField, SettingRow, SettingsSection, Switch, TextField } from "../../ui";
 import { PanelLoading } from "./PanelLoading";
@@ -101,6 +102,9 @@ export function SyncPanel() {
       await useSettings.getState().flush();
       const out = await api.gitSyncNow();
       setOutcome(out);
+      // A conflicted merge opens the resolution modal right away (it mounts
+      // globally in App.tsx); the hint below keeps a re-open button.
+      if (typeof out.kind !== "string") useGitConflicts.getState().openResolver();
       await refresh();
     });
 
@@ -262,6 +266,13 @@ export function SyncPanel() {
                 </li>
               ))}
             </ul>
+            <button
+              type="button"
+              onClick={() => useGitConflicts.getState().openResolver()}
+              className="mt-2 rounded-md border border-border px-2.5 py-1 text-xs text-fg transition-colors hover:bg-hover"
+            >
+              {t("sync.remote.resolve")}
+            </button>
           </div>
         )}
       </SettingsSection>
