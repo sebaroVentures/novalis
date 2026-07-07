@@ -11,12 +11,19 @@ export interface SuggestRendererOptions<T> {
   getLabel: (item: T) => string;
   /** Extra class(es) for an item's button (e.g. to flag a "create" row). */
   getClass?: (item: T) => string | undefined;
+  /** Escape handler: mark the session dismissed (see withDismissal) so the
+   *  Suggestion plugin genuinely exits it — not just hides the popup. */
+  onDismiss: (range: { from: number }) => void;
 }
 
 /** Build the suggestion lifecycle managing a small DOM popover, generic over the
  *  item type. Returns the `{ onStart, onUpdate, onKeyDown, onExit }` object
  *  `@tiptap/suggestion`'s `render` expects. */
-export function createSuggestRenderer<T>({ getLabel, getClass }: SuggestRendererOptions<T>) {
+export function createSuggestRenderer<T>({
+  getLabel,
+  getClass,
+  onDismiss,
+}: SuggestRendererOptions<T>) {
   let popup: HTMLDivElement | null = null;
   let items: T[] = [];
   let selected = 0;
@@ -92,7 +99,12 @@ export function createSuggestRenderer<T>({ getLabel, getClass }: SuggestRenderer
         return true;
       }
       if (key === "Escape") {
-        if (popup) popup.style.display = "none";
+        // End the session, don't just hide the popup: mark the token dismissed
+        // and dispatch an (empty) transaction so the Suggestion plugin
+        // re-evaluates now — it exits synchronously (onExit removes the popup)
+        // and a following Enter inserts a plain newline again.
+        onDismiss(props.range);
+        props.view.dispatch(props.view.state.tr);
         return true;
       }
       return false;

@@ -9,6 +9,7 @@ import { PluginKey } from "@tiptap/pm/state";
 import { Suggestion, type SuggestionMatch, type Trigger } from "@tiptap/suggestion";
 import type { Editor } from "@tiptap/react";
 
+import { withDismissal } from "./suggestDismiss";
 import { createSuggestRenderer } from "./suggestPopover";
 
 /** Visible labels for the slash menu items (host-provided, i18n). */
@@ -114,13 +115,14 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
 
   addProseMirrorPlugins() {
     const allItems = buildItems(this.options.labels);
+    const matcher = withDismissal(findSlashMatch); // Escape ends the session
     return [
       Suggestion<SlashItem, SlashItem>({
         editor: this.editor,
         pluginKey: new PluginKey(slashKey),
         char: "/",
         allowSpaces: false,
-        findSuggestionMatch: findSlashMatch,
+        findSuggestionMatch: matcher.findSuggestionMatch,
         items: ({ query }) => {
           const q = query.toLowerCase();
           if (!q) return allItems;
@@ -132,7 +134,11 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
           editor.chain().focus().deleteRange(range).run();
           props.run(editor);
         },
-        render: () => createSuggestRenderer<SlashItem>({ getLabel: (it) => it.title }),
+        render: () =>
+          createSuggestRenderer<SlashItem>({
+            getLabel: (it) => it.title,
+            onDismiss: matcher.dismiss,
+          }),
       }),
     ];
   },

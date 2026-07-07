@@ -8,6 +8,7 @@ import { Extension } from "@tiptap/core";
 import { PluginKey } from "@tiptap/pm/state";
 import { Suggestion, type SuggestionMatch, type Trigger } from "@tiptap/suggestion";
 
+import { withDismissal } from "./suggestDismiss";
 import { createSuggestRenderer } from "./suggestPopover";
 
 export interface TagSuggestionOptions {
@@ -55,13 +56,14 @@ export const TagSuggestion = Extension.create<TagSuggestionOptions>({
 
   addProseMirrorPlugins() {
     const onSearch = this.options.onSearch;
+    const matcher = withDismissal(findTagMatch); // Escape ends the session
     return [
       Suggestion<string, string>({
         editor: this.editor,
         pluginKey: new PluginKey(tagSuggestKey),
         char: "#",
         allowSpaces: false,
-        findSuggestionMatch: findTagMatch,
+        findSuggestionMatch: matcher.findSuggestionMatch,
         items: ({ query }) => (onSearch ? onSearch(query) : Promise.resolve([])),
         command: ({ editor, range, props }) => {
           editor
@@ -70,7 +72,11 @@ export const TagSuggestion = Extension.create<TagSuggestionOptions>({
             .insertContentAt(range, [{ type: "text", text: `#${props}` }])
             .run();
         },
-        render: () => createSuggestRenderer<string>({ getLabel: (tag) => `#${tag}` }),
+        render: () =>
+          createSuggestRenderer<string>({
+            getLabel: (tag) => `#${tag}`,
+            onDismiss: matcher.dismiss,
+          }),
       }),
     ];
   },
