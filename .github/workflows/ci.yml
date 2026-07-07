@@ -85,6 +85,17 @@ jobs:
         if: matrix.os == 'ubuntu-latest'
         run: pnpm -r test
 
+      # `--if-present` so packages gain typechecking simply by adding a
+      # `typecheck` script — harmless for packages that don't have one.
+      - name: Typecheck (workspace packages)
+        if: matrix.os == 'ubuntu-latest'
+        run: pnpm -r --if-present run typecheck
+
+      # The three release version stamps must stay in sync (see RELEASING.md).
+      - name: Version stamps in sync
+        if: matrix.os == 'ubuntu-latest'
+        run: node scripts/check-versions.mjs
+
       - name: Rust format check
         run: cargo fmt --all --check
 
@@ -94,8 +105,29 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
-      # Guard against Rust/TS drift: regenerated bindings must match what's committed.
+      # Guard against Rust/TS drift: regenerated bindings must match what's
+      # committed. Linux-only: the generated file is OS-independent, and the
+      # Windows runner's line-ending handling makes the diff a flake vector.
       - name: Verify IPC bindings are up to date
+        if: matrix.os == 'ubuntu-latest'
         run: |
           pnpm gen:bindings
           git diff --exit-code apps/desktop/frontend/src/ipc/bindings.ts
+
+  audit:
+    name: cargo audit
+    runs-on: ubuntu-latest
+    # Advisory-only (continue-on-error) because the tree currently has known,
+    # unfixed advisories — all in transitive deps of the desktop shell:
+    #   RUSTSEC-2026-0194, RUSTSEC-2026-0195  quick-xml 0.36/0.37/0.39
+    #                                         (via docx-rs, plist, tauri-winrt-notification)
+    #   RUSTSEC-2026-0185                     quinn-proto 0.11.14 (via reqwest)
+    # plus `unmaintained`/`unsound` warnings (gtk3 bindings from Tauri's Linux
+    # stack, anyhow, glib, paste, proc-macro-error, instant, unic-*).
+    # Flip this job to blocking once `cargo audit` is clean.
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v6
+      - uses: rustsec/audit-check@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
