@@ -17,6 +17,19 @@ export interface TagSuggestionOptions {
 
 const tagSuggestKey = "tagSuggestion";
 
+// Unicode-aware tag characters: any letter/number (`#müll`, `#café/menu`) plus
+// `_`, and `/` / `-` for nested/hyphenated tags. `\w` would stop at `ü`/`é`
+// and close the popover mid-word.
+const TAG_TOKEN_RE = /(?:^|\s)#([\p{L}\p{N}_/-]*)$/u;
+
+/** Pure core of the matcher: the `#tag` token ending the given text, or null.
+ *  Exported for tests. */
+export function matchTagToken(textBefore: string): { token: string; query: string } | null {
+  const m = TAG_TOKEN_RE.exec(textBefore);
+  if (!m) return null;
+  return { token: m[0].slice(m[0].indexOf("#")), query: m[1] };
+}
+
 /** Match a `#tag` token at a word start (start of line or after whitespace),
  *  capturing the partial tag. Allows `/` and `-` for nested/hyphenated tags.
  *  Skips code blocks. */
@@ -24,13 +37,12 @@ function findTagMatch({ $position }: Trigger): SuggestionMatch {
   if ($position.parent.type.name === "codeBlock") return null;
   const from = $position.start();
   const textBefore = $position.doc.textBetween(from, $position.pos, "\n", "\0");
-  const m = /(?:^|\s)#([\w/-]*)$/.exec(textBefore);
+  const m = matchTagToken(textBefore);
   if (!m) return null;
-  const token = m[0].slice(m[0].indexOf("#")); // "#partial" without any leading space
   return {
-    range: { from: $position.pos - token.length, to: $position.pos },
-    query: m[1],
-    text: token,
+    range: { from: $position.pos - m.token.length, to: $position.pos },
+    query: m.query,
+    text: m.token,
   };
 }
 

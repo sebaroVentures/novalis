@@ -39,6 +39,18 @@ interface SlashItem {
 
 const slashKey = "slashCommand";
 
+// Unicode-aware query characters: any letter/number plus `_`. `\w` would stop
+// at `ü`/`é` and close the menu mid-word (e.g. `/überschrift`).
+const SLASH_TOKEN_RE = /(?:^|\s)\/([\p{L}\p{N}_]*)$/u;
+
+/** Pure core of the matcher: the `/query` token ending the given text, or
+ *  null. Exported for tests. */
+export function matchSlashToken(textBefore: string): { token: string; query: string } | null {
+  const m = SLASH_TOKEN_RE.exec(textBefore);
+  if (!m) return null;
+  return { token: m[0].slice(m[0].indexOf("/")), query: m[1] };
+}
+
 /** Match a `/query` token at a block-insert-valid position (start of line or
  *  after whitespace), capturing the query. Skips code blocks so `/` in code
  *  doesn't open the menu. */
@@ -46,13 +58,12 @@ function findSlashMatch({ $position }: Trigger): SuggestionMatch {
   if ($position.parent.type.name === "codeBlock") return null;
   const from = $position.start();
   const textBefore = $position.doc.textBetween(from, $position.pos, "\n", "\0");
-  const m = /(?:^|\s)\/(\w*)$/.exec(textBefore);
+  const m = matchSlashToken(textBefore);
   if (!m) return null;
-  const token = m[0].slice(m[0].indexOf("/")); // "/query" without any leading space
   return {
-    range: { from: $position.pos - token.length, to: $position.pos },
-    query: m[1],
-    text: token,
+    range: { from: $position.pos - m.token.length, to: $position.pos },
+    query: m.query,
+    text: m.token,
   };
 }
 
