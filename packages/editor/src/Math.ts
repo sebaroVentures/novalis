@@ -5,6 +5,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 import { findMath } from "./mathMatches";
+import { spanOverlapChanged, type Span } from "./selectionOverlap";
 
 interface KatexLike {
   renderToString(tex: string, options: { displayMode: boolean; throwOnError: boolean }): string;
@@ -66,9 +67,21 @@ export const MathExtension = Extension.create({
     // Same pattern as Embed.ts.
     let pluginView: EditorView | null = null;
 
-    const build = (state: EditorState): DecorationSet => {
+    interface MathState {
+      decos: DecorationSet;
+      /** Every math span in the doc — including cursor-revealed ones — so
+       *  `apply` can tell which cursor moves actually change the decorations. */
+      spans: Span[];
+    }
+
+    const build = (state: EditorState): MathState => {
       const { doc, selection } = state;
       const decos: Decoration[] = [];
+      const spans: Span[] = [];
+      // Per-expression occurrence counter for stable widget keys; counted
+      // before the cursor-reveal skip so the index doesn't shift while one
+      // occurrence is being edited (same pattern as Embed).
+      const occByExpr = new Map<string, number>();
       let pending = false;
       doc.descendants((node, pos) => {
         if (node.type.name === "codeBlock") return false; // never treat code as math
@@ -77,6 +90,10 @@ export const MathExtension = Extension.create({
         for (const mm of findMath(node.text)) {
           const from = pos + mm.from;
           const to = pos + mm.to;
+          spans.push({ from, to });
+          const exprKey = (mm.display ? "1:" : "0:") + mm.content;
+          const occ = occByExpr.get(exprKey) ?? 0;
+          occByExpr.set(exprKey, occ + 1);
           // Cursor inside the span → show the raw `$…$` source for editing.
           if (selection.from <= to && selection.to >= from) continue;
           const html = render(mm.content, mm.display);
@@ -95,7 +112,10 @@ export const MathExtension = Extension.create({
                 span.innerHTML = html;
                 return span;
               },
-              { side: 1 },
+              // Stable identity (expr + variant + occurrence): ProseMirror
+              // reuses the rendered DOM across rebuilds instead of tearing the
+              // KaTeX span down on every affected transaction.
+              { side: 1, key: `nv-math:${occ}:${exprKey}` },
             ),
           );
         }
@@ -106,7 +126,7 @@ export const MathExtension = Extension.create({
           if (v) v.dispatch(v.state.tr.setMeta(mathKey, { rerender: true }));
         });
       }
-      return DecorationSet.create(doc, decos);
+      return { decos: DecorationSet.create(doc, decos), spans };
     };
 
     return [
@@ -114,15 +134,25 @@ export const MathExtension = Extension.create({
         key: mathKey,
         state: {
           init: (_config, state) => build(state),
-          apply: (tr, old, _oldState, newState) => {
+          apply: (tr, value: MathState, oldState, newState) => {
             const meta = tr.getMeta(mathKey) as { rerender?: boolean } | undefined;
-            if (tr.docChanged || tr.selectionSet || meta?.rerender) return build(newState);
-            return old;
+            if (tr.docChanged || meta?.rerender) return build(newState);
+            // Selection-only transaction: rebuild only when the cursor entered
+            // or left a math span (raw-source reveal). Any other cursor move
+            // keeps the set as is — with no doc change the mapping is empty,
+            // so mapping the decorations would be an identity.
+            if (
+              tr.selectionSet &&
+              spanOverlapChanged(value.spans, oldState.selection, newState.selection)
+            ) {
+              return build(newState);
+            }
+            return value;
           },
         },
         props: {
           decorations(state) {
-            return mathKey.getState(state) as DecorationSet;
+            return (mathKey.getState(state) as MathState).decos;
           },
         },
         view(view) {

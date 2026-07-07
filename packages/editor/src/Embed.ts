@@ -17,6 +17,7 @@ import type { EditorView } from "@tiptap/pm/view";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
 
 import { findEmbeds } from "./embedMatches";
+import { spanOverlapChanged, type Span } from "./selectionOverlap";
 
 /** What an `![[embed]]` target resolved to, as seen by the editor. Produced by
  *  the host's `onResolve` callback (which classifies images by extension and
@@ -205,9 +206,17 @@ export const Embed = Extension.create<EmbedOptions>({
       });
     };
 
-    const build = (state: EditorState): DecorationSet => {
+    interface EmbedState {
+      decos: DecorationSet;
+      /** Every rendered embed span — including cursor-revealed ones — so
+       *  `apply` can tell which cursor moves actually change the decorations. */
+      spans: Span[];
+    }
+
+    const build = (state: EditorState): EmbedState => {
       const { doc, selection } = state;
       const decos: Decoration[] = [];
+      const spans: Span[] = [];
       const occByTarget = new Map<string, number>();
       doc.descendants((node, pos) => {
         if (node.type.name === "codeBlock") return false; // never embed inside code
@@ -224,6 +233,8 @@ export const Embed = Extension.create<EmbedOptions>({
           const matchText = node.text.slice(em.from, em.to);
           if (doc.resolve(from).parent.textContent !== matchText) continue;
 
+          spans.push({ from, to });
+
           // Count occurrences per target for stable widget keys (computed before
           // the cursor-reveal skip so the index doesn't shift when one is being
           // edited).
@@ -239,7 +250,7 @@ export const Embed = Extension.create<EmbedOptions>({
           decos.push(makeWidget(from, em.target, occ, result));
         }
       });
-      return DecorationSet.create(doc, decos);
+      return { decos: DecorationSet.create(doc, decos), spans };
     };
 
     return [
@@ -247,15 +258,25 @@ export const Embed = Extension.create<EmbedOptions>({
         key: embedKey,
         state: {
           init: (_config, state) => build(state),
-          apply: (tr, old, _oldState, newState) => {
+          apply: (tr, value: EmbedState, oldState, newState) => {
             const meta = tr.getMeta(embedKey) as { rerender?: boolean } | undefined;
-            if (tr.docChanged || tr.selectionSet || meta?.rerender) return build(newState);
-            return old;
+            if (tr.docChanged || meta?.rerender) return build(newState);
+            // Selection-only transaction: rebuild only when the cursor entered
+            // or left an embed (raw-source reveal) — otherwise keep the set,
+            // and with it the mounted nested editors' DOM. With no doc change
+            // the mapping is empty, so mapping the set would be an identity.
+            if (
+              tr.selectionSet &&
+              spanOverlapChanged(value.spans, oldState.selection, newState.selection)
+            ) {
+              return build(newState);
+            }
+            return value;
           },
         },
         props: {
           decorations(state) {
-            return embedKey.getState(state) as DecorationSet;
+            return (embedKey.getState(state) as EmbedState).decos;
           },
         },
         view(view) {

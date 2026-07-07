@@ -84,6 +84,9 @@ export const Find = Extension.create({
             const meta = tr.getMeta(findPluginKey) as
               | Partial<Pick<FindState, "query" | "caseSensitive" | "active">>
               | undefined;
+            // Untouched by this transaction (e.g. a pure cursor move): keep the
+            // state — and its DecorationSet — instead of rebuilding per press.
+            if (!meta && !tr.docChanged) return value;
             let { query, caseSensitive, active } = value;
             let recompute = tr.docChanged;
             if (meta) {
