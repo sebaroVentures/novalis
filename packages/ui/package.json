@@ -11,8 +11,16 @@
   "exports": {
     ".": "./src/index.ts"
   },
+  "scripts": {
+    "typecheck": "tsc --noEmit"
+  },
   "peerDependencies": {
     "react": "^19",
     "react-dom": "^19"
+  },
+  "devDependencies": {
+    "@types/react": "^19.1.0",
+    "@types/react-dom": "^19.1.0",
+    "typescript": "~5.8.3"
   }
 }
