@@ -8,21 +8,31 @@ import { resolveGitPrefs, useSettings } from "../../../stores/settingsStore";
 import { NumberField, SettingRow, SettingsSection, Switch, TextField } from "../../ui";
 import { PanelLoading } from "./PanelLoading";
 
-// Static key map (typed i18next rejects template-built keys).
+// Static key map (typed i18next rejects template-built keys). `conflicted`
+// is the only data-carrying kind — it crosses IPC as an object and is
+// rendered separately.
 const OUTCOME_KEY = {
   upToDate: "sync.outcome.upToDate",
   pushed: "sync.outcome.pushed",
   pulled: "sync.outcome.pulled",
+  merged: "sync.outcome.merged",
   diverged: "sync.outcome.diverged",
   noRemote: "sync.outcome.noRemote",
-} as const satisfies Record<GitSyncKind, string>;
+} as const satisfies Record<Extract<GitSyncKind, string>, string>;
 // i18next-parser only scans static t() literals; the outcome message resolves at
 // runtime via t(OUTCOME_KEY[outcome.kind]), so list the keys to keep them alive.
 // t("settings:sync.outcome.upToDate")
 // t("settings:sync.outcome.pushed")
 // t("settings:sync.outcome.pulled")
+// t("settings:sync.outcome.merged")
 // t("settings:sync.outcome.diverged")
 // t("settings:sync.outcome.noRemote")
+
+/** The conflict path list of a `Conflicted` outcome, or null for the rest. */
+function conflictPaths(outcome: GitSyncOutcome | null): string[] | null {
+  if (!outcome || typeof outcome.kind === "string") return null;
+  return outcome.kind.conflicted.paths;
+}
 
 /** Git sync settings: P1 local auto-commit + P2 https remote sync. */
 export function SyncPanel() {
@@ -217,7 +227,9 @@ export function SyncPanel() {
           label={t("sync.remote.syncNow")}
           description={
             outcome
-              ? t(OUTCOME_KEY[outcome.kind], { ahead: outcome.ahead, behind: outcome.behind })
+              ? typeof outcome.kind === "string"
+                ? t(OUTCOME_KEY[outcome.kind], { ahead: outcome.ahead, behind: outcome.behind })
+                : t("sync.outcome.conflicted", { n: outcome.kind.conflicted.paths.length })
               : remoteUrl
                 ? t("sync.remote.aheadBehind", {
                     ahead: status?.ahead ?? 0,
@@ -239,6 +251,18 @@ export function SyncPanel() {
         />
         {outcome?.kind === "diverged" && (
           <p className="pt-2 text-xs text-danger">{t("sync.remote.divergedHint")}</p>
+        )}
+        {conflictPaths(outcome) && (
+          <div className="pt-2 text-xs text-danger">
+            <p>{t("sync.remote.conflictedHint")}</p>
+            <ul className="mt-1 list-inside list-disc">
+              {conflictPaths(outcome)?.map((p) => (
+                <li key={p} className="font-mono">
+                  {p}
+                </li>
+              ))}
+            </ul>
+          </div>
         )}
       </SettingsSection>
 

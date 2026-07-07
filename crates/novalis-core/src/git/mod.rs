@@ -1,6 +1,7 @@
-//! Git versioning + sync for a vault. P1: local auto-commit. P2: HTTPS
-//! remote sync (fetch → fast-forward or push — merging is P2b, force-pushing
-//! is never an option).
+//! Git versioning + sync for a vault. P1: local auto-commit. P2a: HTTPS
+//! remote sync (fetch → fast-forward or push). P2b: automatic 3-way merge
+//! when histories truly diverge — conflicts stop the cycle without touching
+//! the working tree, and force-pushing is never an option.
 //!
 //! Every function opens the repository per call: `git2::Repository` is
 //! `!Sync`, per-call opens are cheap at auto-commit rates, and it keeps this
@@ -435,13 +436,15 @@ fn auth_callbacks(token: Option<String>) -> RemoteCallbacks<'static> {
     cb
 }
 
-/// One sync cycle against `origin` (P2a): fetch, then fast-forward OR push —
-/// never both, never a merge (P2b), never a force-push. Local pending
-/// changes are committed first; diverged histories stop the cycle with
-/// [`GitSyncKind::Diverged`]. An unborn local branch adopts a populated
-/// remote (first sync of a fresh vault) — there, `.novalis/` prefs are the
-/// only local files the adoption may replace (they are synced-by-design:
-/// the remote copy beats defaults written moments ago by "enable git sync").
+/// One sync cycle against `origin`: fetch, then exactly one action — fast-
+/// forward, push, or (P2b) an automatic 3-way merge when both sides have new
+/// commits. Local pending changes are committed first. A merge with
+/// conflicting edits stops the cycle with [`GitSyncKind::Conflicted`]
+/// without touching the working tree; force-pushing is never an option. An
+/// unborn local branch adopts a populated remote (first sync of a fresh
+/// vault) — there, `.novalis/` prefs are the only local files the adoption
+/// may replace (they are synced-by-design: the remote copy beats defaults
+/// written moments ago by "enable git sync").
 pub fn sync(
     vault: &Path,
     name: &str,
@@ -522,9 +525,101 @@ pub fn sync(
         let _gate = MUTATE_GATE.lock().unwrap_or_else(|p| p.into_inner());
         fast_forward(&repo, &local_ref, remote_tip)?;
         Ok(outcome(GitSyncKind::Pulled, 0, behind))
-    } else {
+    } else if repo.state() != git2::RepositoryState::Clean {
+        // A busy repository (user mid-merge/rebase in an adopted repo) is
+        // never merged over — and `commit_all` above skipped for the same
+        // reason, so the worktree may be dirty. Surface the plain
+        // divergence like P2a did; the cycle resumes once the user's
+        // operation finishes.
         Ok(outcome(GitSyncKind::Diverged, ahead, behind))
+    } else {
+        let kind = merge_diverged(&repo, &branch, local, remote_tip, name, email, token)?;
+        Ok(outcome(kind, ahead, behind))
     }
+}
+
+/// P2b: reconcile truly diverged histories with an automatic 3-way merge
+/// (spike-proven recipe). Detection runs entirely in memory via
+/// `merge_commits` — no workdir, index, or `.git` state (MERGE_HEAD) is
+/// touched. Conflicts return [`GitSyncKind::Conflicted`] with the affected
+/// paths (each side of a conflict entry can be absent — delete-vs-edit). A
+/// clean merge is materialized: 2-parent commit, safe checkout + branch
+/// move under [`MUTATE_GATE`] (checkout FIRST, same rationale as
+/// [`fast_forward`] — a dirty tree errors loudly and leaves ref and
+/// worktree untouched), then a normal push under [`SYNC_GATE`] only. The
+/// caller holds [`SYNC_GATE`]; the lock order SYNC_GATE → MUTATE_GATE is
+/// preserved, and the gate is released before the network push.
+fn merge_diverged(
+    repo: &Repository,
+    branch: &str,
+    local: Oid,
+    remote_tip: Oid,
+    name: &str,
+    email: &str,
+    token: Option<&str>,
+) -> CoreResult<GitSyncKind> {
+    let ours = repo.find_commit(local).map_err(gerr)?;
+    let theirs = repo.find_commit(remote_tip).map_err(gerr)?;
+    let mut merged = repo.merge_commits(&ours, &theirs, None).map_err(gerr)?;
+    if merged.has_conflicts() {
+        let mut paths = Vec::new();
+        for entry in merged.conflicts().map_err(gerr)? {
+            let entry = entry.map_err(gerr)?;
+            // All three sides are Option — delete-vs-edit leaves one side
+            // absent. Take the path from whichever side exists.
+            if let Some(side) = entry
+                .our
+                .as_ref()
+                .or(entry.their.as_ref())
+                .or(entry.ancestor.as_ref())
+            {
+                paths.push(String::from_utf8_lossy(&side.path).into_owned());
+            }
+        }
+        paths.sort();
+        paths.dedup();
+        return Ok(GitSyncKind::Conflicted { paths });
+    }
+    // Same author fallback as commit_all: a cleared settings field must
+    // degrade the identity, not kill the sync cycle.
+    let defaults = crate::models::GitPrefs::default();
+    let name = if name.trim().is_empty() {
+        &defaults.author_name
+    } else {
+        name
+    };
+    let email = if email.trim().is_empty() {
+        &defaults.author_email
+    } else {
+        email
+    };
+    let sig = Signature::now(name, email)
+        .map_err(|e| CoreError::BadRequest(format!("invalid git author: {}", e.message())))?;
+    {
+        let _gate = MUTATE_GATE.lock().unwrap_or_else(|p| p.into_inner());
+        let tree_id = merged.write_tree_to(repo).map_err(gerr)?;
+        let tree = repo.find_tree(tree_id).map_err(gerr)?;
+        let message = format!("novalis: merge origin/{branch}");
+        // No ref update yet: the commit object is created dangling so a
+        // failed checkout leaves the branch untouched (the object is
+        // harmless and gc-able).
+        let merge_oid = repo
+            .commit(None, &sig, &sig, &message, &tree, &[&ours, &theirs])
+            .map_err(gerr)?;
+        let mut co = CheckoutBuilder::new();
+        co.safe();
+        repo.checkout_tree(tree.as_object(), Some(&mut co))
+            .map_err(gerr)?;
+        repo.find_reference(&format!("refs/heads/{branch}"))
+            .map_err(gerr)?
+            .set_target(merge_oid, "novalis: merge")
+            .map_err(gerr)?;
+        // Defensive per the spike recipe — the in-memory merge writes no
+        // .git state, so this is a no-op unless something left one behind.
+        repo.cleanup_state().map_err(gerr)?;
+    }
+    push_branch(repo, branch, token)?;
+    Ok(GitSyncKind::Merged)
 }
 
 fn outcome(kind: GitSyncKind, ahead: u32, behind: u32) -> GitSyncOutcome {
@@ -1064,7 +1159,7 @@ mod tests {
     }
 
     #[test]
-    fn diverged_histories_stop_without_force() {
+    fn conflicting_histories_stop_without_force() {
         let a = vault();
         let bare = bare_remote();
         ensure_repo(a.path()).unwrap();
@@ -1074,7 +1169,8 @@ mod tests {
         ensure_repo(b.path()).unwrap();
         set_remote(b.path(), Some(&remote_path(&bare))).unwrap();
         sync(b.path(), "B", "b@x", None).unwrap();
-        // Both sides edit the same note.
+        // Both sides edit the same note — P2b detects the conflict in
+        // memory and stops the cycle.
         std::fs::write(a.path().join("a.md"), "# from A\n").unwrap();
         assert_eq!(
             sync(a.path(), "A", "a@x", None).unwrap().kind,
@@ -1082,7 +1178,12 @@ mod tests {
         );
         std::fs::write(b.path().join("a.md"), "# from B\n").unwrap();
         let out = sync(b.path(), "B", "b@x", None).unwrap();
-        assert_eq!(out.kind, GitSyncKind::Diverged);
+        assert_eq!(
+            out.kind,
+            GitSyncKind::Conflicted {
+                paths: vec!["a.md".into()],
+            }
+        );
         assert_eq!((out.ahead, out.behind), (1, 1));
         // Nothing was forced anywhere: the remote still has A's tip, B's
         // worktree keeps B's edit, and the local commit preserves it.
@@ -1105,6 +1206,313 @@ mod tests {
         );
         let status = repo_status(b.path()).unwrap();
         assert_eq!((status.ahead, status.behind), (1, 1));
+    }
+
+    // ── Auto-merge (P2b) ─────────────────────────────────────────────────────
+
+    /// Device A pushes the fixture vault; device B adopts it from an empty
+    /// folder. Both end on the same tip.
+    fn two_synced_clones() -> (tempfile::TempDir, tempfile::TempDir, tempfile::TempDir) {
+        let a = vault();
+        let bare = bare_remote();
+        ensure_repo(a.path()).unwrap();
+        set_remote(a.path(), Some(&remote_path(&bare))).unwrap();
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pushed
+        );
+        let b = tempfile::tempdir().unwrap();
+        ensure_repo(b.path()).unwrap();
+        set_remote(b.path(), Some(&remote_path(&bare))).unwrap();
+        assert_eq!(
+            sync(b.path(), "B", "b@x", None).unwrap().kind,
+            GitSyncKind::Pulled
+        );
+        (a, bare, b)
+    }
+
+    /// Every file under `root` (relative path → bytes), `.git` excluded.
+    fn worktree_snapshot(root: &Path) -> std::collections::BTreeMap<String, Vec<u8>> {
+        fn walk(root: &Path, dir: &Path, out: &mut std::collections::BTreeMap<String, Vec<u8>>) {
+            for entry in std::fs::read_dir(dir).unwrap().flatten() {
+                let path = entry.path();
+                if path.file_name().is_some_and(|n| n == ".git") {
+                    continue;
+                }
+                if path.is_dir() {
+                    walk(root, &path, out);
+                } else {
+                    let rel = path
+                        .strip_prefix(root)
+                        .unwrap()
+                        .to_string_lossy()
+                        .replace('\\', "/");
+                    out.insert(rel, std::fs::read(&path).unwrap());
+                }
+            }
+        }
+        let mut out = std::collections::BTreeMap::new();
+        walk(root, root, &mut out);
+        out
+    }
+
+    fn head_tree_id(vault: &Path) -> Oid {
+        let repo = Repository::open(vault).unwrap();
+        let tree = repo.head().unwrap().peel_to_tree().unwrap();
+        tree.id()
+    }
+
+    #[test]
+    fn non_overlapping_edits_merge_and_both_clones_converge() {
+        let (a, _bare, b) = two_synced_clones();
+        // Divergence in DIFFERENT files: A edits a.md, B edits sub/b.md.
+        std::fs::write(a.path().join("a.md"), "# from A\n").unwrap();
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pushed
+        );
+        std::fs::write(b.path().join("sub/b.md"), "# from B\n").unwrap();
+        let out = sync(b.path(), "B", "b@x", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::Merged);
+        assert_eq!((out.ahead, out.behind), (1, 1));
+        // B's worktree holds both edits.
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# from A\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("sub/b.md")).unwrap(),
+            "# from B\n"
+        );
+        // History has exactly one 2-parent commit, authored as the
+        // configured identity of the merging device.
+        let repo = Repository::open(b.path()).unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        assert_eq!(head.parent_count(), 2);
+        let author = head.author();
+        assert_eq!(author.name().unwrap(), "B");
+        assert_eq!(author.email().unwrap(), "b@x");
+        let mut walk = repo.revwalk().unwrap();
+        walk.push(head.id()).unwrap();
+        let merges = walk
+            .flatten()
+            .filter(|oid| repo.find_commit(*oid).unwrap().parent_count() > 1)
+            .count();
+        assert_eq!(merges, 1, "exactly one merge commit in history");
+        // A pulls the merge; both clones converge byte-identically.
+        assert_eq!(
+            sync(a.path(), "A", "a@x", None).unwrap().kind,
+            GitSyncKind::Pulled
+        );
+        assert_eq!(head_tree_id(a.path()), head_tree_id(b.path()));
+        assert_eq!(
+            std::fs::read_to_string(a.path().join("sub/b.md")).unwrap(),
+            "# from B\n"
+        );
+    }
+
+    #[test]
+    fn merged_outcome_pushes_and_next_sync_is_up_to_date() {
+        let (a, bare, b) = two_synced_clones();
+        std::fs::write(a.path().join("a.md"), "# from A\n").unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        std::fs::write(b.path().join("sub/b.md"), "# from B\n").unwrap();
+        assert_eq!(
+            sync(b.path(), "B", "b@x", None).unwrap().kind,
+            GitSyncKind::Merged
+        );
+        // The bare remote's tip IS the merge commit.
+        let bare_repo = Repository::open(bare.path()).unwrap();
+        let remote_tip = bare_repo
+            .find_reference("refs/heads/main")
+            .unwrap()
+            .target()
+            .unwrap();
+        let b_head = Repository::open(b.path())
+            .unwrap()
+            .head()
+            .unwrap()
+            .target()
+            .unwrap();
+        assert_eq!(remote_tip, b_head);
+        assert_eq!(bare_repo.find_commit(remote_tip).unwrap().parent_count(), 2);
+        // Nothing left to transfer.
+        let out = sync(b.path(), "B", "b@x", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::UpToDate);
+    }
+
+    #[test]
+    fn overlapping_edits_conflict_without_touching_worktree_or_state() {
+        let (a, bare, b) = two_synced_clones();
+        // Both sides edit the SAME two files.
+        std::fs::write(a.path().join("sub/b.md"), "# b from A\n").unwrap();
+        std::fs::write(a.path().join("a.md"), "# a from A\n").unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        std::fs::write(b.path().join("sub/b.md"), "# b from B\n").unwrap();
+        std::fs::write(b.path().join("a.md"), "# a from B\n").unwrap();
+        let before = worktree_snapshot(b.path());
+        let out = sync(b.path(), "B", "b@x", None).unwrap();
+        assert_eq!(
+            out.kind,
+            GitSyncKind::Conflicted {
+                paths: vec!["a.md".into(), "sub/b.md".into()],
+            },
+            "paths are relative and sorted"
+        );
+        assert_eq!((out.ahead, out.behind), (1, 1));
+        // Detection was in-memory: the working tree is byte-identical and
+        // no merge state was persisted.
+        assert_eq!(worktree_snapshot(b.path()), before);
+        let repo = Repository::open(b.path()).unwrap();
+        assert_eq!(repo.state(), git2::RepositoryState::Clean);
+        assert!(!b.path().join(".git/MERGE_HEAD").exists());
+        // The remote was never force-pushed: its tip is still A's.
+        let remote_tip = Repository::open(bare.path())
+            .unwrap()
+            .find_reference("refs/heads/main")
+            .unwrap()
+            .target()
+            .unwrap();
+        let a_tip = Repository::open(a.path())
+            .unwrap()
+            .head()
+            .unwrap()
+            .target()
+            .unwrap();
+        assert_eq!(remote_tip, a_tip);
+        // A second cycle reports the same conflict — nothing is stuck.
+        let again = sync(b.path(), "B", "b@x", None).unwrap();
+        assert_eq!(again.kind, out.kind);
+        assert_eq!(worktree_snapshot(b.path()), before);
+    }
+
+    #[test]
+    fn delete_vs_edit_reports_conflict_without_panic() {
+        let (a, _bare, b) = two_synced_clones();
+        // A deletes the note; B edits it.
+        std::fs::remove_file(a.path().join("a.md")).unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        std::fs::write(b.path().join("a.md"), "# edited on B\n").unwrap();
+        let out = sync(b.path(), "B", "b@x", None).unwrap();
+        assert_eq!(
+            out.kind,
+            GitSyncKind::Conflicted {
+                paths: vec!["a.md".into()],
+            }
+        );
+        // B's edit is untouched on disk.
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# edited on B\n"
+        );
+    }
+
+    #[test]
+    fn pending_local_changes_are_committed_then_merged() {
+        // sync() commits pending changes BEFORE the merge decision, so an
+        // uncommitted local edit becomes the local side of the merge — the
+        // worktree is never merged over while dirty.
+        let (a, _bare, b) = two_synced_clones();
+        std::fs::write(a.path().join("a.md"), "# from A\n").unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        // B's edit stays uncommitted until the sync cycle itself.
+        std::fs::write(b.path().join("sub/b.md"), "# pending on B\n").unwrap();
+        let out = sync(b.path(), "B", "b@x", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::Merged);
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# from A\n"
+        );
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("sub/b.md")).unwrap(),
+            "# pending on B\n"
+        );
+        // The merge's local parent carries the just-committed edit.
+        let repo = Repository::open(b.path()).unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        let local_parent = head.parent(0).unwrap();
+        let entry = local_parent
+            .tree()
+            .unwrap()
+            .get_path(Path::new("sub/b.md"))
+            .unwrap();
+        let blob = repo.find_blob(entry.id()).unwrap();
+        assert_eq!(blob.content(), b"# pending on B\n");
+    }
+
+    #[test]
+    fn busy_repository_reports_diverged_not_merged() {
+        let (a, _bare, b) = two_synced_clones();
+        // Committed divergence on both sides (same file → would conflict).
+        std::fs::write(a.path().join("a.md"), "# from A\n").unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        std::fs::write(b.path().join("a.md"), "# from B\n").unwrap();
+        assert!(matches!(
+            sync(b.path(), "B", "b@x", None).unwrap().kind,
+            GitSyncKind::Conflicted { .. }
+        ));
+        // User mid-merge in the adopted repo: never auto-merge over it.
+        std::fs::write(b.path().join(".git/MERGE_HEAD"), "0000\n").unwrap();
+        let out = sync(b.path(), "B", "b@x", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::Diverged);
+        assert!(
+            b.path().join(".git/MERGE_HEAD").exists(),
+            "the user's merge state must survive the cycle"
+        );
+        // Operation finished → the auto-merge path resumes.
+        std::fs::remove_file(b.path().join(".git/MERGE_HEAD")).unwrap();
+        assert!(matches!(
+            sync(b.path(), "B", "b@x", None).unwrap().kind,
+            GitSyncKind::Conflicted { .. }
+        ));
+    }
+
+    #[test]
+    fn curated_index_blocks_merge_checkout_loudly() {
+        // commit_all skips when the index holds a manually staged partial
+        // change; the merge checkout then hits a dirty file and must fail
+        // loudly, leaving worktree and branch untouched.
+        let (a, _bare, b) = two_synced_clones();
+        std::fs::write(a.path().join("a.md"), "# from A\n").unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        // B commits a non-conflicting edit, then curates the index for the
+        // very file the merge needs to update.
+        std::fs::write(b.path().join("sub/b.md"), "# from B\n").unwrap();
+        commit_all(b.path(), "B", "b@x").unwrap().unwrap();
+        std::fs::write(b.path().join("a.md"), "# staged v2\n").unwrap();
+        {
+            let repo = Repository::open(b.path()).unwrap();
+            let mut index = repo.index().unwrap();
+            index.add_path(Path::new("a.md")).unwrap();
+            index.write().unwrap();
+        }
+        std::fs::write(b.path().join("a.md"), "# worktree v3\n").unwrap();
+        let local_tip = head_id(b.path()).unwrap();
+        let err = sync(b.path(), "B", "b@x", None).unwrap_err();
+        assert!(matches!(err, CoreError::Internal(_)));
+        assert_eq!(
+            std::fs::read_to_string(b.path().join("a.md")).unwrap(),
+            "# worktree v3\n",
+            "dirty file must be untouched"
+        );
+        assert_eq!(head_id(b.path()).unwrap(), local_tip, "branch untouched");
+        let repo = Repository::open(b.path()).unwrap();
+        assert_eq!(repo.state(), git2::RepositoryState::Clean);
+    }
+
+    #[test]
+    fn merge_author_falls_back_to_defaults_instead_of_failing() {
+        let (a, _bare, b) = two_synced_clones();
+        std::fs::write(a.path().join("a.md"), "# from A\n").unwrap();
+        sync(a.path(), "A", "a@x", None).unwrap();
+        std::fs::write(b.path().join("sub/b.md"), "# from B\n").unwrap();
+        let out = sync(b.path(), " ", "", None).unwrap();
+        assert_eq!(out.kind, GitSyncKind::Merged);
+        let repo = Repository::open(b.path()).unwrap();
+        let head = repo.head().unwrap().peel_to_commit().unwrap();
+        let author = head.author();
+        assert_eq!(author.name().unwrap(), "Novalis");
+        assert_eq!(author.email().unwrap(), "novalis@localhost");
     }
 
     #[test]

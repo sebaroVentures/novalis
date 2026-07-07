@@ -36,8 +36,9 @@ pub struct GitStatus {
     pub behind: u32,
 }
 
-/// What one sync cycle did (P2a: fast-forward or push only — divergence
-/// stops the cycle and is surfaced; Novalis never force-pushes).
+/// What one sync cycle did (P2b: fast-forward, push, or an automatic
+/// 3-way merge — conflicts stop the cycle and are surfaced; Novalis never
+/// force-pushes).
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct GitSyncOutcome {
@@ -48,7 +49,11 @@ pub struct GitSyncOutcome {
     pub behind: u32,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+/// Externally tagged (serde default): unit variants cross IPC as plain
+/// strings (`"upToDate"`), the data-carrying [`GitSyncKind::Conflicted`]
+/// as `{ conflicted: { paths } }` — the TS side narrows on
+/// `typeof kind === "string"`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub enum GitSyncKind {
     /// Nothing to transfer in either direction.
@@ -58,8 +63,19 @@ pub enum GitSyncKind {
     /// The local branch fast-forwarded onto the remote (incl. first
     /// adoption of a populated remote into a fresh vault).
     Pulled,
-    /// Both sides have new commits — P2a stops here (merge is P2b).
+    /// Diverged histories were reconciled by an automatic 3-way merge
+    /// commit (P2b), checked out locally and pushed.
+    Merged,
+    /// Both sides have new commits but the auto-merge was not attempted
+    /// (the repository is busy with a user operation, e.g. mid-merge in
+    /// an adopted repo).
     Diverged,
+    /// The automatic merge found conflicting edits. Detection ran
+    /// entirely in memory — the working tree and repository state are
+    /// untouched. `paths` lists the affected vault-relative files
+    /// (sorted; a side deleted here and edited there still yields its
+    /// path). Resolution UI is P3.
+    Conflicted { paths: Vec<String> },
     /// No `origin` remote is configured.
     NoRemote,
 }

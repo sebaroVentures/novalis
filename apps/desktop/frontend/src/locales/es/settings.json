@@ -185,7 +185,9 @@
       "label": "Intervalo de auto-commit"
     },
     "outcome": {
+      "conflicted": "Ambos lados modificaron {{n}} archivo(s): fusión detenida",
       "diverged": "Ambos lados tienen commits nuevos ({{ahead}} locales, {{behind}} remotos): resolver manualmente",
+      "merged": "{{behind}} commit(s) remotos fusionados con {{ahead}} commit(s) locales",
       "noRemote": "Sin remoto configurado",
       "pulled": "{{behind}} commit(s) recibidos",
       "pushed": "{{ahead}} commit(s) enviados",
@@ -193,6 +195,7 @@
     },
     "remote": {
       "aheadBehind": "{{ahead}} por enviar · {{behind}} por recibir",
+      "conflictedHint": "Estos archivos se editaron en ambos lados y no pueden fusionarse automáticamente. Novalis no ha tocado nada: la resolución de conflictos integrada llegará en una próxima actualización; mientras tanto, resuelve el conflicto con un cliente Git y sincroniza de nuevo.",
       "desc": "Sincroniza el Vault con un servidor Git por HTTPS (GitHub, GitLab, autoalojado). Requiere un token de acceso personal con permiso de escritura.",
       "divergedHint": "Los historiales local y remoto han divergido. Novalis nunca fuerza el push: resuelve la divergencia con un cliente Git y sincroniza de nuevo.",
       "notConfigured": "Configura primero una URL remota",

@@ -185,7 +185,9 @@
       "label": "Auto-Commit-Intervall"
     },
     "outcome": {
+      "conflicted": "Beide Seiten haben {{n}} Datei(en) geändert — Merge gestoppt",
       "diverged": "Beide Seiten haben neue Commits ({{ahead}} lokal, {{behind}} remote) — manuell auflösen",
+      "merged": "{{behind}} Remote-Commit(s) mit {{ahead}} lokalen Commit(s) zusammengeführt",
       "noRemote": "Kein Remote konfiguriert",
       "pulled": "{{behind}} Commit(s) geholt",
       "pushed": "{{ahead}} Commit(s) gepusht",
@@ -193,6 +195,7 @@
     },
     "remote": {
       "aheadBehind": "{{ahead}} zu pushen · {{behind}} zu holen",
+      "conflictedHint": "Diese Dateien wurden auf beiden Seiten bearbeitet und lassen sich nicht automatisch zusammenführen. Novalis hat alle Dateien unangetastet gelassen — eine integrierte Konfliktauflösung folgt in einem späteren Update; bis dahin den Konflikt mit einem Git-Client auflösen, dann erneut synchronisieren.",
       "desc": "Gleicht den Vault über HTTPS mit einem Git-Host ab (GitHub, GitLab, self-hosted). Benötigt ein Personal Access Token mit Schreibzugriff.",
       "divergedHint": "Lokale und Remote-Historie sind auseinandergelaufen. Novalis force-pusht nie — die Divergenz mit einem Git-Client auflösen, dann erneut synchronisieren.",
       "notConfigured": "Zuerst eine Remote-URL festlegen",

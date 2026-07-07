@@ -1,7 +1,8 @@
 //! Background auto-committer (Git sync P1+P2). A per-vault thread that, every
 //! `git.auto_commit_secs` while git sync is enabled, commits pending changes
 //! — and, once an `origin` remote is configured, runs the full sync cycle
-//! (fetch → fast-forward or push; diverged histories stop and only log).
+//! (fetch → fast-forward, push, or auto-merge; merge conflicts stop and only
+//! log until the user resolves them).
 //!
 //! Lifecycle mirrors the file watcher: the thread is tagged with the
 //! generation issued at vault-open (the same [`crate::watcher::WATCH_GEN`]
@@ -27,6 +28,11 @@ const TICK: Duration = Duration::from_secs(10);
 pub fn start(vault: PathBuf, generation: u64) {
     std::thread::spawn(move || {
         let mut last_attempt = Instant::now();
+        // Conflict paths of the previous tick, when it was Conflicted. A
+        // stuck conflict re-surfaces every interval (the cycle re-attempts
+        // and that's fine — detection is in-memory and cheap), but it must
+        // not spam warnings: warn on state change, debug otherwise.
+        let mut last_conflict: Option<Vec<String>> = None;
         loop {
             std::thread::sleep(TICK);
             if crate::watcher::WATCH_GEN.load(Ordering::SeqCst) != generation {
@@ -59,17 +65,35 @@ pub fn start(vault: PathBuf, generation: u64) {
                 );
                 match result {
                     Ok(out) => match out.kind {
-                        GitSyncKind::UpToDate => {}
+                        GitSyncKind::UpToDate => last_conflict = None,
+                        GitSyncKind::Conflicted { paths } => {
+                            if last_conflict.as_ref() == Some(&paths) {
+                                log::debug!(
+                                    "git auto-sync: merge conflicts persist in {} file(s)",
+                                    paths.len()
+                                );
+                            } else {
+                                log::warn!(
+                                    "git auto-sync: merge conflicts in {} file(s) ({}) — needs manual resolution",
+                                    paths.len(),
+                                    paths.join(", ")
+                                );
+                                last_conflict = Some(paths);
+                            }
+                        }
                         GitSyncKind::Diverged => log::warn!(
                             "git auto-sync: histories diverged (ahead {}, behind {}) — needs manual resolution",
                             out.ahead,
                             out.behind
                         ),
-                        kind => log::info!(
-                            "git auto-sync: {kind:?} (ahead {}, behind {})",
-                            out.ahead,
-                            out.behind
-                        ),
+                        kind => {
+                            last_conflict = None;
+                            log::info!(
+                                "git auto-sync: {kind:?} (ahead {}, behind {})",
+                                out.ahead,
+                                out.behind
+                            );
+                        }
                     },
                     Err(e) => log::warn!("git auto-sync failed: {e}"),
                 }

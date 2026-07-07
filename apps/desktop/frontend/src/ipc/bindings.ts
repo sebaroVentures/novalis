@@ -197,8 +197,11 @@ export const commands = {
 	 */
 	gitHasToken: () => typedError<boolean, CommandError>(__TAURI_INVOKE("git_has_token")),
 	/**
-	 *  One manual sync cycle: fetch, then fast-forward or push (P2a — diverged
-	 *  histories stop and are surfaced; never a force-push). `async` +
+	 *  One manual sync cycle: fetch, then fast-forward, push, or auto-merge
+	 *  (P2b — merge conflicts stop and are surfaced with their paths; never a
+	 *  force-push). A file-changing checkout (pull or merge) is adopted the
+	 *  same way for both: the watcher reindexes the checked-out paths and the
+	 *  frontend reloads open notes via the external-change guard. `async` +
 	 *  `spawn_blocking` off the engine lock: network plus checkout work.
 	 */
 	gitSyncNow: () => typedError<GitSyncOutcome, CommandError>(__TAURI_INVOKE("git_sync_now")),
@@ -835,6 +838,12 @@ export type GitStatus = {
 	behind: number,
 };
 
+/**
+ *  Externally tagged (serde default): unit variants cross IPC as plain
+ *  strings (`"upToDate"`), the data-carrying [`GitSyncKind::Conflicted`]
+ *  as `{ conflicted: { paths } }` — the TS side narrows on
+ *  `typeof kind === "string"`.
+ */
 export type GitSyncKind = 
 /**  Nothing to transfer in either direction. */
 "upToDate" | 
@@ -845,14 +854,34 @@ export type GitSyncKind =
  *  adoption of a populated remote into a fresh vault).
  */
 "pulled" | 
-/**  Both sides have new commits — P2a stops here (merge is P2b). */
+/**
+ *  Diverged histories were reconciled by an automatic 3-way merge
+ *  commit (P2b), checked out locally and pushed.
+ */
+"merged" | 
+/**
+ *  Both sides have new commits but the auto-merge was not attempted
+ *  (the repository is busy with a user operation, e.g. mid-merge in
+ *  an adopted repo).
+ */
 "diverged" | 
+/**
+ *  The automatic merge found conflicting edits. Detection ran
+ *  entirely in memory — the working tree and repository state are
+ *  untouched. `paths` lists the affected vault-relative files
+ *  (sorted; a side deleted here and edited there still yields its
+ *  path). Resolution UI is P3.
+ */
+{ conflicted: {
+	paths: string[],
+} } | 
 /**  No `origin` remote is configured. */
 "noRemote";
 
 /**
- *  What one sync cycle did (P2a: fast-forward or push only — divergence
- *  stops the cycle and is surfaced; Novalis never force-pushes).
+ *  What one sync cycle did (P2b: fast-forward, push, or an automatic
+ *  3-way merge — conflicts stop the cycle and are surfaced; Novalis never
+ *  force-pushes).
  */
 export type GitSyncOutcome = {
 	kind: GitSyncKind,

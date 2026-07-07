@@ -945,8 +945,11 @@ pub fn git_has_token(state: State<AppEngine>) -> CmdResult<bool> {
     state.with(|e| Ok(read_git_token(&e.vault_path).is_some()))
 }
 
-/// One manual sync cycle: fetch, then fast-forward or push (P2a — diverged
-/// histories stop and are surfaced; never a force-push). `async` +
+/// One manual sync cycle: fetch, then fast-forward, push, or auto-merge
+/// (P2b — merge conflicts stop and are surfaced with their paths; never a
+/// force-push). A file-changing checkout (pull or merge) is adopted the
+/// same way for both: the watcher reindexes the checked-out paths and the
+/// frontend reloads open notes via the external-change guard. `async` +
 /// `spawn_blocking` off the engine lock: network plus checkout work.
 #[tauri::command]
 #[specta::specta]

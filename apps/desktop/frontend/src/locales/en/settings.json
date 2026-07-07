@@ -185,7 +185,9 @@
       "label": "Auto-commit interval"
     },
     "outcome": {
+      "conflicted": "Both sides edited {{n}} file(s) — merge stopped",
       "diverged": "Both sides have new commits ({{ahead}} local, {{behind}} remote) — resolve manually",
+      "merged": "Merged {{behind}} remote commit(s) with {{ahead}} local commit(s)",
       "noRemote": "No remote configured",
       "pulled": "Pulled {{behind}} commit(s)",
       "pushed": "Pushed {{ahead}} commit(s)",
@@ -193,6 +195,7 @@
     },
     "remote": {
       "aheadBehind": "{{ahead}} to push · {{behind}} to pull",
+      "conflictedHint": "These files were edited on both sides and can't be merged automatically. Novalis left your files untouched — a built-in resolution view is coming in a later update; until then, resolve the conflict with a git client, then sync again.",
       "desc": "Sync the vault with a Git host over HTTPS (GitHub, GitLab, self-hosted). Requires a personal access token with write access.",
       "divergedHint": "Local and remote histories have diverged. Novalis never force-pushes — resolve the divergence with a git client, then sync again.",
       "notConfigured": "Set a remote URL first",
