@@ -523,7 +523,10 @@ pub fn move_folder(vault: &Path, from: &str, to: &str) -> CoreResult<()> {
             "Source folder not found: {from}"
         )));
     }
-    if abs_to.exists() {
+    // On case-insensitive filesystems `exists()` is true for a case-only
+    // rename (`notes/` -> `Notes/`) because it's the same directory — allow
+    // that; only a genuinely different directory is a collision.
+    if abs_to.exists() && !is_same_file(&abs_from, &abs_to) {
         return Err(CoreError::AlreadyExists(format!(
             "Destination folder already exists: {to}"
         )));
@@ -748,6 +751,33 @@ mod tests {
             std::fs::read_to_string(vault.path().join("Note.md")).unwrap(),
             "body"
         );
+    }
+
+    #[test]
+    fn move_folder_allows_case_only_rename_but_rejects_collisions() {
+        // Same case-insensitive-filesystem rule as move_note, for folders.
+        let vault = temp_vault();
+        std::fs::create_dir_all(vault.path().join("notes")).unwrap();
+        std::fs::write(vault.path().join("notes/a.md"), "a").unwrap();
+
+        move_folder(vault.path(), "notes", "Notes").unwrap();
+
+        let names: Vec<String> = std::fs::read_dir(vault.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        assert_eq!(names, vec!["Notes".to_string()]);
+        assert_eq!(
+            std::fs::read_to_string(vault.path().join("Notes/a.md")).unwrap(),
+            "a"
+        );
+
+        // A genuinely different existing directory is still a collision.
+        std::fs::create_dir_all(vault.path().join("Other")).unwrap();
+        assert!(matches!(
+            move_folder(vault.path(), "Notes", "Other"),
+            Err(CoreError::AlreadyExists(_))
+        ));
     }
 
     #[test]

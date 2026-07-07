@@ -321,7 +321,9 @@ pub fn vector_index(db: &Connection, model: &str) -> CoreResult<HashMap<String, 
     let rows = stmt.query_map(params![model], |r| {
         Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?))
     })?;
-    Ok(rows.filter_map(|r| r.ok()).collect())
+    Ok(rows
+        .filter_map(|r| super::ok_row_or_warn("note_vectors", r))
+        .collect())
 }
 
 /// Raw `(path, title, vec-BLOB)` rows for one model — the undecoded form of
@@ -344,7 +346,9 @@ pub fn candidate_rows_for_model(
             r.get::<_, Vec<u8>>(2)?,
         ))
     })?;
-    Ok(rows.filter_map(|r| r.ok()).collect())
+    Ok(rows
+        .filter_map(|r| super::ok_row_or_warn("note_vectors", r))
+        .collect())
 }
 
 /// Decode raw candidate rows into vectors, skipping corrupt BLOBs. Pure — the
@@ -415,7 +419,9 @@ pub fn eligible_notes(db: &Connection) -> CoreResult<Vec<(String, String)>> {
         "SELECT path, title FROM note_meta WHERE {ELIGIBLE_SQL}"
     ))?;
     let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, String>(1)?)))?;
-    Ok(rows.filter_map(|r| r.ok()).collect())
+    Ok(rows
+        .filter_map(|r| super::ok_row_or_warn("note_meta", r))
+        .collect())
 }
 
 // ---------------------------------------------------------------------------
