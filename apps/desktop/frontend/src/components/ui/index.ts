@@ -1,3 +1,4 @@
+export { Modal } from "./Modal";
 export { Switch } from "./Switch";
 export { SegmentedControl } from "./SegmentedControl";
 export { Select } from "./Select";
