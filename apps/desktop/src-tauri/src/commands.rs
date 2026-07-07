@@ -15,9 +15,9 @@ use novalis_core::index::{links, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
     CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, FullGraph,
-    GitStatus, GitSyncOutcome, LinkReference, Note, NoteGraph, NoteSummary, NoteTemplate,
-    PluginInfo, Preferences, PropertyValue, ResolveConflictRequest, SearchResult, TagCount, Task,
-    TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
+    GitConflict, GitResolution, GitStatus, GitSyncOutcome, LinkReference, Note, NoteGraph,
+    NoteSummary, NoteTemplate, PluginInfo, Preferences, PropertyValue, ResolveConflictRequest,
+    SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
@@ -968,6 +968,48 @@ pub async fn git_sync_now(app: AppHandle) -> CmdResult<GitSyncOutcome> {
     })
     .await
     .map_err(|e| CommandError::internal(format!("git_sync_now task panicked: {e}")))?
+}
+
+/// The conflicted paths of a diverged merge with base/ours/theirs
+/// materialized (P3a). Stateless: re-derived in memory on every call —
+/// nothing is persisted between sync's `Conflicted` outcome and resolution,
+/// so a restart just re-opens the resolver from this list. `async` +
+/// `spawn_blocking` off the engine lock: the merge hashes blobs.
+#[tauri::command]
+#[specta::specta]
+pub async fn git_merge_conflicts(app: AppHandle) -> CmdResult<Vec<GitConflict>> {
+    let vault = vault_path_snapshot(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        git::merge_conflicts(&vault).map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("git_merge_conflicts task panicked: {e}")))?
+}
+
+/// Complete a conflicted merge with one resolution per conflicted path
+/// (P3a): fetch, re-derive, apply, then 2-parent commit + checkout + push.
+/// The checkout writes the merged files; the watcher reindexes them and the
+/// frontend reloads open notes via the external-change path — the same
+/// adoption as a pull. `async` + `spawn_blocking` off the engine lock:
+/// network plus checkout work (mirrors `git_sync_now`).
+#[tauri::command]
+#[specta::specta]
+pub async fn git_finalize_merge(app: AppHandle, resolutions: Vec<GitResolution>) -> CmdResult<()> {
+    let vault = vault_path_snapshot(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let prefs = config::try_read_preferences(&vault)?;
+        let token = read_git_token(&vault);
+        git::finalize_merge(
+            &vault,
+            &prefs.git.author_name,
+            &prefs.git.author_email,
+            token.as_deref(),
+            &resolutions,
+        )
+        .map_err(CommandError::from)
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("git_finalize_merge task panicked: {e}")))?
 }
 
 // ── Tasks ────────────────────────────────────────────────────────────────

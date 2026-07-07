@@ -140,6 +140,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::git_set_token,
             commands::git_has_token,
             commands::git_sync_now,
+            commands::git_merge_conflicts,
+            commands::git_finalize_merge,
             commands::list_tasks,
             commands::create_task,
             commands::toggle_task,

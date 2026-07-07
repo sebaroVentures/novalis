@@ -205,6 +205,23 @@ export const commands = {
 	 *  `spawn_blocking` off the engine lock: network plus checkout work.
 	 */
 	gitSyncNow: () => typedError<GitSyncOutcome, CommandError>(__TAURI_INVOKE("git_sync_now")),
+	/**
+	 *  The conflicted paths of a diverged merge with base/ours/theirs
+	 *  materialized (P3a). Stateless: re-derived in memory on every call —
+	 *  nothing is persisted between sync's `Conflicted` outcome and resolution,
+	 *  so a restart just re-opens the resolver from this list. `async` +
+	 *  `spawn_blocking` off the engine lock: the merge hashes blobs.
+	 */
+	gitMergeConflicts: () => typedError<GitConflict[], CommandError>(__TAURI_INVOKE("git_merge_conflicts")),
+	/**
+	 *  Complete a conflicted merge with one resolution per conflicted path
+	 *  (P3a): fetch, re-derive, apply, then 2-parent commit + checkout + push.
+	 *  The checkout writes the merged files; the watcher reindexes them and the
+	 *  frontend reloads open notes via the external-change path — the same
+	 *  adoption as a pull. `async` + `spawn_blocking` off the engine lock:
+	 *  network plus checkout work (mirrors `git_sync_now`).
+	 */
+	gitFinalizeMerge: (resolutions: GitResolution[]) => typedError<null, CommandError>(__TAURI_INVOKE("git_finalize_merge", { resolutions })),
 	listTasks: (query: TaskQuery) => typedError<Task[], CommandError>(__TAURI_INVOKE("list_tasks", { query })),
 	createTask: (req: CreateTaskRequest) => typedError<Task, CommandError>(__TAURI_INVOKE("create_task", { req })),
 	toggleTask: (id: string) => typedError<boolean, CommandError>(__TAURI_INVOKE("toggle_task", { id })),
@@ -791,6 +808,26 @@ export type GitCommitInfo = {
 };
 
 /**
+ *  One conflicted path of a diverged merge (P3a), all three sides
+ *  materialized from their blob OIDs. `None` = that side has no entry — the
+ *  delete-vs-edit case. Content is capped like the OneDrive conflict
+ *  preview: oversized or non-UTF-8 (binary) blobs are replaced by a
+ *  bracketed placeholder rather than failing — resolving by "ours"/"theirs"
+ *  stays lossless regardless, because finalization re-reads the blob OID,
+ *  never this preview text.
+ */
+export type GitConflict = {
+	/**  Vault-relative path (forward-slashed). */
+	path: string,
+	/**  Content at the merge base (common ancestor). */
+	base: string | null,
+	/**  Content on the local branch tip. */
+	ours: string | null,
+	/**  Content on the remote-tracking tip. */
+	theirs: string | null,
+};
+
+/**
  *  Local git versioning (Git sync P1 — no remotes yet). Synced with the vault
  *  like every block here, so enabling follows the vault across devices.
  */
@@ -808,6 +845,28 @@ export type GitPrefs = {
 	 */
 	autoCommitSecs?: number,
 };
+
+/**  The user's decision for one conflicted path of a diverged merge. */
+export type GitResolution = {
+	/**  Vault-relative path (forward-slashed), as reported by `GitConflict`. */
+	path: string,
+	resolution: GitResolutionChoice,
+};
+
+/**
+ *  Externally tagged like [`GitSyncKind`]: `"ours"`/`"theirs"` cross IPC as
+ *  plain strings, manual content as `{ manual: { content } }`. Choosing a
+ *  side whose entry is absent (delete-vs-edit) resolves to the deletion.
+ */
+export type GitResolutionChoice = 
+/**  Keep the local branch's version (or its deletion). */
+"ours" | 
+/**  Keep the remote's version (or its deletion). */
+"theirs" | 
+/**  Replace the file with hand-merged content. */
+{ manual: {
+	content: string,
+} };
 
 /**  Local repository state of the open vault. */
 export type GitStatus = {
