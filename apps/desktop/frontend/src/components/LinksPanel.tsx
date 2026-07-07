@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { api, type LinkReference } from "../ipc/api";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
+import { Modal } from "./ui/Modal";
 
 // The local graph reuses the (lazy, d3-force-backed) whole-vault GraphView in
 // focus mode — same chunk as the Graph main view.
@@ -144,43 +145,40 @@ export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
       </div>
 
       {graphOpen && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-6"
-          onClick={() => setGraphOpen(false)}
+        <Modal
+          label={t("graph")}
+          onClose={() => setGraphOpen(false)}
+          overlayClassName="z-50 items-center justify-center p-6"
+          panelClassName="flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
         >
-          <div
-            className="flex h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <header className="flex items-center justify-between border-b border-border px-5 py-3">
-              <span className="flex items-center gap-2 text-sm font-medium text-fg">
-                <Network size={15} />
-                {t("graph")}
-              </span>
-              <button
-                onClick={() => setGraphOpen(false)}
-                className="rounded-md p-1 text-fg-muted transition-colors hover:bg-active hover:text-fg"
-              >
-                <X size={16} />
-              </button>
-            </header>
-            <div className="relative flex min-h-0 flex-1">
-              <Suspense
-                fallback={
-                  <div className="flex flex-1 items-center justify-center text-sm text-fg-faint">
-                    {t("common:loading")}
-                  </div>
-                }
-              >
-                <GraphView
-                  focusPath={path}
-                  initialDepth={1}
-                  onNavigate={() => setGraphOpen(false)}
-                />
-              </Suspense>
-            </div>
+          <header className="flex items-center justify-between border-b border-border px-5 py-3">
+            <span className="flex items-center gap-2 text-sm font-medium text-fg">
+              <Network size={15} />
+              {t("graph")}
+            </span>
+            <button
+              onClick={() => setGraphOpen(false)}
+              className="rounded-md p-1 text-fg-muted transition-colors hover:bg-active hover:text-fg"
+            >
+              <X size={16} />
+            </button>
+          </header>
+          <div className="relative flex min-h-0 flex-1">
+            <Suspense
+              fallback={
+                <div className="flex flex-1 items-center justify-center text-sm text-fg-faint">
+                  {t("common:loading")}
+                </div>
+              }
+            >
+              <GraphView
+                focusPath={path}
+                initialDepth={1}
+                onNavigate={() => setGraphOpen(false)}
+              />
+            </Suspense>
           </div>
-        </div>
+        </Modal>
       )}
     </aside>
   );

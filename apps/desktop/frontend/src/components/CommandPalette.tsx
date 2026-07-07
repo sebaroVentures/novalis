@@ -9,6 +9,7 @@ import { useKeymap } from "../stores/keymapStore";
 import { usePlugins } from "../stores/pluginStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
+import { Modal } from "./ui/Modal";
 
 interface Command {
   id: string;
@@ -117,7 +118,6 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         .listTemplates()
         .then(setTemplates)
         .catch(() => setTemplates([]));
-      setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open]);
 
@@ -128,10 +128,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     onClose();
   };
 
+  // Escape is handled by the Modal shell (close, restore focus).
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onClose();
-    } else if (e.key === "ArrowDown") {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelected((s) => Math.min(s + 1, filtered.length - 1));
     } else if (e.key === "ArrowUp") {
@@ -144,45 +143,43 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-overlay pt-28"
-      onClick={onClose}
+    <Modal
+      label={t("cmdPlaceholder")}
+      onClose={onClose}
+      initialFocusRef={inputRef}
+      overlayClassName="z-50 items-start justify-center pt-28"
+      panelClassName="w-full max-w-lg overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
     >
-      <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setSelected(0);
-          }}
-          placeholder={t("cmdPlaceholder")}
-          className="w-full bg-transparent px-4 py-3 text-fg outline-none placeholder:text-fg-faint"
-          onKeyDown={onKeyDown}
-        />
-        <ul className="max-h-80 overflow-y-auto border-t border-border">
-          {filtered.length === 0 && (
-            <li className="px-4 py-3 text-sm text-fg-faint">{t("cmdEmpty")}</li>
-          )}
-          {filtered.map((c, i) => (
-            <li key={c.id}>
-              <button
-                onMouseMove={() => setSelected(i)}
-                onClick={() => run(c)}
-                className={`flex w-full items-center justify-between gap-2 px-4 py-2 text-left ${
-                  i === selected ? "bg-active" : "hover:bg-hover"
-                }`}
-              >
-                <span className="text-sm text-fg">{c.title}</span>
-                <span className="text-[10px] uppercase tracking-wide text-fg-faint">{c.badge}</span>
-              </button>
-            </li>
-          ))}
-        </ul>
-      </div>
-    </div>
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setSelected(0);
+        }}
+        placeholder={t("cmdPlaceholder")}
+        className="w-full bg-transparent px-4 py-3 text-fg outline-none placeholder:text-fg-faint"
+        onKeyDown={onKeyDown}
+      />
+      <ul className="max-h-80 overflow-y-auto border-t border-border">
+        {filtered.length === 0 && (
+          <li className="px-4 py-3 text-sm text-fg-faint">{t("cmdEmpty")}</li>
+        )}
+        {filtered.map((c, i) => (
+          <li key={c.id}>
+            <button
+              onMouseMove={() => setSelected(i)}
+              onClick={() => run(c)}
+              className={`flex w-full items-center justify-between gap-2 px-4 py-2 text-left ${
+                i === selected ? "bg-active" : "hover:bg-hover"
+              }`}
+            >
+              <span className="text-sm text-fg">{c.title}</span>
+              <span className="text-[10px] uppercase tracking-wide text-fg-faint">{c.badge}</span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </Modal>
   );
 }

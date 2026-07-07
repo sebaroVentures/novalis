@@ -8,6 +8,7 @@ import { api, type TrashItem } from "../ipc/api";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
+import { Modal } from "./ui/Modal";
 
 type Pending = { kind: "item"; item: TrashItem } | { kind: "empty" } | null;
 
@@ -56,71 +57,68 @@ export function TrashModal({ open, onClose }: { open: boolean; onClose: () => vo
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-6"
-      onClick={onClose}
+    <Modal
+      label={t("title")}
+      onClose={onClose}
+      overlayClassName="z-50 items-center justify-center p-6"
+      panelClassName="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
     >
-      <div
-        className="flex max-h-[80vh] w-full max-w-lg flex-col overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-fg">
-            <Trash2 size={16} className="text-fg-muted" />
-            {t("title")}
-          </h2>
-          <div className="flex items-center gap-1">
-            {items.length > 0 && (
-              <button
-                onClick={() => setConfirm({ kind: "empty" })}
-                className="rounded-md px-2 py-1 text-xs text-fg-muted transition-colors hover:bg-red-500/10 hover:text-danger"
-              >
-                {t("emptyTrash")}
-              </button>
-            )}
+      <header className="flex items-center justify-between border-b border-border px-5 py-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-fg">
+          <Trash2 size={16} className="text-fg-muted" />
+          {t("title")}
+        </h2>
+        <div className="flex items-center gap-1">
+          {items.length > 0 && (
             <button
-              onClick={onClose}
-              aria-label={t("common:cancel")}
-              className="rounded-md p-1 text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+              onClick={() => setConfirm({ kind: "empty" })}
+              className="rounded-md px-2 py-1 text-xs text-fg-muted transition-colors hover:bg-red-500/10 hover:text-danger"
             >
-              <X size={16} />
+              {t("emptyTrash")}
             </button>
-          </div>
-        </header>
+          )}
+          <button
+            onClick={onClose}
+            aria-label={t("common:cancel")}
+            className="rounded-md p-1 text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+          >
+            <X size={16} />
+          </button>
+        </div>
+      </header>
 
-        {items.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm text-fg-faint">{t("empty")}</div>
-        ) : (
-          <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
-            {items.map((item) => (
-              <li key={item.id} className="flex items-center gap-3 px-5 py-2.5">
-                <div className="min-w-0 flex-1">
-                  <div className="truncate text-sm text-fg">
-                    {basename(item.originalPath).replace(/\.md$/, "")}
-                  </div>
-                  <div className="truncate text-xs text-fg-faint">
-                    {folderOf(item.originalPath) || "/"} · {formatStamp(item.trashedAt)}
-                  </div>
+      {items.length === 0 ? (
+        <div className="px-5 py-12 text-center text-sm text-fg-faint">{t("empty")}</div>
+      ) : (
+        <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
+          {items.map((item) => (
+            <li key={item.id} className="flex items-center gap-3 px-5 py-2.5">
+              <div className="min-w-0 flex-1">
+                <div className="truncate text-sm text-fg">
+                  {basename(item.originalPath).replace(/\.md$/, "")}
                 </div>
-                <button
-                  onClick={() => void restore(item)}
-                  title={t("restore")}
-                  className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
-                >
-                  <RotateCcw size={15} />
-                </button>
-                <button
-                  onClick={() => setConfirm({ kind: "item", item })}
-                  title={t("deletePermanently")}
-                  className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-red-500/10 hover:text-danger"
-                >
-                  <Trash2 size={15} />
-                </button>
-              </li>
-            ))}
-          </ul>
-        )}
-      </div>
+                <div className="truncate text-xs text-fg-faint">
+                  {folderOf(item.originalPath) || "/"} · {formatStamp(item.trashedAt)}
+                </div>
+              </div>
+              <button
+                onClick={() => void restore(item)}
+                title={t("restore")}
+                className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
+              >
+                <RotateCcw size={15} />
+              </button>
+              <button
+                onClick={() => setConfirm({ kind: "item", item })}
+                title={t("deletePermanently")}
+                className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-red-500/10 hover:text-danger"
+              >
+                <Trash2 size={15} />
+              </button>
+            </li>
+          ))}
+        </ul>
+      )}
 
       <ConfirmDialog
         open={confirm !== null}
@@ -139,6 +137,6 @@ export function TrashModal({ open, onClose }: { open: boolean; onClose: () => vo
         onConfirm={() => void runConfirm()}
         onCancel={() => setConfirm(null)}
       />
-    </div>
+    </Modal>
   );
 }

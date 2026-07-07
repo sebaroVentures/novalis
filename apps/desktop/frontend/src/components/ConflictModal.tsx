@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { api, type ConflictDiff, type ConflictFile } from "../ipc/api";
 import { useConflicts } from "../stores/conflictStore";
+import { Modal } from "./ui/Modal";
 
 export function ConflictModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation(["conflict", "common"]);
@@ -54,88 +55,85 @@ export function ConflictModal({ open, onClose }: { open: boolean; onClose: () =>
   };
 
   return (
-    <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-overlay p-6"
-      onClick={onClose}
+    <Modal
+      label={t("title")}
+      onClose={onClose}
+      overlayClassName="z-50 items-center justify-center p-6"
+      panelClassName="flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
     >
-      <div
-        className="flex max-h-[80vh] w-full max-w-3xl flex-col overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <header className="flex items-center justify-between border-b border-border px-5 py-3">
-          <h2 className="flex items-center gap-2 text-sm font-semibold text-fg">
-            <AlertTriangle size={16} className="text-danger" />
-            {t("title")}
-          </h2>
-          <button
-            onClick={onClose}
-            aria-label={t("common:cancel")}
-            className="rounded-md p-1 text-fg-muted transition-colors hover:bg-hover hover:text-fg"
-          >
-            <X size={16} />
-          </button>
-        </header>
+      <header className="flex items-center justify-between border-b border-border px-5 py-3">
+        <h2 className="flex items-center gap-2 text-sm font-semibold text-fg">
+          <AlertTriangle size={16} className="text-danger" />
+          {t("title")}
+        </h2>
+        <button
+          onClick={onClose}
+          aria-label={t("common:cancel")}
+          className="rounded-md p-1 text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+        >
+          <X size={16} />
+        </button>
+      </header>
 
-        {conflicts.length === 0 ? (
-          <div className="px-5 py-12 text-center text-sm text-fg-faint">{t("empty")}</div>
-        ) : (
-          <div className="flex min-h-0 flex-1 flex-col">
-            <p className="px-5 pt-3 text-xs text-fg-muted">{t("description")}</p>
-            <div className="flex flex-wrap gap-1.5 px-5 py-3">
-              {conflicts.map((c) => (
-                <button
-                  key={c.conflictPath}
-                  onClick={() => setSelected(c)}
-                  className={`max-w-full truncate rounded-md border px-2.5 py-1 text-xs transition-colors ${
-                    selected?.conflictPath === c.conflictPath
-                      ? "border-accent bg-accent-soft text-fg"
-                      : "border-border text-fg-muted hover:bg-hover"
-                  }`}
-                >
-                  {c.conflictPath.split("/").pop()}
-                </button>
-              ))}
-            </div>
-            <div className="grid min-h-0 flex-1 grid-cols-2 gap-px overflow-hidden border-y border-border bg-border">
-              <DiffPane
-                title={t("original")}
-                subtitle={selected?.originalPath}
-                content={diff?.originalExists ? diff?.originalContent : undefined}
-                placeholder={diff && !diff.originalExists ? t("missing") : undefined}
-              />
-              <DiffPane
-                title={t("conflicted")}
-                subtitle={selected?.conflictPath}
-                content={diff?.conflictContent}
-              />
-            </div>
-            <div className="flex flex-wrap items-center justify-end gap-2 px-5 py-3">
+      {conflicts.length === 0 ? (
+        <div className="px-5 py-12 text-center text-sm text-fg-faint">{t("empty")}</div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          <p className="px-5 pt-3 text-xs text-fg-muted">{t("description")}</p>
+          <div className="flex flex-wrap gap-1.5 px-5 py-3">
+            {conflicts.map((c) => (
               <button
-                disabled={busy}
-                onClick={() => void doResolve("original")}
-                className="rounded-md border border-border px-3 py-1.5 text-xs text-fg transition-colors hover:bg-hover disabled:opacity-50"
+                key={c.conflictPath}
+                onClick={() => setSelected(c)}
+                className={`max-w-full truncate rounded-md border px-2.5 py-1 text-xs transition-colors ${
+                  selected?.conflictPath === c.conflictPath
+                    ? "border-accent bg-accent-soft text-fg"
+                    : "border-border text-fg-muted hover:bg-hover"
+                }`}
               >
-                {t("keepOriginal")}
+                {c.conflictPath.split("/").pop()}
               </button>
-              <button
-                disabled={busy}
-                onClick={() => void doResolve("conflict")}
-                className="rounded-md border border-border px-3 py-1.5 text-xs text-fg transition-colors hover:bg-hover disabled:opacity-50"
-              >
-                {t("keepConflict")}
-              </button>
-              <button
-                disabled={busy}
-                onClick={() => void doResolve("both")}
-                className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-colors hover:opacity-90 disabled:opacity-50"
-              >
-                {t("keepBoth")}
-              </button>
-            </div>
+            ))}
           </div>
-        )}
-      </div>
-    </div>
+          <div className="grid min-h-0 flex-1 grid-cols-2 gap-px overflow-hidden border-y border-border bg-border">
+            <DiffPane
+              title={t("original")}
+              subtitle={selected?.originalPath}
+              content={diff?.originalExists ? diff?.originalContent : undefined}
+              placeholder={diff && !diff.originalExists ? t("missing") : undefined}
+            />
+            <DiffPane
+              title={t("conflicted")}
+              subtitle={selected?.conflictPath}
+              content={diff?.conflictContent}
+            />
+          </div>
+          <div className="flex flex-wrap items-center justify-end gap-2 px-5 py-3">
+            <button
+              disabled={busy}
+              onClick={() => void doResolve("original")}
+              className="rounded-md border border-border px-3 py-1.5 text-xs text-fg transition-colors hover:bg-hover disabled:opacity-50"
+            >
+              {t("keepOriginal")}
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => void doResolve("conflict")}
+              className="rounded-md border border-border px-3 py-1.5 text-xs text-fg transition-colors hover:bg-hover disabled:opacity-50"
+            >
+              {t("keepConflict")}
+            </button>
+            <button
+              disabled={busy}
+              onClick={() => void doResolve("both")}
+              className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-colors hover:opacity-90 disabled:opacity-50"
+            >
+              {t("keepBoth")}
+            </button>
+          </div>
+        </div>
+      )}
+    </Modal>
   );
 }
 

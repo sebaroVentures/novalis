@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -13,6 +13,7 @@ import {
 } from "../lib/datetime";
 import { type CalMode, gridFor, isoDate, useCalendar } from "../stores/calendarStore";
 import { useSettings } from "../stores/settingsStore";
+import { Modal } from "./ui/Modal";
 
 /** Add minutes to a `HH:MM` string, wrapping within a 24h day. */
 function addMinutes(hhmm: string, mins: number): string {
@@ -300,6 +301,7 @@ function EventModal({
   const [d, setD] = useState<EventDraft>(draft);
   const [freq, setFreq] = useState(rruleToFreq(draft.rrule));
   const editing = Boolean(draft.notePath);
+  const titleRef = useRef<HTMLInputElement>(null);
 
   const save = async () => {
     if (!d.title.trim()) return;
@@ -324,77 +326,81 @@ function EventModal({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-overlay" onClick={onClose}>
-      <div className="w-full max-w-sm rounded-xl border border-border-strong bg-surface p-4 shadow-2xl" onClick={(e) => e.stopPropagation()}>
-        <h2 className="mb-3 text-sm font-semibold text-fg">{editing ? t("editEvent") : t("newEvent")}</h2>
-        <div className="space-y-2">
-          <input
-            autoFocus
-            value={d.title}
-            onChange={(e) => setD({ ...d, title: e.target.value })}
-            placeholder={t("eventTitle")}
-            className="w-full rounded bg-surface-2 px-2 py-1.5 text-sm text-fg placeholder:text-fg-faint"
-          />
-          <input
-            type="date"
-            value={d.date}
-            onChange={(e) => setD({ ...d, date: e.target.value })}
-            className="w-full rounded bg-surface-2 px-2 py-1.5 text-sm text-fg"
-          />
-          <label className="flex items-center gap-2 text-sm text-fg-muted">
-            <input type="checkbox" checked={d.allDay} onChange={(e) => setD({ ...d, allDay: e.target.checked })} className="accent-[var(--accent)]" />
-            {t("allDay")}
-          </label>
-          {!d.allDay && (
-            <div className="flex gap-2">
-              <input
-                type="time"
-                value={d.startTime ?? ""}
-                onChange={(e) => setD({ ...d, startTime: e.target.value })}
-                className="flex-1 rounded bg-surface-2 px-2 py-1.5 text-sm text-fg"
-              />
-              <input
-                type="time"
-                value={d.endTime ?? ""}
-                onChange={(e) => setD({ ...d, endTime: e.target.value })}
-                className="flex-1 rounded bg-surface-2 px-2 py-1.5 text-sm text-fg"
-              />
-            </div>
-          )}
+    <Modal
+      label={editing ? t("editEvent") : t("newEvent")}
+      onClose={onClose}
+      initialFocusRef={titleRef}
+      overlayClassName="z-50 items-center justify-center"
+      panelClassName="w-full max-w-sm rounded-xl border border-border-strong bg-surface p-4 shadow-2xl"
+    >
+      <h2 className="mb-3 text-sm font-semibold text-fg">{editing ? t("editEvent") : t("newEvent")}</h2>
+      <div className="space-y-2">
+        <input
+          ref={titleRef}
+          value={d.title}
+          onChange={(e) => setD({ ...d, title: e.target.value })}
+          placeholder={t("eventTitle")}
+          className="w-full rounded bg-surface-2 px-2 py-1.5 text-sm text-fg placeholder:text-fg-faint"
+        />
+        <input
+          type="date"
+          value={d.date}
+          onChange={(e) => setD({ ...d, date: e.target.value })}
+          className="w-full rounded bg-surface-2 px-2 py-1.5 text-sm text-fg"
+        />
+        <label className="flex items-center gap-2 text-sm text-fg-muted">
+          <input type="checkbox" checked={d.allDay} onChange={(e) => setD({ ...d, allDay: e.target.checked })} className="accent-[var(--accent)]" />
+          {t("allDay")}
+        </label>
+        {!d.allDay && (
           <div className="flex gap-2">
-            <select value={freq} onChange={(e) => setFreq(e.target.value)} className="rounded bg-surface-2 px-2 py-1.5 text-sm text-fg">
-              <option value="none">{t("freq.none")}</option>
-              <option value="daily">{t("freq.daily")}</option>
-              <option value="weekly">{t("freq.weekly")}</option>
-              <option value="monthly">{t("freq.monthly")}</option>
-              <option value="yearly">{t("freq.yearly")}</option>
-            </select>
             <input
-              value={d.location ?? ""}
-              onChange={(e) => setD({ ...d, location: e.target.value })}
-              placeholder={t("location")}
-              className="flex-1 rounded bg-surface-2 px-2 py-1.5 text-sm text-fg placeholder:text-fg-faint"
+              type="time"
+              value={d.startTime ?? ""}
+              onChange={(e) => setD({ ...d, startTime: e.target.value })}
+              className="flex-1 rounded bg-surface-2 px-2 py-1.5 text-sm text-fg"
+            />
+            <input
+              type="time"
+              value={d.endTime ?? ""}
+              onChange={(e) => setD({ ...d, endTime: e.target.value })}
+              className="flex-1 rounded bg-surface-2 px-2 py-1.5 text-sm text-fg"
             />
           </div>
-        </div>
-        <div className="mt-4 flex items-center justify-between">
-          {editing ? (
-            <button onClick={() => void remove()} className="text-xs text-danger hover:text-danger">
-              {t("common:delete")}
-            </button>
-          ) : (
-            <span />
-          )}
-          <div className="flex gap-2">
-            <button onClick={onClose} className="rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg">
-              {t("common:cancel")}
-            </button>
-            <button onClick={() => void save()} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg hover:bg-accent">
-              {t("common:save")}
-            </button>
-          </div>
+        )}
+        <div className="flex gap-2">
+          <select value={freq} onChange={(e) => setFreq(e.target.value)} className="rounded bg-surface-2 px-2 py-1.5 text-sm text-fg">
+            <option value="none">{t("freq.none")}</option>
+            <option value="daily">{t("freq.daily")}</option>
+            <option value="weekly">{t("freq.weekly")}</option>
+            <option value="monthly">{t("freq.monthly")}</option>
+            <option value="yearly">{t("freq.yearly")}</option>
+          </select>
+          <input
+            value={d.location ?? ""}
+            onChange={(e) => setD({ ...d, location: e.target.value })}
+            placeholder={t("location")}
+            className="flex-1 rounded bg-surface-2 px-2 py-1.5 text-sm text-fg placeholder:text-fg-faint"
+          />
         </div>
       </div>
-    </div>
+      <div className="mt-4 flex items-center justify-between">
+        {editing ? (
+          <button onClick={() => void remove()} className="text-xs text-danger hover:text-danger">
+            {t("common:delete")}
+          </button>
+        ) : (
+          <span />
+        )}
+        <div className="flex gap-2">
+          <button onClick={onClose} className="rounded-md px-3 py-1.5 text-sm text-fg-muted hover:text-fg">
+            {t("common:cancel")}
+          </button>
+          <button onClick={() => void save()} className="rounded-md bg-accent px-3 py-1.5 text-sm font-medium text-accent-fg hover:bg-accent">
+            {t("common:save")}
+          </button>
+        </div>
+      </div>
+    </Modal>
   );
 }

@@ -7,6 +7,7 @@ import { api, type NoteSummary } from "../ipc/api";
 import { fuzzyRank } from "../lib/fuzzy";
 import { collectFolders, collectNotes } from "../lib/noteTree";
 import { useVault } from "../stores/vaultStore";
+import { Modal } from "./ui/Modal";
 
 function ensureMd(name: string): string {
   return name.toLowerCase().endsWith(".md") ? name : `${name}.md`;
@@ -93,7 +94,6 @@ export function NotePickerModal({
     if (open) {
       setQuery(initialQuery ?? "");
       setSelected(0);
-      setTimeout(() => inputRef.current?.focus(), 0);
     }
   }, [open, initialQuery]);
 
@@ -133,10 +133,9 @@ export function NotePickerModal({
     else pick(e.path);
   };
 
+  // Escape is handled by the Modal shell (close, restore focus).
   const onKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Escape") {
-      onClose();
-    } else if (e.key === "ArrowDown") {
+    if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelected((s) => Math.min(s + 1, rowCount - 1));
     } else if (e.key === "ArrowUp") {
@@ -149,89 +148,87 @@ export function NotePickerModal({
   };
 
   return (
-    <div
-      className="fixed inset-0 z-[60] flex items-start justify-center bg-overlay pt-28"
-      onClick={onClose}
+    <Modal
+      label={title}
+      onClose={onClose}
+      initialFocusRef={inputRef}
+      overlayClassName="z-[60] items-start justify-center pt-28"
+      panelClassName="w-full max-w-lg overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
     >
-      <div
-        className="w-full max-w-lg overflow-hidden rounded-xl border border-border-strong bg-surface shadow-2xl"
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div className="px-4 pt-3 text-[11px] font-medium uppercase tracking-wide text-fg-subtle">
-          {title}
-        </div>
-        <input
-          ref={inputRef}
-          value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setSelected(0);
-          }}
-          placeholder={t("notePicker.placeholder")}
-          className="w-full bg-transparent px-4 py-3 text-fg outline-none placeholder:text-fg-faint"
-          onKeyDown={onKeyDown}
-        />
-        <ul className="max-h-80 overflow-y-auto border-t border-border">
-          {rowCount === 0 && (
-            <li className="px-4 py-3 text-sm text-fg-faint">{t("notePicker.empty")}</li>
-          )}
-          {results.map((e, i) =>
-            e.kind === "folder" ? (
-              <li key={`f:${e.path}`}>
-                <button
-                  onMouseMove={() => setSelected(i)}
-                  onClick={() => drillInto(e.path)}
-                  className={`flex w-full items-center justify-between gap-2 px-4 py-2 text-left ${
-                    i === selected ? "bg-active" : "hover:bg-hover"
-                  }`}
-                >
-                  <span className="flex min-w-0 items-center gap-2">
-                    <Folder size={14} className="shrink-0 text-fg-subtle" />
-                    <span className="truncate text-sm text-fg">{e.path}</span>
-                  </span>
-                  <ChevronRight size={14} className="shrink-0 text-fg-faint" />
-                </button>
-              </li>
-            ) : (
-              <li key={`n:${e.path}`}>
-                <button
-                  onMouseMove={() => setSelected(i)}
-                  onClick={() => pick(e.path)}
-                  className={`flex w-full items-center justify-between gap-2 px-4 py-2 text-left ${
-                    i === selected ? "bg-active" : "hover:bg-hover"
-                  }`}
-                >
-                  <span className="flex min-w-0 flex-col items-start gap-0.5">
-                    <span className="text-sm text-fg">{e.title}</span>
-                    <span className="truncate text-[11px] text-fg-faint">{e.path}</span>
-                  </span>
-                  {e.recent && (
-                    <span className="shrink-0 text-[10px] uppercase tracking-wide text-fg-faint">
-                      {t("notePicker.recent")}
-                    </span>
-                  )}
-                </button>
-              </li>
-            ),
-          )}
-          {showCreate && (
-            <li>
+      <div className="px-4 pt-3 text-[11px] font-medium uppercase tracking-wide text-fg-subtle">
+        {title}
+      </div>
+      <input
+        ref={inputRef}
+        value={query}
+        onChange={(e) => {
+          setQuery(e.target.value);
+          setSelected(0);
+        }}
+        placeholder={t("notePicker.placeholder")}
+        className="w-full bg-transparent px-4 py-3 text-fg outline-none placeholder:text-fg-faint"
+        onKeyDown={onKeyDown}
+      />
+      <ul className="max-h-80 overflow-y-auto border-t border-border">
+        {rowCount === 0 && (
+          <li className="px-4 py-3 text-sm text-fg-faint">{t("notePicker.empty")}</li>
+        )}
+        {results.map((e, i) =>
+          e.kind === "folder" ? (
+            <li key={`f:${e.path}`}>
               <button
-                onMouseMove={() => setSelected(results.length)}
-                onClick={createAndPick}
-                className={`flex w-full items-center gap-2 px-4 py-2 text-left ${
-                  selected === results.length ? "bg-active" : "hover:bg-hover"
+                onMouseMove={() => setSelected(i)}
+                onClick={() => drillInto(e.path)}
+                className={`flex w-full items-center justify-between gap-2 px-4 py-2 text-left ${
+                  i === selected ? "bg-active" : "hover:bg-hover"
                 }`}
               >
-                <FilePlus size={14} className="shrink-0 text-fg-subtle" />
-                <span className="text-sm text-fg">
-                  {t("notePicker.createNote", { name: createPath })}
+                <span className="flex min-w-0 items-center gap-2">
+                  <Folder size={14} className="shrink-0 text-fg-subtle" />
+                  <span className="truncate text-sm text-fg">{e.path}</span>
                 </span>
+                <ChevronRight size={14} className="shrink-0 text-fg-faint" />
               </button>
             </li>
-          )}
-        </ul>
-      </div>
-    </div>
+          ) : (
+            <li key={`n:${e.path}`}>
+              <button
+                onMouseMove={() => setSelected(i)}
+                onClick={() => pick(e.path)}
+                className={`flex w-full items-center justify-between gap-2 px-4 py-2 text-left ${
+                  i === selected ? "bg-active" : "hover:bg-hover"
+                }`}
+              >
+                <span className="flex min-w-0 flex-col items-start gap-0.5">
+                  <span className="text-sm text-fg">{e.title}</span>
+                  <span className="truncate text-[11px] text-fg-faint">{e.path}</span>
+                </span>
+                {e.recent && (
+                  <span className="shrink-0 text-[10px] uppercase tracking-wide text-fg-faint">
+                    {t("notePicker.recent")}
+                  </span>
+                )}
+              </button>
+            </li>
+          ),
+        )}
+        {showCreate && (
+          <li>
+            <button
+              onMouseMove={() => setSelected(results.length)}
+              onClick={createAndPick}
+              className={`flex w-full items-center gap-2 px-4 py-2 text-left ${
+                selected === results.length ? "bg-active" : "hover:bg-hover"
+              }`}
+            >
+              <FilePlus size={14} className="shrink-0 text-fg-subtle" />
+              <span className="text-sm text-fg">
+                {t("notePicker.createNote", { name: createPath })}
+              </span>
+            </button>
+          </li>
+        )}
+      </ul>
+    </Modal>
   );
 }
