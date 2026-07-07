@@ -14,6 +14,11 @@ import { TagChip } from "./TaskBadges";
 const selectCls =
   "w-full rounded-md bg-surface-2 px-2 py-1 text-sm text-fg outline-none ring-1 ring-border focus:ring-accent/50";
 
+/** The controls the menu's Arrow/Home/End cycling walks through. */
+const FOCUSABLE =
+  'button:not([disabled]), input:not([disabled]), select:not([disabled]), ' +
+  'textarea:not([disabled]), a[href], [tabindex]:not([tabindex="-1"])';
+
 /** Cursor-positioned popover opened by right-clicking a task card/row — the full
  *  task surface (status, project+color, epic, priority, due, tags, subtasks,
  *  open note, delete). Clamps to the viewport and dismisses on outside
@@ -65,6 +70,52 @@ export function TaskCardMenu() {
 
   useDismiss(ref, !!menu, close, { closeOnResize: true });
 
+  // Focus management: on open, move focus to the menu's first control (the
+  // completion checkbox); on close, hand it back to the invoker — unless the
+  // close came from clicking a control elsewhere, which already moved focus.
+  // `menu` is referentially stable while open, so this runs once per open.
+  useEffect(() => {
+    if (!menu) return;
+    const prev = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const el = ref.current;
+    el?.querySelector<HTMLElement>(FOCUSABLE)?.focus();
+    return () => {
+      if (!prev || prev === document.body || !prev.isConnected) return;
+      const active = document.activeElement;
+      if (active === null || active === document.body || (el?.contains(active) ?? false)) {
+        prev.focus();
+      }
+    };
+  }, [menu]);
+
+  // ArrowUp/Down cycle and Home/End jump across the menu's controls. Fields
+  // that use these keys themselves (selects, text/date/time inputs — anything
+  // but checkboxes) and the nested note-picker dialog keep native handling.
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+    const target = e.target as HTMLElement;
+    if (target.closest('[role="dialog"]')) return;
+    const tag = target.tagName;
+    if (tag === "SELECT" || tag === "TEXTAREA") return;
+    if (tag === "INPUT" && (target as HTMLInputElement).type !== "checkbox") return;
+    e.preventDefault();
+    e.stopPropagation();
+    const els = Array.from(ref.current?.querySelectorAll<HTMLElement>(FOCUSABLE) ?? []).filter(
+      (el) => !el.closest('[role="dialog"]'),
+    );
+    if (els.length === 0) return;
+    const i = els.indexOf(document.activeElement as HTMLElement);
+    const next =
+      e.key === "Home"
+        ? els[0]
+        : e.key === "End"
+          ? els[els.length - 1]
+          : e.key === "ArrowDown"
+            ? els[(i + 1) % els.length]
+            : els[i <= 0 ? els.length - 1 : i - 1];
+    next.focus();
+  };
+
   if (!menu || !task) return null;
 
   const colIds = columns.map((c) => c.id);
@@ -93,6 +144,7 @@ export function TaskCardMenu() {
       style={{ left: pos.x, top: pos.y }}
       className="fixed z-50 flex max-h-[85vh] w-72 flex-col overflow-y-auto rounded-lg border border-border-strong/80 bg-surface p-1.5 shadow-xl"
       onContextMenu={(e) => e.preventDefault()}
+      onKeyDown={onKeyDown}
     >
       <div className="flex items-start gap-2 px-1 pb-1.5">
         <input

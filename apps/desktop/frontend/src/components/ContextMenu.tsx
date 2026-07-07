@@ -1,4 +1,4 @@
-import { useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
 import { useDismiss } from "../lib/useDismiss";
 
@@ -13,7 +13,10 @@ export interface MenuItem {
 
 /** Cursor-positioned popup menu. Follows the NewNoteButton dropdown styling and
  *  closes on outside mousedown / Escape / scroll. Position is clamped to the
- *  viewport so it never overflows the window edge. */
+ *  viewport so it never overflows the window edge. Keyboard: focus lands on the
+ *  first item on open, ArrowUp/Down cycle (skipping disabled items), Home/End
+ *  jump, Enter/Space activate the focused item natively, and focus returns to
+ *  the invoker on close. */
 export function ContextMenu({
   x,
   y,
@@ -40,6 +43,47 @@ export function ContextMenu({
 
   useDismiss(ref, true, onClose, { closeOnResize: true });
 
+  const enabledItems = () =>
+    Array.from(
+      ref.current?.querySelectorAll<HTMLButtonElement>('[role="menuitem"]:not(:disabled)') ?? [],
+    );
+
+  // Move focus to the first item on open; hand it back to the invoker on close
+  // — unless the close came from clicking a control elsewhere (focus already
+  // moved on mousedown), in which case the click's target keeps it.
+  useEffect(() => {
+    const prev = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    const el = ref.current;
+    enabledItems()[0]?.focus();
+    return () => {
+      if (!prev || prev === document.body || !prev.isConnected) return;
+      const active = document.activeElement;
+      if (active === null || active === document.body || (el?.contains(active) ?? false)) {
+        prev.focus();
+      }
+    };
+    // Mount-only: the menu unmounts to close.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  const onKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowDown" && e.key !== "ArrowUp" && e.key !== "Home" && e.key !== "End") return;
+    e.preventDefault();
+    e.stopPropagation();
+    const els = enabledItems();
+    if (els.length === 0) return;
+    const i = els.indexOf(document.activeElement as HTMLButtonElement);
+    const next =
+      e.key === "Home"
+        ? els[0]
+        : e.key === "End"
+          ? els[els.length - 1]
+          : e.key === "ArrowDown"
+            ? els[(i + 1) % els.length]
+            : els[i <= 0 ? els.length - 1 : i - 1];
+    next.focus();
+  };
+
   return (
     <div
       ref={ref}
@@ -47,6 +91,7 @@ export function ContextMenu({
       style={{ left: pos.x, top: pos.y }}
       className="fixed z-50 w-48 overflow-hidden rounded-lg border border-border-strong/80 bg-surface p-1 shadow-xl"
       onContextMenu={(e) => e.preventDefault()}
+      onKeyDown={onKeyDown}
     >
       {items.map((item, i) => (
         <div key={i}>
