@@ -29,6 +29,16 @@ fn trash_root(vault: &Path) -> PathBuf {
     config::config_dir(vault).join("trash")
 }
 
+/// Collision-proof trash id. The timestamp prefix stays first (and 15 chars)
+/// because `list_trash` parses it back out for sorting/display; the uuid keeps
+/// two same-named items trashed within the same second from overwriting each
+/// other in the trash directory.
+fn new_trash_id(name: &str) -> String {
+    let now = Utc::now().format("%Y%m%d_%H%M%S");
+    let unique = uuid::Uuid::new_v4().simple();
+    format!("{now}_{unique}_{name}")
+}
+
 /// Move a note to the vault's trash.
 pub fn trash_note(vault: &Path, relative: &str) -> CoreResult<()> {
     let abs = vault_rel(vault, relative)?;
@@ -39,14 +49,13 @@ pub fn trash_note(vault: &Path, relative: &str) -> CoreResult<()> {
     let trash_dir = trash_root(vault);
     std::fs::create_dir_all(&trash_dir)?;
 
-    let now = Utc::now().format("%Y%m%d_%H%M%S").to_string();
     let filename = abs
         .file_name()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
 
-    let trash_id = format!("{now}_{filename}");
+    let trash_id = new_trash_id(&filename);
     let trash_file = trash_dir.join(&trash_id);
     let meta_file = trash_dir.join(format!("{trash_id}.meta"));
 
@@ -69,14 +78,13 @@ pub fn trash_folder(vault: &Path, relative: &str) -> CoreResult<()> {
     let trash_dir = trash_root(vault);
     std::fs::create_dir_all(&trash_dir)?;
 
-    let now = Utc::now().format("%Y%m%d_%H%M%S").to_string();
     let name = abs
         .file_name()
         .unwrap_or_default()
         .to_string_lossy()
         .to_string();
 
-    let trash_id = format!("{now}_{name}");
+    let trash_id = new_trash_id(&name);
     let trash_path = trash_dir.join(&trash_id);
     let meta_file = trash_dir.join(format!("{trash_id}.meta"));
 
@@ -153,6 +161,11 @@ pub fn restore_note(vault: &Path, trash_id: &str) -> CoreResult<String> {
     // The `.meta` sidecar could have been tampered with by a sync peer —
     // never restore outside the vault.
     let restore_to = vault_rel(vault, &original_path)?;
+    if restore_to.exists() {
+        return Err(CoreError::AlreadyExists(format!(
+            "Restore target already exists: {original_path}"
+        )));
+    }
     if let Some(parent) = restore_to.parent() {
         std::fs::create_dir_all(parent)?;
     }
@@ -271,17 +284,16 @@ fn copy_recursive(from: &Path, to: &Path) -> CoreResult<()> {
 mod tests {
     use super::*;
 
-    fn temp_vault() -> std::path::PathBuf {
-        let base =
-            std::env::temp_dir().join(format!("novalis-trash-test-{}", uuid::Uuid::new_v4()));
-        let vault = base.join("vault");
+    fn temp_vault() -> (tempfile::TempDir, PathBuf) {
+        let base = tempfile::tempdir().unwrap();
+        let vault = base.path().join("vault");
         std::fs::create_dir_all(&vault).unwrap();
-        vault
+        (base, vault)
     }
 
     #[test]
     fn trash_lives_inside_the_vault() {
-        let vault = temp_vault();
+        let (_tmp, vault) = temp_vault();
         std::fs::write(vault.join("loose.md"), "y").unwrap();
         trash_note(&vault, "loose.md").unwrap();
         assert!(
@@ -289,7 +301,42 @@ mod tests {
             "trash should live under <vault>/.novalis/trash"
         );
         assert!(!vault.join("loose.md").exists());
-        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
+    }
+
+    #[test]
+    fn same_second_double_trash_keeps_both() {
+        let (_tmp, vault) = temp_vault();
+        std::fs::write(vault.join("a.md"), "root").unwrap();
+        std::fs::create_dir_all(vault.join("sub")).unwrap();
+        std::fs::write(vault.join("sub/a.md"), "nested").unwrap();
+
+        // Same filename, (almost certainly) the same second: the ids must not
+        // collide, so neither copy silently overwrites the other in the trash.
+        trash_note(&vault, "a.md").unwrap();
+        trash_note(&vault, "sub/a.md").unwrap();
+
+        let items = list_trash(&vault).unwrap();
+        assert_eq!(items.len(), 2, "both same-named notes must survive");
+        let mut paths: Vec<_> = items.iter().map(|i| i.original_path.clone()).collect();
+        paths.sort();
+        assert_eq!(paths, ["a.md", "sub/a.md"]);
+    }
+
+    #[test]
+    fn restore_onto_occupied_path_fails_without_clobbering() {
+        let (_tmp, vault) = temp_vault();
+        std::fs::write(vault.join("n.md"), "old").unwrap();
+        trash_note(&vault, "n.md").unwrap();
+        // A new note has since been created at the original path.
+        std::fs::write(vault.join("n.md"), "new").unwrap();
+
+        let items = list_trash(&vault).unwrap();
+        let err = restore_note(&vault, &items[0].id).unwrap_err();
+        assert!(matches!(err, CoreError::AlreadyExists(_)), "got: {err:?}");
+        // Loud failure, no clobbering: the live note is untouched and the
+        // trashed copy is still there to restore elsewhere.
+        assert_eq!(std::fs::read_to_string(vault.join("n.md")).unwrap(), "new");
+        assert_eq!(list_trash(&vault).unwrap().len(), 1);
     }
 
     #[test]
@@ -318,7 +365,7 @@ mod tests {
 
     #[test]
     fn trash_folder_moves_subtree_and_restores_as_unit() {
-        let vault = temp_vault();
+        let (_tmp, vault) = temp_vault();
         std::fs::create_dir_all(vault.join("Projects/Sub")).unwrap();
         std::fs::write(vault.join("Projects/a.md"), "a").unwrap();
         std::fs::write(vault.join("Projects/Sub/b.md"), "b").unwrap();
@@ -337,13 +384,11 @@ mod tests {
         assert_eq!(restored, "Projects");
         assert!(vault.join("Projects/a.md").exists());
         assert!(vault.join("Projects/Sub/b.md").exists());
-
-        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }
 
     #[test]
     fn delete_trash_item_removes_one_entry() {
-        let vault = temp_vault();
+        let (_tmp, vault) = temp_vault();
         std::fs::write(vault.join("a.md"), "a").unwrap();
         std::fs::write(vault.join("b.md"), "b").unwrap();
         trash_note(&vault, "a.md").unwrap();
@@ -353,13 +398,11 @@ mod tests {
         assert_eq!(items.len(), 2);
         delete_trash_item(&vault, &items[0].id).unwrap();
         assert_eq!(list_trash(&vault).unwrap().len(), 1);
-
-        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }
 
     #[test]
     fn empty_trash_removes_trashed_folders() {
-        let vault = temp_vault();
+        let (_tmp, vault) = temp_vault();
         std::fs::create_dir_all(vault.join("Archive")).unwrap();
         std::fs::write(vault.join("Archive/note.md"), "x").unwrap();
         std::fs::write(vault.join("loose.md"), "y").unwrap();
@@ -371,14 +414,12 @@ mod tests {
         let count = empty_trash(&vault).unwrap();
         assert_eq!(count, 2);
         assert_eq!(list_trash(&vault).unwrap().len(), 0);
-
-        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }
 
     #[test]
     fn migrate_legacy_trash_moves_items_into_the_vault() {
-        let vault = temp_vault();
-        let data = vault.parent().unwrap().join("data");
+        let (tmp, vault) = temp_vault();
+        let data = tmp.path().join("data");
         // Seed an old app-data trash item.
         let legacy = data.join("trash");
         std::fs::create_dir_all(&legacy).unwrap();
@@ -391,7 +432,5 @@ mod tests {
         let items = list_trash(&vault).unwrap();
         assert_eq!(items.len(), 1);
         assert_eq!(items[0].original_path, "old.md");
-
-        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }
 }
