@@ -1,0 +1,14 @@
+# cargo-audit configuration.
+#
+# Accepted advisories — each entry needs a reason and a revisit condition.
+[advisories]
+ignore = [
+    # quick-xml 0.36.x reader DoS vectors (unbounded NsReader namespace
+    # allocation / quadratic duplicate-attribute check). Reachable only when
+    # *parsing* XML; our only consumer is docx-rs 0.4.20 (novalis-core
+    # export), which we use exclusively to WRITE .docx files — no untrusted
+    # XML is ever read through it. docx-rs has no release on quick-xml
+    # >=0.41 yet; drop these ignores when it does.
+    "RUSTSEC-2026-0194",
+    "RUSTSEC-2026-0195",
+]

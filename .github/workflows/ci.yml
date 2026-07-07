@@ -117,15 +117,11 @@ jobs:
   audit:
     name: cargo audit
     runs-on: ubuntu-latest
-    # Advisory-only (continue-on-error) because the tree currently has known,
-    # unfixed advisories — all in transitive deps of the desktop shell:
-    #   RUSTSEC-2026-0194, RUSTSEC-2026-0195  quick-xml 0.36/0.37/0.39
-    #                                         (via docx-rs, plist, tauri-winrt-notification)
-    #   RUSTSEC-2026-0185                     quinn-proto 0.11.14 (via reqwest)
-    # plus `unmaintained`/`unsound` warnings (gtk3 bindings from Tauri's Linux
-    # stack, anyhow, glib, paste, proc-macro-error, instant, unic-*).
-    # Flip this job to blocking once `cargo audit` is clean.
-    continue-on-error: true
+    # Blocking. Accepted advisories live in `.cargo/audit.toml`, each with a
+    # written justification and a revisit condition — a new advisory fails CI.
+    # (`unmaintained`/`unsound` warnings — gtk3 bindings from Tauri's Linux
+    # stack, anyhow, glib, paste, proc-macro-error, instant, unic-* — are
+    # warnings, not failures.)
     steps:
       - uses: actions/checkout@v6
       - uses: rustsec/audit-check@v2
