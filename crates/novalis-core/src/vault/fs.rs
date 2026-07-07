@@ -324,6 +324,28 @@ pub fn delete_note(vault: &Path, relative: &str) -> CoreResult<()> {
     trash::trash_note(vault, relative)
 }
 
+/// Whether two paths refer to the same underlying file (e.g. `note.md` vs
+/// `Note.md` on a case-insensitive filesystem). Paths that don't resolve are
+/// never "the same file".
+#[cfg(unix)]
+fn is_same_file(a: &Path, b: &Path) -> bool {
+    use std::os::unix::fs::MetadataExt;
+    match (std::fs::metadata(a), std::fs::metadata(b)) {
+        (Ok(ma), Ok(mb)) => ma.dev() == mb.dev() && ma.ino() == mb.ino(),
+        _ => false,
+    }
+}
+
+#[cfg(not(unix))]
+fn is_same_file(a: &Path, b: &Path) -> bool {
+    // Windows: canonicalize resolves to the stored (on-disk) casing, so two
+    // spellings of one file compare equal.
+    match (std::fs::canonicalize(a), std::fs::canonicalize(b)) {
+        (Ok(ca), Ok(cb)) => ca == cb,
+        _ => false,
+    }
+}
+
 /// Move/rename a note.
 pub fn move_note(vault: &Path, from: &str, to: &str) -> CoreResult<()> {
     let abs_from = vault_rel(vault, from)?;
@@ -334,7 +356,10 @@ pub fn move_note(vault: &Path, from: &str, to: &str) -> CoreResult<()> {
             "Source note not found: {from}"
         )));
     }
-    if abs_to.exists() {
+    // On a case-insensitive filesystem (APFS, NTFS) a case-only rename makes
+    // the destination "exist" because it IS the source file — allow that; only
+    // a genuinely different file at the destination is a collision.
+    if abs_to.exists() && !is_same_file(&abs_from, &abs_to) {
         return Err(CoreError::AlreadyExists(format!(
             "Destination already exists: {to}"
         )));
@@ -516,10 +541,8 @@ pub fn move_folder(vault: &Path, from: &str, to: &str) -> CoreResult<()> {
 mod tests {
     use super::*;
 
-    fn temp_vault() -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("novalis-test-{}", uuid::Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
+    fn temp_vault() -> tempfile::TempDir {
+        tempfile::tempdir().unwrap()
     }
 
     #[test]
@@ -637,31 +660,29 @@ mod tests {
     #[test]
     fn append_line_creates_note_when_missing() {
         let vault = temp_vault();
-        append_line(&vault, "_Inbox.md", "- [ ] hello").unwrap();
-        let content = std::fs::read_to_string(vault.join("_Inbox.md")).unwrap();
+        append_line(vault.path(), "_Inbox.md", "- [ ] hello").unwrap();
+        let content = std::fs::read_to_string(vault.path().join("_Inbox.md")).unwrap();
         assert!(
             content.starts_with("---"),
             "expected frontmatter, got: {content}"
         );
         assert!(content.contains("- [ ] hello"));
         assert!(content.ends_with('\n'));
-        std::fs::remove_dir_all(&vault).ok();
     }
 
     #[test]
     fn append_line_preserves_existing_content() {
         let vault = temp_vault();
         std::fs::write(
-            vault.join("notes.md"),
+            vault.path().join("notes.md"),
             "---\ntitle: X\n---\n\n# X\n\nbody line\n",
         )
         .unwrap();
-        append_line(&vault, "notes.md", "- [ ] new task").unwrap();
-        let content = std::fs::read_to_string(vault.join("notes.md")).unwrap();
+        append_line(vault.path(), "notes.md", "- [ ] new task").unwrap();
+        let content = std::fs::read_to_string(vault.path().join("notes.md")).unwrap();
         assert!(content.contains("body line"));
         assert!(content.trim_end().ends_with("- [ ] new task"));
         assert!(content.ends_with('\n'));
-        std::fs::remove_dir_all(&vault).ok();
     }
 
     #[test]
@@ -669,40 +690,77 @@ mod tests {
         // A materialized file always has blocks allocated, so the placeholder
         // heuristic must not flag it (which would skip indexing its content).
         let vault = temp_vault();
-        std::fs::write(vault.join("note.md"), "---\ntitle: N\n---\nhello").unwrap();
-        let meta = std::fs::metadata(vault.join("note.md")).unwrap();
+        std::fs::write(vault.path().join("note.md"), "---\ntitle: N\n---\nhello").unwrap();
+        let meta = std::fs::metadata(vault.path().join("note.md")).unwrap();
         assert!(!is_cloud_placeholder(&meta));
         // An empty file (size 0) is read normally, not treated as a placeholder.
-        std::fs::write(vault.join("empty.md"), "").unwrap();
-        let empty_meta = std::fs::metadata(vault.join("empty.md")).unwrap();
+        std::fs::write(vault.path().join("empty.md"), "").unwrap();
+        let empty_meta = std::fs::metadata(vault.path().join("empty.md")).unwrap();
         assert!(!is_cloud_placeholder(&empty_meta));
-        std::fs::remove_dir_all(&vault).ok();
     }
 
     #[test]
     fn create_read_roundtrip_with_task_counts() {
         let vault = temp_vault();
-        create_note(&vault, "todo.md", "- [ ] a\n- [x] b\n").unwrap();
-        let summary = build_summary(&vault, "todo.md").unwrap();
+        create_note(vault.path(), "todo.md", "- [ ] a\n- [x] b\n").unwrap();
+        let summary = build_summary(vault.path(), "todo.md").unwrap();
         assert_eq!(summary.task_total, 2);
         assert_eq!(summary.task_completed, 1);
-        let note = read_note(&vault, "todo.md").unwrap();
+        let note = read_note(vault.path(), "todo.md").unwrap();
         assert!(note.content.contains("- [x] b"));
-        std::fs::remove_dir_all(&vault).ok();
     }
 
     #[test]
     fn build_summary_unions_frontmatter_and_body_tags() {
         let vault = temp_vault();
         std::fs::write(
-            vault.join("n.md"),
+            vault.path().join("n.md"),
             "---\ntitle: N\ntags:\n  - work\n---\n\nbody with #urgent and #Work\n",
         )
         .unwrap();
-        let summary = build_summary(&vault, "n.md").unwrap();
+        let summary = build_summary(vault.path(), "n.md").unwrap();
         // Frontmatter tag first; body `#urgent` appended; body `#Work`
         // case-insensitively dedups against the frontmatter `work`.
         assert_eq!(summary.tags, vec!["work".to_string(), "urgent".to_string()]);
-        std::fs::remove_dir_all(&vault).ok();
+    }
+
+    #[test]
+    fn move_note_allows_case_only_rename() {
+        // On a case-insensitive filesystem (APFS/NTFS) the destination of a
+        // case-only rename "exists" — it is the source file — and must not be
+        // treated as a collision.
+        let vault = temp_vault();
+        std::fs::write(vault.path().join("note.md"), "body").unwrap();
+
+        move_note(vault.path(), "note.md", "Note.md").unwrap();
+
+        let names: Vec<String> = std::fs::read_dir(vault.path())
+            .unwrap()
+            .map(|e| e.unwrap().file_name().to_string_lossy().to_string())
+            .collect();
+        assert_eq!(names, vec!["Note.md".to_string()]);
+        assert_eq!(
+            std::fs::read_to_string(vault.path().join("Note.md")).unwrap(),
+            "body"
+        );
+    }
+
+    #[test]
+    fn move_note_still_rejects_a_genuine_collision() {
+        let vault = temp_vault();
+        std::fs::write(vault.path().join("a.md"), "a").unwrap();
+        std::fs::write(vault.path().join("b.md"), "b").unwrap();
+
+        let err = move_note(vault.path(), "a.md", "b.md").unwrap_err();
+        assert!(matches!(err, CoreError::AlreadyExists(_)), "got: {err:?}");
+        // Both files are untouched.
+        assert_eq!(
+            std::fs::read_to_string(vault.path().join("a.md")).unwrap(),
+            "a"
+        );
+        assert_eq!(
+            std::fs::read_to_string(vault.path().join("b.md")).unwrap(),
+            "b"
+        );
     }
 }
