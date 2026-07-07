@@ -406,7 +406,10 @@ mod tests {
             Err(e) => e,
         };
         assert_eq!(err.kind, "internal");
-        assert!(err.message.contains("no access_token"));
+        // The message is deliberately generic — the provider response body
+        // must not be echoed to the frontend.
+        assert!(err.message.contains("no access token"));
+        assert!(!err.message.contains("expires_in"));
     }
 
     #[test]
