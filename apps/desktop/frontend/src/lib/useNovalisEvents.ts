@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import { events } from "../ipc/api";
 import { useConflicts } from "../stores/conflictStore";
+import { useGitConflicts } from "../stores/gitConflictStore";
 import { useTasks } from "../stores/taskStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
@@ -31,6 +32,15 @@ export function useNovalisEvents() {
         void useConflicts.getState().scan();
       }),
       events.conflictDetected.listen(() => scanConflictsSoon()),
+      // A background sync hit merge conflicts: open the resolver — unless it
+      // is already open. openResolver() reloads the list and CLEARS the
+      // per-path choices, so calling it again would stomp an in-progress
+      // resolution (the backend emits only on conflict-set change, but a
+      // manual sync may already have opened the modal).
+      events.gitConflictDetected.listen(() => {
+        const gc = useGitConflicts.getState();
+        if (!gc.open) gc.openResolver();
+      }),
       events.noteChanged.listen((e) => {
         const path = e.payload.path;
         const st = useVault.getState();

@@ -97,6 +97,20 @@ describe("gitConflictStore.load", () => {
     await new Promise((r) => setTimeout(r, 0));
     expect(useGitConflicts.getState().conflicts).toHaveLength(1);
   });
+
+  it("openResolver on an ALREADY-open resolver stomps in-progress choices", async () => {
+    // This is why the git-conflict-detected listener (useNovalisEvents) must
+    // guard on `open` before calling openResolver: a background-sync event
+    // arriving mid-resolution would otherwise discard the user's choices.
+    mocks.gitMergeConflicts.mockResolvedValue([conflict("a.md")]);
+    useGitConflicts.setState({ open: true, conflicts: [conflict("a.md")] });
+    useGitConflicts.getState().choose("a.md", { kind: "ours" });
+
+    useGitConflicts.getState().openResolver();
+    await new Promise((r) => setTimeout(r, 0));
+
+    expect(useGitConflicts.getState().choices.size).toBe(0);
+  });
 });
 
 describe("gitConflictStore.finalize", () => {

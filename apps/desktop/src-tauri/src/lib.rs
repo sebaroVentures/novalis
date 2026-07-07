@@ -43,6 +43,16 @@ pub struct ConflictDetected {
     pub path: String,
 }
 
+/// A background sync cycle hit merge conflicts (P3b). Emitted by the
+/// auto-committer only when the conflict set CHANGES — a persisting identical
+/// conflict is re-detected every interval but must not re-open the resolver
+/// on every tick. `paths` are vault-relative, sorted.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, tauri_specta::Event)]
+#[serde(rename_all = "camelCase")]
+pub struct GitConflictDetected {
+    pub paths: Vec<String>,
+}
+
 /// A chunk of AI-generated text for an in-flight request (keyed by `requestId`).
 #[derive(Debug, Clone, Serialize, Deserialize, Type, tauri_specta::Event)]
 #[serde(rename_all = "camelCase")]
@@ -197,6 +207,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             NoteChanged,
             NoteDeleted,
             ConflictDetected,
+            GitConflictDetected,
             AiStreamChunk,
             AiStreamDone,
             AiStreamError,

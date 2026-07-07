@@ -39,6 +39,9 @@ function conflictPaths(outcome: GitSyncOutcome | null): string[] | null {
 export function SyncPanel() {
   const { t, i18n } = useTranslation("settings");
   const prefs = useSettings((s) => s.prefs);
+  // Conflicts the background sync surfaced (the event handler loads them into
+  // the resolver store) — the hint below must not depend on a manual sync.
+  const bgConflicts = useGitConflicts((s) => s.conflicts);
   const [status, setStatus] = useState<GitStatus | null>(null);
   const [hasToken, setHasToken] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -134,6 +137,10 @@ export function SyncPanel() {
     });
 
   const last = status?.lastCommit ?? null;
+  // Manual outcome wins (it is the fresher signal right after "Sync now");
+  // otherwise fall back to the resolver store, which background syncs fill.
+  const conflicted =
+    conflictPaths(outcome) ?? (bgConflicts.length > 0 ? bgConflicts.map((c) => c.path) : null);
 
   return (
     <>
@@ -256,11 +263,11 @@ export function SyncPanel() {
         {outcome?.kind === "diverged" && (
           <p className="pt-2 text-xs text-danger">{t("sync.remote.divergedHint")}</p>
         )}
-        {conflictPaths(outcome) && (
+        {conflicted && (
           <div className="pt-2 text-xs text-danger">
             <p>{t("sync.remote.conflictedHint")}</p>
             <ul className="mt-1 list-inside list-disc">
-              {conflictPaths(outcome)?.map((p) => (
+              {conflicted.map((p) => (
                 <li key={p} className="font-mono">
                   {p}
                 </li>

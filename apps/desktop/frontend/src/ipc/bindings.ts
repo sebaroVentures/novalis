@@ -362,6 +362,7 @@ export const events = {
 	aiStreamDone: makeEvent<AiStreamDone>("ai-stream-done"),
 	aiStreamError: makeEvent<AiStreamError>("ai-stream-error"),
 	conflictDetected: makeEvent<ConflictDetected>("conflict-detected"),
+	gitConflictDetected: makeEvent<GitConflictDetected>("git-conflict-detected"),
 	noteChanged: makeEvent<NoteChanged>("note-changed"),
 	noteDeleted: makeEvent<NoteDeleted>("note-deleted"),
 	reindexedEvent: makeEvent<ReindexedEvent>("reindexed-event"),
@@ -825,6 +826,16 @@ export type GitConflict = {
 	ours: string | null,
 	/**  Content on the remote-tracking tip. */
 	theirs: string | null,
+};
+
+/**
+ *  A background sync cycle hit merge conflicts (P3b). Emitted by the
+ *  auto-committer only when the conflict set CHANGES — a persisting identical
+ *  conflict is re-detected every interval but must not re-open the resolver
+ *  on every tick. `paths` are vault-relative, sorted.
+ */
+export type GitConflictDetected = {
+	paths: string[],
 };
 
 /**

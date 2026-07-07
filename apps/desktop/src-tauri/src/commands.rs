@@ -157,7 +157,7 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
             crate::watcher::WATCH_GEN.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
         crate::watcher::start(app.clone(), vault_path.clone(), generation);
         // Git auto-committer shares the watcher's generation/lifecycle.
-        crate::autocommit::start(vault_path.clone(), generation);
+        crate::autocommit::start(app.clone(), vault_path.clone(), generation);
     }
 
     let _ = app.emit("reindexed-event", ());
