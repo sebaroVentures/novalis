@@ -37,14 +37,17 @@ export function WikiLinkHoverCard({ target }: { target: HoverTarget | null }) {
   const { t } = useTranslation("links");
   const [state, setState] = useState<CardState>({ kind: "loading" });
 
+  // Keyed on the title only — a new rect for the same title (re-hovering the
+  // same link elsewhere) must not refetch or flash the loading state.
+  const title = target?.title;
   useEffect(() => {
-    if (!target) return;
+    if (title === undefined) return;
     let active = true;
     setState({ kind: "loading" });
     (async () => {
       try {
-        const matches = await api.quickSearch(target.title);
-        const hit = matches.find((m) => m.title.toLowerCase() === target.title.toLowerCase());
+        const matches = await api.quickSearch(title);
+        const hit = matches.find((m) => m.title.toLowerCase() === title.toLowerCase());
         if (!active) return;
         if (!hit) {
           setState({ kind: "missing" });
@@ -63,7 +66,7 @@ export function WikiLinkHoverCard({ target }: { target: HoverTarget | null }) {
     return () => {
       active = false;
     };
-  }, [target?.title]);
+  }, [title]);
 
   if (!target) return null;
 

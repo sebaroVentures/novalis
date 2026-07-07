@@ -444,7 +444,10 @@ export function EditorPane({ pane }: { pane: Pane }) {
       editorRef.current = null;
       setEditorInstance(null);
     },
-    [path],
+    // pane.id is constant per instance (panes render under key={pane.id}) and
+    // saveNote is a stable store action — the cleanup still runs on note
+    // switch/unmount only.
+    [path, pane.id, saveNote],
   );
 
   // Reset reading mode to the configured default whenever the open note changes.

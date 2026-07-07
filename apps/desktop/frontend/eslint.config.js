@@ -1,10 +1,11 @@
-// Flat ESLint config scoped to one job: catch hardcoded user-facing strings so
-// every visible string flows through i18n. Deliberately narrow — it does NOT
-// enable broad rulesets, to avoid flagging pre-existing patterns elsewhere.
+// Flat ESLint config with two jobs: catch hardcoded user-facing strings so
+// every visible string flows through i18n, and enforce the React hooks rules.
+// Deliberately narrow beyond that — it does NOT enable broad rulesets, to
+// avoid flagging pre-existing patterns elsewhere.
 //
-// react-hooks and @typescript-eslint are registered (but their rules left off)
-// only so the project's existing inline `eslint-disable` directives for those
-// rules resolve instead of erroring.
+// @typescript-eslint is registered (but its rules left off) only so the
+// project's existing inline `eslint-disable` directives for those rules
+// resolve instead of erroring.
 import i18next from "eslint-plugin-i18next";
 import reactHooks from "eslint-plugin-react-hooks";
 import tseslint from "typescript-eslint";
@@ -21,8 +22,8 @@ export default [
   },
   {
     files: ["src/**/*.{ts,tsx}"],
-    // The project's existing react-hooks / no-explicit-any disable directives are
-    // dormant here (we don't run those rules), so don't report them as unused.
+    // The project's existing no-explicit-any disable directives are dormant
+    // here (we don't run those rules), so don't report them as unused.
     linterOptions: { reportUnusedDisableDirectives: "off" },
     languageOptions: {
       parser: tseslint.parser,
@@ -34,6 +35,8 @@ export default [
       "@typescript-eslint": tseslint.plugin,
     },
     rules: {
+      "react-hooks/rules-of-hooks": "error",
+      "react-hooks/exhaustive-deps": "warn",
       "i18next/no-literal-string": [
         "error",
         {
