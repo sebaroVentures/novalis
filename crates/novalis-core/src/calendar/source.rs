@@ -33,16 +33,6 @@ pub fn try_list_sources(vault: &Path) -> CoreResult<Vec<CalendarSourceConfig>> {
     }
 }
 
-/// Shim for callers that cannot surface errors: failures are logged and fall
-/// back to an empty list. Prefer [`try_list_sources`].
-#[deprecated(note = "use try_list_sources — this swallows parse errors")]
-pub fn list_sources(vault: &Path) -> Vec<CalendarSourceConfig> {
-    try_list_sources(vault).unwrap_or_else(|e| {
-        log::warn!("list_sources: falling back to no sources: {e}");
-        Vec::new()
-    })
-}
-
 fn write_sources(vault: &Path, sources: &[CalendarSourceConfig]) -> CoreResult<()> {
     let path = sources_path(vault);
     if let Some(parent) = path.parent() {

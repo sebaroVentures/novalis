@@ -65,16 +65,6 @@ pub fn try_read_preferences(vault: &Path) -> CoreResult<Preferences> {
     }
 }
 
-/// Shim for callers that cannot surface errors: failures are logged and fall
-/// back to defaults. Prefer [`try_read_preferences`].
-#[deprecated(note = "use try_read_preferences — this swallows parse errors")]
-pub fn read_preferences(vault: &Path) -> Preferences {
-    try_read_preferences(vault).unwrap_or_else(|e| {
-        log::warn!("read_preferences: falling back to defaults: {e}");
-        Preferences::default()
-    })
-}
-
 /// Write preferences to `<vault>/.novalis/config.json`, creating the dir.
 pub fn write_preferences(vault: &Path, prefs: &Preferences) -> CoreResult<()> {
     let dir = config_dir(vault);

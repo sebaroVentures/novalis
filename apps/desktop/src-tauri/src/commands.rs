@@ -769,7 +769,7 @@ pub fn restore_version(
 #[tauri::command]
 #[specta::specta]
 pub fn get_preferences(state: State<AppEngine>) -> CmdResult<Preferences> {
-    state.with(|e| Ok(config::read_preferences(&e.vault_path)))
+    state.with(|e| config::try_read_preferences(&e.vault_path))
 }
 
 #[tauri::command]
@@ -813,7 +813,7 @@ pub async fn git_commit_now(app: AppHandle) -> CmdResult<GitStatus> {
     let vault = vault_path_snapshot(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         git::ensure_repo(&vault)?;
-        let prefs = config::read_preferences(&vault);
+        let prefs = config::try_read_preferences(&vault)?;
         git::commit_all(&vault, &prefs.git.author_name, &prefs.git.author_email)?;
         git::repo_status(&vault).map_err(CommandError::from)
     })
@@ -830,7 +830,12 @@ pub async fn git_commit_now(app: AppHandle) -> CmdResult<GitStatus> {
 pub(crate) fn prepare_agentic_workdir(app: &AppHandle) -> Option<PathBuf> {
     let vault = vault_path_snapshot(app).ok()?;
     if git::ensure_repo(&vault).is_ok() {
-        let prefs = config::read_preferences(&vault);
+        // Best-effort by contract: an unreadable config must not block the
+        // run, but the checkpoint still deserves a real author if possible.
+        let prefs = config::try_read_preferences(&vault).unwrap_or_else(|e| {
+            log::warn!("agentic checkpoint: unreadable preferences, using defaults: {e}");
+            Preferences::default()
+        });
         let _ = git::commit_all(&vault, &prefs.git.author_name, &prefs.git.author_email);
     }
     Some(vault)
@@ -847,7 +852,7 @@ pub async fn git_checkpoint(app: AppHandle) -> CmdResult<Option<String>> {
         if git::ensure_repo(&vault).is_err() {
             return Ok(None);
         }
-        let prefs = config::read_preferences(&vault);
+        let prefs = config::try_read_preferences(&vault)?;
         let _ = git::commit_all(&vault, &prefs.git.author_name, &prefs.git.author_email)?;
         Ok(git::head_id(&vault))
     })
@@ -948,7 +953,7 @@ pub fn git_has_token(state: State<AppEngine>) -> CmdResult<bool> {
 pub async fn git_sync_now(app: AppHandle) -> CmdResult<GitSyncOutcome> {
     let vault = vault_path_snapshot(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let prefs = config::read_preferences(&vault);
+        let prefs = config::try_read_preferences(&vault)?;
         let token = read_git_token(&vault);
         git::sync(
             &vault,
@@ -1168,7 +1173,7 @@ pub fn get_agenda(
 #[tauri::command]
 #[specta::specta]
 pub fn list_calendar_sources(state: State<AppEngine>) -> CmdResult<Vec<CalendarSourceConfig>> {
-    state.with(|e| Ok(calendar::source::list_sources(&e.vault_path)))
+    state.with(|e| calendar::source::try_list_sources(&e.vault_path))
 }
 
 #[tauri::command]
@@ -1198,7 +1203,7 @@ pub async fn refresh_calendar_source(app: AppHandle, id: String) -> CmdResult<u3
     tauri::async_runtime::spawn_blocking(move || {
         let state = app.state::<AppEngine>();
         let (kind, url) = state.with(|e| {
-            calendar::source::list_sources(&e.vault_path)
+            calendar::source::try_list_sources(&e.vault_path)?
                 .into_iter()
                 .find(|s| s.id == id)
                 .ok_or_else(|| CoreError::NotFound(format!("Calendar source not found: {id}")))

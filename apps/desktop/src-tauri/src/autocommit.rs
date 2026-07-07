@@ -32,7 +32,15 @@ pub fn start(vault: PathBuf, generation: u64) {
             if crate::watcher::WATCH_GEN.load(Ordering::SeqCst) != generation {
                 break;
             }
-            let prefs = config::read_preferences(&vault);
+            // A corrupt config must not auto-commit with default settings —
+            // skip the tick and keep warning until the user fixes the file.
+            let prefs = match config::try_read_preferences(&vault) {
+                Ok(prefs) => prefs,
+                Err(e) => {
+                    log::warn!("auto-commit: unreadable preferences, skipping tick: {e}");
+                    continue;
+                }
+            };
             if !prefs.git.enabled {
                 continue;
             }
