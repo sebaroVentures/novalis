@@ -15,6 +15,8 @@ import {
   type Trigger,
 } from "@tiptap/suggestion";
 
+import { withDismissal } from "./suggestDismiss";
+
 /** A candidate link target surfaced by the host's title search. */
 export interface LinkTarget {
   title: string;
@@ -48,8 +50,10 @@ function findWikiMatch({ $position }: Trigger): SuggestionMatch {
   };
 }
 
-/** Build the suggestion lifecycle managing a small DOM popover. */
-function createRenderer(createLabel?: string) {
+/** Build the suggestion lifecycle managing a small DOM popover. `onDismiss`
+ *  marks the session dismissed on Escape (see withDismissal) so the Suggestion
+ *  plugin genuinely exits it — not just hides the popup. */
+function createRenderer(onDismiss: (range: { from: number }) => void, createLabel?: string) {
   let popup: HTMLDivElement | null = null;
   let items: LinkTarget[] = [];
   let selected = 0;
@@ -125,7 +129,12 @@ function createRenderer(createLabel?: string) {
         return true;
       }
       if (key === "Escape") {
-        if (popup) popup.style.display = "none";
+        // End the session, don't just hide the popup: mark the token dismissed
+        // and dispatch an (empty) transaction so the Suggestion plugin
+        // re-evaluates now — it exits synchronously (onExit removes the popup)
+        // and a following Enter inserts a plain newline again.
+        onDismiss(props.range);
+        props.view.dispatch(props.view.state.tr);
         return true;
       }
       return false;
@@ -150,13 +159,14 @@ export const WikiLinkSuggestion = Extension.create<WikiLinkSuggestionOptions>({
   addProseMirrorPlugins() {
     const onSearch = this.options.onSearch;
     const createLabel = this.options.createLabel;
+    const matcher = withDismissal(findWikiMatch); // Escape ends the session
     return [
       Suggestion<LinkTarget, LinkTarget>({
         editor: this.editor,
         pluginKey: new PluginKey(wikiSuggestKey),
         char: "[",
         allowSpaces: true,
-        findSuggestionMatch: findWikiMatch,
+        findSuggestionMatch: matcher.findSuggestionMatch,
         items: async ({ query }) => {
           const results = onSearch ? await onSearch(query) : [];
           const q = query.trim();
@@ -174,7 +184,7 @@ export const WikiLinkSuggestion = Extension.create<WikiLinkSuggestionOptions>({
             .insertContentAt(range, [{ type: "text", text: `[[${props.title}]]` }])
             .run();
         },
-        render: () => createRenderer(createLabel),
+        render: () => createRenderer(matcher.dismiss, createLabel),
       }),
     ];
   },
