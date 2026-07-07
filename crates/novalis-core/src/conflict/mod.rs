@@ -228,17 +228,52 @@ fn rename_conflict_preserving_both(vault: &Path, conflict_rel: &str) -> CoreResu
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::path::PathBuf;
 
-    fn temp_vault() -> std::path::PathBuf {
-        let dir = std::env::temp_dir().join(format!("novalis-conflict-{}", Uuid::new_v4()));
-        std::fs::create_dir_all(&dir).unwrap();
-        dir
+    use super::*;
+    use crate::index::{list_summaries, schema};
+
+    /// tempfile's dirs are dot-named (`.tmpXXXX`), which the conflict walker
+    /// skips as hidden — so the vault is a plainly-named subdir.
+    fn temp_vault() -> (tempfile::TempDir, PathBuf) {
+        let base = tempfile::tempdir().unwrap();
+        let vault = base.path().join("vault");
+        std::fs::create_dir_all(&vault).unwrap();
+        (base, vault)
+    }
+
+    /// A vault with an indexed original + conflict pair, ready to resolve.
+    fn conflict_fixture() -> (tempfile::TempDir, PathBuf, Connection) {
+        let (base, vault) = temp_vault();
+        let db = schema::open_db(&base.path().join("notes.db")).unwrap();
+        std::fs::write(vault.join("Note.md"), "original body").unwrap();
+        std::fs::write(vault.join("Note (1).md"), "conflict body").unwrap();
+        change::reindex_path(&db, &vault, "Note.md").unwrap();
+        change::reindex_path(&db, &vault, "Note (1).md").unwrap();
+        (base, vault, db)
+    }
+
+    fn request(keep: &str) -> ResolveConflictRequest {
+        ResolveConflictRequest {
+            keep: keep.to_string(),
+            original_path: "Note.md".to_string(),
+            conflict_path: "Note (1).md".to_string(),
+        }
+    }
+
+    fn indexed_paths(db: &Connection) -> Vec<String> {
+        let mut paths: Vec<String> = list_summaries(db)
+            .unwrap()
+            .into_iter()
+            .map(|s| s.path)
+            .collect();
+        paths.sort();
+        paths
     }
 
     #[test]
     fn detects_onedrive_numbered_conflict() {
-        let vault = temp_vault();
+        let (_tmp, vault) = temp_vault();
         std::fs::write(vault.join("Note.md"), "original").unwrap();
         std::fs::write(vault.join("Note (1).md"), "conflict").unwrap();
 
@@ -246,15 +281,80 @@ mod tests {
         assert_eq!(conflicts.len(), 1);
         assert_eq!(conflicts[0].original_path, "Note.md");
         assert_eq!(conflicts[0].conflict_path, "Note (1).md");
-
-        std::fs::remove_dir_all(&vault).ok();
     }
 
     #[test]
     fn ignores_regular_files() {
-        let vault = temp_vault();
+        let (_tmp, vault) = temp_vault();
         std::fs::write(vault.join("Regular Note.md"), "x").unwrap();
         assert!(list_conflicts(&vault).is_empty());
-        std::fs::remove_dir_all(&vault).ok();
+    }
+
+    #[test]
+    fn resolve_keep_original_discards_the_conflict_copy() {
+        let (_tmp, vault, db) = conflict_fixture();
+
+        let out = resolve_conflict(&db, &vault, &request("original")).unwrap();
+        assert_eq!(out, None);
+
+        assert_eq!(
+            std::fs::read_to_string(vault.join("Note.md")).unwrap(),
+            "original body"
+        );
+        assert!(!vault.join("Note (1).md").exists());
+        assert_eq!(indexed_paths(&db), ["Note.md"]);
+    }
+
+    #[test]
+    fn resolve_keep_conflict_promotes_its_bytes_onto_the_original_path() {
+        let (_tmp, vault, db) = conflict_fixture();
+
+        let out = resolve_conflict(&db, &vault, &request("conflict")).unwrap();
+        assert_eq!(out, None);
+
+        // The original path survives (stable for the index/editors) but now
+        // carries the conflict copy's content; the conflict file is gone.
+        assert_eq!(
+            std::fs::read_to_string(vault.join("Note.md")).unwrap(),
+            "conflict body"
+        );
+        assert!(!vault.join("Note (1).md").exists());
+        assert_eq!(indexed_paths(&db), ["Note.md"]);
+    }
+
+    #[test]
+    fn resolve_keep_both_renames_the_conflict_out_of_detection() {
+        let (_tmp, vault, db) = conflict_fixture();
+
+        let new_rel = resolve_conflict(&db, &vault, &request("both"))
+            .unwrap()
+            .expect("'both' returns the new path");
+
+        // Both contents survive, under distinct names.
+        assert_eq!(
+            std::fs::read_to_string(vault.join("Note.md")).unwrap(),
+            "original body"
+        );
+        assert!(new_rel.starts_with("Note (from sync "), "got: {new_rel}");
+        assert_eq!(
+            std::fs::read_to_string(vault.join(&new_rel)).unwrap(),
+            "conflict body"
+        );
+        assert!(!vault.join("Note (1).md").exists());
+        // The new name must not re-trigger conflict detection.
+        assert!(list_conflicts(&vault).is_empty());
+        let mut expected = vec!["Note.md".to_string(), new_rel];
+        expected.sort();
+        assert_eq!(indexed_paths(&db), expected);
+    }
+
+    #[test]
+    fn resolve_rejects_unknown_keep_value() {
+        let (_tmp, vault, db) = conflict_fixture();
+        let err = resolve_conflict(&db, &vault, &request("merge")).unwrap_err();
+        assert!(matches!(err, CoreError::BadRequest(_)), "got: {err:?}");
+        // Nothing was touched.
+        assert!(vault.join("Note.md").exists());
+        assert!(vault.join("Note (1).md").exists());
     }
 }

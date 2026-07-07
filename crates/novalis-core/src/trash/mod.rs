@@ -341,7 +341,7 @@ mod tests {
 
     #[test]
     fn trash_rejects_escaping_paths_and_tampered_meta() {
-        let vault = temp_vault();
+        let (_tmp, vault) = temp_vault();
         assert!(trash_note(&vault, "../outside.md").is_err());
         assert!(trash_folder(&vault, "/etc").is_err());
         assert!(delete_trash_item(&vault, "../real.md").is_err());
@@ -359,8 +359,6 @@ mod tests {
         assert!(!vault.parent().unwrap().join("escaped.md").exists());
         // Restoring by an escaping trash id is rejected too.
         assert!(restore_note(&vault, "../victim.md").is_err());
-
-        std::fs::remove_dir_all(vault.parent().unwrap()).ok();
     }
 
     #[test]

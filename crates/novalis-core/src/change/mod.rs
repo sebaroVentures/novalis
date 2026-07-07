@@ -28,3 +28,67 @@ pub fn reindex_path(db: &Connection, vault: &Path, relative: &str) -> CoreResult
 pub fn remove(db: &Connection, relative: &str) -> CoreResult<()> {
     search::remove_note(db, relative)
 }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::index::{list_summaries, schema};
+
+    fn ctx() -> (tempfile::TempDir, Connection) {
+        let base = tempfile::tempdir().unwrap();
+        let db = schema::open_db(&base.path().join("notes.db")).unwrap();
+        (base, db)
+    }
+
+    fn indexed_paths(db: &Connection) -> Vec<String> {
+        list_summaries(db)
+            .unwrap()
+            .into_iter()
+            .map(|s| s.path)
+            .collect()
+    }
+
+    #[test]
+    fn reindex_path_indexes_a_note_on_disk() {
+        let (vault, db) = ctx();
+        std::fs::write(
+            vault.path().join("n.md"),
+            "---\ntitle: N\n---\n\nkingfisher sighting\n",
+        )
+        .unwrap();
+
+        reindex_path(&db, vault.path(), "n.md").unwrap();
+
+        assert_eq!(indexed_paths(&db), ["n.md"]);
+        // The body is in the FTS index too.
+        let hits = search::search(&db, "kingfisher", None, None).unwrap();
+        assert_eq!(hits.len(), 1);
+        assert_eq!(hits[0].path, "n.md");
+    }
+
+    #[test]
+    fn reindex_path_removes_a_note_missing_from_disk() {
+        let (vault, db) = ctx();
+        std::fs::write(vault.path().join("n.md"), "body").unwrap();
+        reindex_path(&db, vault.path(), "n.md").unwrap();
+        assert_eq!(indexed_paths(&db), ["n.md"]);
+
+        // The push/pull funnel: a watcher event for a deleted file must drop
+        // it from the index rather than error.
+        std::fs::remove_file(vault.path().join("n.md")).unwrap();
+        reindex_path(&db, vault.path(), "n.md").unwrap();
+        assert!(indexed_paths(&db).is_empty());
+    }
+
+    #[test]
+    fn remove_drops_the_index_entry_but_not_the_file() {
+        let (vault, db) = ctx();
+        std::fs::write(vault.path().join("n.md"), "body").unwrap();
+        reindex_path(&db, vault.path(), "n.md").unwrap();
+
+        remove(&db, "n.md").unwrap();
+
+        assert!(indexed_paths(&db).is_empty());
+        assert!(vault.path().join("n.md").exists());
+    }
+}

@@ -409,7 +409,7 @@ mod tests {
 
     #[test]
     fn search_handles_hostile_query_input() {
-        let db = mem_db();
+        let (_tmp, db) = mem_db();
         index_note(
             &db,
             &summary("a.md", "A"),
@@ -440,7 +440,7 @@ mod tests {
 
     #[test]
     fn quick_search_escapes_like_wildcards() {
-        let db = mem_db();
+        let (_tmp, db) = mem_db();
         index_note(&db, &summary("pct.md", "100% done"), "x").unwrap();
         index_note(&db, &summary("num.md", "1000 things"), "x").unwrap();
         index_note(&db, &summary("und.md", "a_b"), "x").unwrap();

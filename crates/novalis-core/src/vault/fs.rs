@@ -547,7 +547,8 @@ mod tests {
 
     #[test]
     fn write_atomic_writes_complete_content_and_replaces_existing() {
-        let vault = temp_vault();
+        let tmp = temp_vault();
+        let vault = tmp.path().to_path_buf();
         let p = vault.join("a.md");
         write_atomic(&p, "first content").unwrap();
         assert_eq!(std::fs::read_to_string(&p).unwrap(), "first content");
@@ -567,7 +568,8 @@ mod tests {
 
     #[test]
     fn write_note_fails_loud_on_malformed_frontmatter() {
-        let vault = temp_vault();
+        let tmp = temp_vault();
+        let vault = tmp.path().to_path_buf();
         // `tags` must be a sequence — this deserializes to an error, and a
         // lenient parse would fall back to default frontmatter, erasing
         // `title` (and any custom keys) on re-serialize.
@@ -585,7 +587,8 @@ mod tests {
 
     #[test]
     fn write_note_saves_valid_and_frontmatterless_content() {
-        let vault = temp_vault();
+        let tmp = temp_vault();
+        let vault = tmp.path().to_path_buf();
         create_note(&vault, "ok.md", "---\ntitle: Ok\n---\nold").unwrap();
         write_note(
             &vault,
@@ -605,7 +608,8 @@ mod tests {
 
     #[test]
     fn vault_rel_rejects_escaping_paths() {
-        let vault = temp_vault();
+        let tmp = temp_vault();
+        let vault = tmp.path().to_path_buf();
         std::fs::write(vault.join("real.md"), "x").unwrap();
 
         // Parent traversal, an absolute path (which `PathBuf::join` would let
@@ -645,7 +649,8 @@ mod tests {
 
     #[test]
     fn vault_rel_allows_nested_and_unicode_paths() {
-        let vault = temp_vault();
+        let tmp = temp_vault();
+        let vault = tmp.path().to_path_buf();
         let rel = "Ordner/Unter/Über Nötes ✅.md";
         create_note(&vault, rel, "hällo wörld").unwrap();
         assert!(read_note(&vault, rel)
