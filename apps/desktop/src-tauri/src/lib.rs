@@ -271,6 +271,21 @@ pub fn run() {
             }
             Ok(())
         })
-        .run(tauri::generate_context!())
-        .expect("error while running Novalis");
+        .build(tauri::generate_context!())
+        .expect("error while running Novalis")
+        .run(|app, event| {
+            // Commit-on-quit (P3b) hooks `RunEvent::Exit`, NOT `ExitRequested`:
+            // on macOS the default menu's Quit item (⌘Q) sends the native
+            // `terminate:` selector, which reaches tauri only as
+            // `applicationWillTerminate` → `RunEvent::Exit` — `ExitRequested`
+            // never fires on that path (verified against tauri-runtime-wry
+            // 2.11 / tao 0.35). Closing the last window fires `ExitRequested`
+            // first and `Exit` after, so `Exit` covers both paths exactly
+            // once. The handler blocks the (exiting) event loop for at most
+            // the local commit plus a hard ~5 s sync timeout.
+            #[cfg(desktop)]
+            if let tauri::RunEvent::Exit = event {
+                autocommit::commit_on_quit(app);
+            }
+        });
 }

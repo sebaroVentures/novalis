@@ -3,7 +3,8 @@
 //! — and, once an `origin` remote is configured, runs the full sync cycle
 //! (fetch → fast-forward, push, or auto-merge; merge conflicts stop and only
 //! log until the user resolves them). P3b: a conflict-set CHANGE additionally
-//! emits [`crate::GitConflictDetected`] so the UI can open the resolver.
+//! emits [`crate::GitConflictDetected`] so the UI can open the resolver, and
+//! [`commit_on_quit`] secures pending changes on app exit.
 //!
 //! Lifecycle mirrors the file watcher: the thread is tagged with the
 //! generation issued at vault-open (the same [`crate::watcher::WATCH_GEN`]
@@ -26,6 +27,10 @@ use novalis_core::vault::config;
 const MIN_INTERVAL_SECS: u64 = 30;
 /// How often the thread wakes to check generation + elapsed interval.
 const TICK: Duration = Duration::from_secs(10);
+/// Hard cap on the best-effort sync at quit — quit must never hang on the
+/// network. [`git::sync`] fetches BEFORE it commits, so a hung remote would
+/// otherwise stall the exit indefinitely despite libgit2's socket timeouts.
+const QUIT_SYNC_TIMEOUT: Duration = Duration::from_secs(5);
 
 /// Decide whether a sync outcome's conflict set must be surfaced (warn log +
 /// [`crate::GitConflictDetected`] event), updating the `last` latch. A stuck
@@ -152,6 +157,87 @@ pub fn start(app: AppHandle, vault: PathBuf, generation: u64) {
     });
 }
 
+/// Run `work` on a detached thread and wait at most `timeout` for its result;
+/// `None` means the deadline passed. The thread is NOT cancelled — at quit
+/// (the only caller) it simply dies with the process. That is acceptable on
+/// desktop: the abandoned work is a fetch/push whose loss costs nothing (the
+/// local commit already secured the data, and the next launch's sync cycle
+/// converges); at worst an interrupted operation leaves a `.git` lock file,
+/// which `git::ensure_repo` clears once it goes stale.
+fn run_with_timeout<T: Send + 'static>(
+    timeout: Duration,
+    work: impl FnOnce() -> T + Send + 'static,
+) -> Option<T> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    std::thread::spawn(move || {
+        let _ = tx.send(work());
+    });
+    rx.recv_timeout(timeout).ok()
+}
+
+/// Secure pending changes before the process exits (P3b): commit locally
+/// (always safe — no network), then, if a remote is configured, ONE
+/// best-effort [`git::sync`] bounded by [`QUIT_SYNC_TIMEOUT`]. Runs on the
+/// exiting event loop; every failure only logs — quit must never hang or
+/// error. The sync runs detached because it serializes on `git::SYNC_GATE`
+/// with an in-flight background tick (and fetches before committing), so it
+/// can lawfully outlast the timeout; see [`run_with_timeout`] for why
+/// abandoning it is safe.
+pub fn commit_on_quit(app: &AppHandle) {
+    // Snapshot the vault path; the engine lock is released before any git
+    // work. Poison recovery matches [`crate::engine::AppEngine::with`].
+    let vault = {
+        let state = app.state::<crate::engine::AppEngine>();
+        let guard = state.0.lock().unwrap_or_else(|p| p.into_inner());
+        guard.as_ref().map(|e| e.vault_path.clone())
+    };
+    let Some(vault) = vault else {
+        return;
+    };
+    // Same fail-loud posture as the tick: a corrupt config must not commit
+    // with default settings.
+    let prefs = match config::try_read_preferences(&vault) {
+        Ok(prefs) => prefs,
+        Err(e) => {
+            log::warn!("quit commit: unreadable preferences, skipping: {e}");
+            return;
+        }
+    };
+    if !prefs.git.enabled {
+        return;
+    }
+    // Local commit FIRST and unconditionally: sync() fetches before it
+    // commits, so a hung remote inside the bounded sync below must not be
+    // able to cost the commit.
+    let committed = git::ensure_repo(&vault)
+        .and_then(|()| git::commit_all(&vault, &prefs.git.author_name, &prefs.git.author_email));
+    match committed {
+        Ok(Some(c)) => log::info!(
+            "git quit-commit {}: {}",
+            &c.id[..7.min(c.id.len())],
+            c.message
+        ),
+        Ok(None) => {}
+        Err(e) => log::warn!("git quit-commit failed: {e}"),
+    }
+    if !git::has_remote(&vault) {
+        return;
+    }
+    let token = crate::commands::read_git_token(&vault);
+    let name = prefs.git.author_name.clone();
+    let email = prefs.git.author_email.clone();
+    match run_with_timeout(QUIT_SYNC_TIMEOUT, move || {
+        git::sync(&vault, &name, &email, token.as_deref())
+    }) {
+        Some(Ok(out)) => log::info!("git quit-sync: {:?}", out.kind),
+        Some(Err(e)) => log::warn!("git quit-sync failed: {e}"),
+        None => log::warn!(
+            "git quit-sync did not finish within {}s — exiting anyway (completes next launch)",
+            QUIT_SYNC_TIMEOUT.as_secs()
+        ),
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -214,5 +300,24 @@ mod tests {
         assert!(conflict_transition(&mut last, &conflicted(&["a.md"])).is_some());
         assert_eq!(conflict_transition(&mut last, &GitSyncKind::Diverged), None);
         assert_eq!(conflict_transition(&mut last, &conflicted(&["a.md"])), None);
+    }
+
+    #[test]
+    fn run_with_timeout_returns_fast_work() {
+        assert_eq!(run_with_timeout(Duration::from_secs(5), || 42), Some(42));
+    }
+
+    #[test]
+    fn run_with_timeout_abandons_slow_work() {
+        let slow = || {
+            std::thread::sleep(Duration::from_secs(3));
+            42
+        };
+        let start = Instant::now();
+        assert_eq!(run_with_timeout(Duration::from_millis(50), slow), None);
+        assert!(
+            start.elapsed() < Duration::from_secs(2),
+            "must give up at the timeout, not wait for the work"
+        );
     }
 }
