@@ -136,17 +136,8 @@ pub(crate) fn init_store(dir: std::path::PathBuf) {
     backend::init(dir);
 }
 
-#[cfg(test)]
-mod tests {
-    // The desktop backend is exercised implicitly by the existing keychain
-    // tests; the Android file backend is compile-gated off on this host.
-    // The account-format contract (blank value deletes) is covered here.
-    use super::*;
-
-    #[test]
-    fn blank_value_is_a_delete_and_reads_back_none() {
-        let account = format!("test:{}", uuid::Uuid::new_v4());
-        set(&account, "  ").expect("blank set must not error");
-        assert_eq!(get(&account), None);
-    }
-}
+// No unit tests here on purpose: every backend needs a real OS secret store
+// (headless CI Linux has no DBus secret-service, so even a delete of a
+// nonexistent entry errors), and the Android file backend is compile-gated
+// off on desktop hosts. The store is exercised through the commands that use
+// it; the blank-value-deletes contract is three lines above.

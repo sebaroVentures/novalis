@@ -46,6 +46,10 @@ touching UI.
 Prerequisites: Android Studio (SDK + **NDK**), JDK 17, `ANDROID_HOME`,
 `NDK_HOME`, and
 `rustup target add aarch64-linux-android x86_64-linux-android`.
+Before any android build, `source scripts/android-env.sh` — NDK r23+ has no
+GNU-named `*-ranlib` wrappers, and vendored OpenSSL's Makefile needs `RANLIB`
+(cargo-mobile2 only exports CC/AR). Verified failure mode otherwise:
+`aarch64-linux-android-ranlib: command not found` during `openssl-sys`.
 
 1. `cargo build -p novalis-core --target aarch64-linux-android` — this alone
    answers the git2/openssl question (core depends on git2).
