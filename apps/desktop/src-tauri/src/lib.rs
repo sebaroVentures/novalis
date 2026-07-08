@@ -232,7 +232,9 @@ pub fn export_bindings() {
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    #[cfg(debug_assertions)]
+    // Desktop-only: on a device the CARGO_MANIFEST_DIR-relative frontend path
+    // doesn't exist and the filesystem is read-only — a debug APK panics here.
+    #[cfg(all(debug_assertions, desktop))]
     export_bindings();
 
     let builder = specta_builder();
