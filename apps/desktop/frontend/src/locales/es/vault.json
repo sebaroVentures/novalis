@@ -15,6 +15,12 @@
     "itemExistsHere": "«{{name}}» ya existe en esta carpeta.",
     "itemExistsTarget": "«{{name}}» ya existe en la carpeta de destino."
   },
+  "mobileClone": "Clonar y abrir",
+  "mobileConnect": "Conectar con un remoto git…",
+  "mobileHint": "La bóveda vive dentro de la app en este dispositivo. Conecta un remoto git para sincronizarla con tus otros dispositivos, o empieza en local y añádelo más tarde en los ajustes de sincronización.",
+  "mobileLocal": "Crear una bóveda local",
+  "mobileToken": "Token de acceso (PAT)",
+  "mobileUrl": "URL https:// del repositorio",
   "openVault": "Abrir un Vault…",
   "recentVaults": "Vaults recientes",
   "searchAllFolders": "Todas las carpetas",

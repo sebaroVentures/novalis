@@ -8,6 +8,17 @@ export const commands = {
 	/**  Returns app/build info from the core. Works without a vault open. */
 	appInfo: () => __TAURI_INVOKE<AppInfo>("app_info"),
 	/**
+	 *  Which platform this shell was built for. The frontend adapts vault
+	 *  onboarding: mobile has no folder picker — the vault lives app-private and
+	 *  is populated via the git adoption path (MOBILE.md).
+	 */
+	platformInfo: () => __TAURI_INVOKE<string>("platform_info"),
+	/**
+	 *  The app-private default vault location used by mobile onboarding. Works
+	 *  without a vault open; the directory is created lazily by `open_vault`.
+	 */
+	defaultVaultPath: () => typedError<string, CommandError>(__TAURI_INVOKE("default_vault_path")),
+	/**
 	 *  Open (or create) a vault at `path`.
 	 * 
 	 *  `async` + `spawn_blocking`: indexing reads every note, and a vault on a

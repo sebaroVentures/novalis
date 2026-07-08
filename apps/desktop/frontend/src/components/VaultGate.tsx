@@ -17,6 +17,50 @@ export function VaultGate() {
   const error = useVault((s) => s.error);
   const [recent, setRecent] = useState<RecentVault[]>([]);
   const [missing, setMissing] = useState<Set<string>>(new Set());
+  // Mobile has no folder picker: the vault lives app-private and is populated
+  // via the git adoption path (MOBILE.md). Until the platform is known the
+  // action area stays empty to avoid flashing the wrong flow.
+  const [platform, setPlatform] = useState<string | null>(null);
+  const [remoteOpen, setRemoteOpen] = useState(false);
+  const [remoteUrl, setRemoteUrl] = useState("");
+  const [remoteToken, setRemoteToken] = useState("");
+  const [busy, setBusy] = useState(false);
+
+  useEffect(() => {
+    api
+      .platformInfo()
+      .then(setPlatform)
+      .catch(() => setPlatform("desktop"));
+  }, []);
+  const mobile = platform === "android" || platform === "ios";
+
+  const openLocalVault = async () => {
+    setBusy(true);
+    try {
+      await switchVault(await api.defaultVaultPath());
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const cloneRemote = async () => {
+    setBusy(true);
+    try {
+      // Open the empty app-private vault first — the P2a adoption path then
+      // pulls the remote's content into it on the first sync.
+      await switchVault(await api.defaultVaultPath());
+      await api.gitSetRemote(remoteUrl.trim());
+      if (remoteToken.trim()) await api.gitSetToken(remoteToken.trim());
+      await api.gitSyncNow();
+      // No watcher on mobile: rescan so the cloned notes appear.
+      await api.rescanVault();
+      await useVault.getState().sync();
+    } catch (e) {
+      useVault.getState().reportError(e);
+    } finally {
+      setBusy(false);
+    }
+  };
 
   useEffect(() => {
     let active = true;
@@ -56,12 +100,63 @@ export function VaultGate() {
         <h1 className="text-4xl font-semibold tracking-tight">{t("appName")}</h1>
         <p className="mt-2 text-fg-subtle">{t("tagline")}</p>
       </div>
-      <button
-        onClick={() => void pickAndOpen()}
-        className="rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg transition hover:bg-accent"
-      >
-        {t("openVault")}
-      </button>
+      {platform !== null && !mobile && (
+        <button
+          onClick={() => void pickAndOpen()}
+          className="rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg transition hover:bg-accent"
+        >
+          {t("openVault")}
+        </button>
+      )}
+
+      {mobile && (
+        <div className="flex w-full max-w-sm flex-col items-stretch gap-3 px-6">
+          <button
+            onClick={() => void openLocalVault()}
+            disabled={busy}
+            className="rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg transition hover:bg-accent disabled:opacity-50"
+          >
+            {busy && !remoteOpen ? t("common:loading") : t("mobileLocal")}
+          </button>
+          {!remoteOpen ? (
+            <button
+              onClick={() => setRemoteOpen(true)}
+              disabled={busy}
+              className="rounded-lg border border-border px-5 py-2.5 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-50"
+            >
+              {t("mobileConnect")}
+            </button>
+          ) : (
+            <div className="flex flex-col gap-2 rounded-lg border border-border p-3">
+              <input
+                value={remoteUrl}
+                onChange={(e) => setRemoteUrl(e.target.value)}
+                placeholder={t("mobileUrl")}
+                inputMode="url"
+                autoCapitalize="off"
+                autoCorrect="off"
+                className="rounded-md border border-border bg-app px-3 py-2 text-sm text-fg placeholder:text-fg-faint focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <input
+                value={remoteToken}
+                onChange={(e) => setRemoteToken(e.target.value)}
+                placeholder={t("mobileToken")}
+                type="password"
+                autoCapitalize="off"
+                autoCorrect="off"
+                className="rounded-md border border-border bg-app px-3 py-2 text-sm text-fg placeholder:text-fg-faint focus:outline-none focus:ring-1 focus:ring-accent"
+              />
+              <button
+                onClick={() => void cloneRemote()}
+                disabled={busy || !remoteUrl.trim().startsWith("https://")}
+                className="rounded-lg bg-accent px-5 py-2 font-medium text-accent-fg transition hover:bg-accent disabled:opacity-50"
+              >
+                {busy ? t("common:loading") : t("mobileClone")}
+              </button>
+            </div>
+          )}
+        </div>
+      )}
 
       {recent.length > 0 && (
         <div className="w-full max-w-sm">
@@ -104,11 +199,15 @@ export function VaultGate() {
         </div>
       )}
 
-      <p className="max-w-sm text-center text-xs text-fg-faint">
-        <Trans i18nKey="chooseHint" ns="vault">
-          Choose a folder of Markdown files (e.g. your OneDrive NexusNotes folder). Novalis reads and
-          writes plain <code>.md</code> files — nothing leaves your device.
-        </Trans>
+      <p className="max-w-sm px-6 text-center text-xs text-fg-faint">
+        {mobile ? (
+          t("mobileHint")
+        ) : (
+          <Trans i18nKey="chooseHint" ns="vault">
+            Choose a folder of Markdown files (e.g. your OneDrive NexusNotes folder). Novalis reads
+            and writes plain <code>.md</code> files — nothing leaves your device.
+          </Trans>
+        )}
       </p>
       {error && <p className="text-sm text-danger">{error}</p>}
     </main>

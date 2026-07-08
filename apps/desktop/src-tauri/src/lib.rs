@@ -92,6 +92,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
     Builder::<tauri::Wry>::new()
         .commands(collect_commands![
             commands::app_info,
+            commands::platform_info,
+            commands::default_vault_path,
             commands::open_vault,
             commands::close_vault,
             commands::current_vault,

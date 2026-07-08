@@ -15,6 +15,12 @@
     "itemExistsHere": "« {{name}} » existe déjà dans ce dossier.",
     "itemExistsTarget": "« {{name}} » existe déjà dans le dossier de destination."
   },
+  "mobileClone": "Cloner et ouvrir",
+  "mobileConnect": "Connecter un dépôt git distant…",
+  "mobileHint": "Le coffre réside dans l’application sur cet appareil. Connectez un dépôt git distant pour le synchroniser avec vos autres appareils — ou commencez en local et ajoutez-le plus tard dans les réglages de synchronisation.",
+  "mobileLocal": "Créer un coffre local",
+  "mobileToken": "Jeton d’accès (PAT)",
+  "mobileUrl": "URL https:// du dépôt",
   "openVault": "Ouvrir un Vault…",
   "recentVaults": "Vaults récents",
   "searchAllFolders": "Tous les dossiers",

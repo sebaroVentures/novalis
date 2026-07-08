@@ -26,6 +26,8 @@ async function unwrap<T>(p: Promise<Res<T>>): Promise<T> {
 
 export const api = {
   appInfo: () => commands.appInfo(),
+  platformInfo: () => commands.platformInfo(),
+  defaultVaultPath: () => unwrap(commands.defaultVaultPath()),
   currentVault: () => unwrap(commands.currentVault()),
   pickVaultFolder: () => commands.pickVaultFolder(),
   openVault: (path: string) => unwrap(commands.openVault(path)),

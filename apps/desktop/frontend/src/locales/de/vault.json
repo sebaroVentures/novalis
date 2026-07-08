@@ -15,6 +15,12 @@
     "itemExistsHere": "„{{name}}“ existiert in diesem Ordner bereits.",
     "itemExistsTarget": "„{{name}}“ existiert im Zielordner bereits."
   },
+  "mobileClone": "Klonen & öffnen",
+  "mobileConnect": "Mit Git-Remote verbinden…",
+  "mobileHint": "Der Vault liegt in der App auf diesem Gerät. Verbinde ein Git-Remote, um ihn mit anderen Geräten zu synchronisieren — oder starte lokal und ergänze es später in den Sync-Einstellungen.",
+  "mobileLocal": "Lokalen Vault erstellen",
+  "mobileToken": "Zugriffstoken (PAT)",
+  "mobileUrl": "https:// Repository-URL",
   "openVault": "Vault öffnen…",
   "recentVaults": "Zuletzt verwendete Vaults",
   "searchAllFolders": "Alle Ordner",

@@ -106,6 +106,33 @@ pub fn app_info() -> AppInfo {
     novalis_core::app_info()
 }
 
+/// Which platform this shell was built for. The frontend adapts vault
+/// onboarding: mobile has no folder picker — the vault lives app-private and
+/// is populated via the git adoption path (MOBILE.md).
+#[tauri::command]
+#[specta::specta]
+pub fn platform_info() -> String {
+    #[cfg(target_os = "android")]
+    return "android".to_string();
+    #[cfg(target_os = "ios")]
+    return "ios".to_string();
+    #[cfg(desktop)]
+    "desktop".to_string()
+}
+
+/// The app-private default vault location used by mobile onboarding. Works
+/// without a vault open; the directory is created lazily by `open_vault`.
+#[tauri::command]
+#[specta::specta]
+pub fn default_vault_path(app: AppHandle) -> CmdResult<String> {
+    let dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| CommandError::internal(format!("cannot resolve app data dir: {e}")))?
+        .join("vault");
+    Ok(dir.to_string_lossy().to_string())
+}
+
 // ── Vault lifecycle ─────────────────────────────────────────────────────────
 
 /// Open (or create) a vault at `path`: build its index, persist it as the
