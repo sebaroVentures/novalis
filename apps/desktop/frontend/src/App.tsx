@@ -1,9 +1,10 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Menu, PanelLeftOpen, X } from "lucide-react";
+import { Menu, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { ActivityRail } from "./components/ActivityRail";
 import { AiActionPanel } from "./components/ai/AiActionPanel";
 import { CalendarView } from "./components/CalendarView";
 import { Cheatsheet } from "./components/Cheatsheet";
@@ -249,25 +250,35 @@ export default function App() {
 
   return (
     <div className="flex h-screen w-screen overflow-hidden bg-app text-fg">
-      {/* Sidebar: static from md up, slide-in drawer below md. Collapses out on
-          desktop (md+) when collapsed; the mobile drawer is unaffected. */}
+      {/* Left chrome: activity rail + content sidebar. Static from md up (the
+          rail stays visible even with the sidebar collapsed — it carries view
+          navigation and the reopen toggle); below md both slide in together as
+          one drawer, so the rail never eats phone width when closed. */}
       <div
-        className={`fixed inset-y-0 left-0 z-40 transition-transform md:static md:z-auto md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-40 flex transition-transform md:static md:z-auto md:translate-x-0 ${
           navOpen ? "translate-x-0" : "-translate-x-full"
-        } ${sidebarCollapsed ? "md:hidden" : ""}`}
+        }`}
       >
-        <Sidebar
+        <ActivityRail
           view={view}
           onViewChange={setView}
           onOpenSearch={() => setSearchOpen(true)}
           onOpenSettings={() => setSettingsOpen(true)}
           onOpenTrash={() => setTrashOpen(true)}
-          width={sidebarWidth}
-          onCollapse={() => {
-            setSidebarCollapsed(true);
-            saveSidebarCollapsed(true);
-          }}
+          sidebarCollapsed={sidebarCollapsed}
+          onToggleSidebar={() =>
+            setSidebarCollapsed((v) => {
+              const n = !v;
+              saveSidebarCollapsed(n);
+              return n;
+            })
+          }
         />
+        {/* Collapsed hides the content sidebar on desktop only; the mobile
+            drawer always shows it (the rail alone is no drawer). */}
+        <div className={sidebarCollapsed ? "md:hidden" : ""}>
+          <Sidebar onOpenSettings={() => setSettingsOpen(true)} width={sidebarWidth} />
+        </div>
       </div>
       {/* Draggable width divider (desktop only; hidden when collapsed). */}
       {!sidebarCollapsed && (
@@ -307,30 +318,17 @@ export default function App() {
       )}
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <div
-          className={`flex items-center gap-2 border-b border-border px-3 py-2 ${
-            sidebarCollapsed ? "" : "md:hidden"
-          }`}
-        >
+        {/* Mobile topbar: hamburger for the rail+sidebar drawer. On md+ the
+            always-visible rail carries navigation and the reopen toggle, so no
+            desktop bar is needed even when the sidebar is collapsed. */}
+        <div className="flex items-center gap-2 border-b border-border px-3 py-2 md:hidden">
           <button
             onClick={() => setNavOpen(true)}
             title={t("menu")}
-            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active md:hidden"
+            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active"
           >
             <Menu size={18} />
           </button>
-          {sidebarCollapsed && (
-            <button
-              onClick={() => {
-                setSidebarCollapsed(false);
-                saveSidebarCollapsed(false);
-              }}
-              title={t("showSidebar")}
-              className="hidden rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg md:inline-flex"
-            >
-              <PanelLeftOpen size={18} />
-            </button>
-          )}
           <span className="text-sm font-medium capitalize text-fg-muted">{viewLabels[view]}</span>
         </div>
         <CloudHint />

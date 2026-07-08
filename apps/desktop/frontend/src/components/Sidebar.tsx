@@ -12,13 +12,10 @@ import {
   FolderOpen,
   FolderPlus,
   Hash,
-  PanelLeftClose,
   Pin,
   Plus,
   RefreshCw,
   Search,
-  Settings,
-  Trash2,
   X,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -26,12 +23,10 @@ import { useTranslation } from "react-i18next";
 import { COLOR_HEX, COLOR_TOKENS } from "../lib/colors";
 import i18n from "../lib/i18n";
 import { api, type FolderNode, type NoteSummary, type NoteTemplate } from "../ipc/api";
-import { formatChord } from "../lib/keybindings";
 import { flattenNotes } from "../lib/noteTree";
 import { revealLabel } from "../lib/reveal";
 import { orderedItems, type SortBy, type TreeItem } from "../lib/treeOrder";
 import { useDismiss } from "../lib/useDismiss";
-import { useKeymap } from "../stores/keymapStore";
 import { useUi } from "../stores/uiStore";
 import { newNoteFolder, useVault, type DragItem } from "../stores/vaultStore";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
@@ -92,23 +87,13 @@ const useSidebarActions = (): SidebarActions => {
 };
 
 export function Sidebar({
-  view,
-  onViewChange,
-  onOpenSearch,
   onOpenSettings,
-  onOpenTrash,
   width,
-  onCollapse,
 }: {
-  view: MainView;
-  onViewChange: (v: MainView) => void;
-  onOpenSearch: () => void;
+  /** Opens the settings dialog (reached from the vault menu). */
   onOpenSettings: () => void;
-  onOpenTrash: () => void;
   /** Explicit rail width in px (device pref). Falls back to a default. */
   width?: number;
-  /** Collapse the rail on desktop (hidden via the host); shown only when set. */
-  onCollapse?: () => void;
 }) {
   const tree = useVault((s) => s.tree);
   const vaultPath = useVault((s) => s.vaultPath);
@@ -116,14 +101,6 @@ export function Sidebar({
   const moveItem = useVault((s) => s.moveItem);
   const vaultName = vaultPath ? vaultPath.split("/").filter(Boolean).pop() : "Vault";
   const { t } = useTranslation(["sidebar", "common", "trash"]);
-  const keymap = useKeymap((s) => s.keymap);
-  const viewLabels: Record<MainView, string> = {
-    notes: t("common:views.notes"),
-    today: t("common:views.today"),
-    tasks: t("common:views.tasks"),
-    calendar: t("common:views.calendar"),
-    graph: t("common:views.graph"),
-  };
 
   const [filter, setFilter] = useState("");
   const [renaming, setRenaming] = useState<string | null>(null);
@@ -217,50 +194,9 @@ export function Sidebar({
           <span className="truncate">{vaultName}</span>
           <ChevronDown size={13} className="shrink-0 text-fg-subtle" />
         </button>
-        <div className="flex items-center gap-0.5">
-          <button
-            aria-label={t("search")}
-            title={`${t("search")} (${formatChord(keymap.search)})`}
-            onClick={onOpenSearch}
-            className={iconBtn}
-          >
-            <Search size={16} />
-          </button>
-          <button title={t("refreshFromDisk")} onClick={() => void api.rescanVault()} className={iconBtn}>
-            <RefreshCw size={16} />
-          </button>
-          <button title={t("settings")} onClick={onOpenSettings} className={iconBtn}>
-            <Settings size={16} />
-          </button>
-          {onCollapse && (
-            <button
-              title={t("collapseSidebar")}
-              onClick={onCollapse}
-              className={`${iconBtn} hidden md:inline-flex`}
-            >
-              <PanelLeftClose size={16} />
-            </button>
-          )}
-        </div>
-      </div>
-
-      {/* Segmented control: the bordered track visually separates the view
-          options — as bare text they read as one run-on line. */}
-      <div className="mx-2 mb-1 mt-2 flex gap-0.5 rounded-lg border border-border bg-surface p-0.5">
-        {/* eslint-disable-next-line i18next/no-literal-string -- view ids (logic keys); labels come from viewLabels */}
-        {(["notes", "today", "tasks", "calendar", "graph"] as const).map((v) => (
-          <button
-            key={v}
-            onClick={() => onViewChange(v)}
-            className={`min-w-0 flex-1 truncate rounded-md px-1 py-1.5 text-xs font-medium capitalize transition-colors ${
-              view === v
-                ? "bg-active text-fg shadow-sm ring-1 ring-border"
-                : "text-fg-muted hover:bg-hover hover:text-fg"
-            }`}
-          >
-            {viewLabels[v]}
-          </button>
-        ))}
+        <button title={t("refreshFromDisk")} onClick={() => void api.rescanVault()} className={`${iconBtn} shrink-0`}>
+          <RefreshCw size={16} />
+        </button>
       </div>
 
       {/* Tree toolbar */}
@@ -346,17 +282,6 @@ export function Sidebar({
             )}
           </StateCtx.Provider>
         </ActionsCtx.Provider>
-      </div>
-
-      {/* Recently deleted lives at the bottom as a destination, not a toolbar tool. */}
-      <div className="border-t border-border/80 p-1.5">
-        <button
-          onClick={onOpenTrash}
-          className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg"
-        >
-          <Trash2 size={15} className="shrink-0" />
-          <span className="truncate">{t("trash:title")}</span>
-        </button>
       </div>
 
       {menu && <ContextMenu x={menu.x} y={menu.y} items={menu.items} onClose={() => setMenu(null)} />}

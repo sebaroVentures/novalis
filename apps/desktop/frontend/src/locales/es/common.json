@@ -8,6 +8,7 @@
     "notesCount": "{{n}} notas"
   },
   "loading": "Cargando…",
+  "mainNav": "Navegación principal",
   "menu": "Menú",
   "notePicker": {
     "createNote": "Crear nota «{{name}}»",
