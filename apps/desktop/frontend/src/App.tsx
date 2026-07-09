@@ -255,7 +255,7 @@ export default function App() {
           navigation and the reopen toggle); below md both slide in together as
           one drawer, so the rail never eats phone width when closed. */}
       <div
-        className={`nv-safe-top fixed inset-y-0 left-0 z-40 flex transition-transform md:static md:z-auto md:translate-x-0 ${
+        className={`nv-safe-top nv-safe-shell fixed inset-y-0 left-0 z-40 flex transition-transform md:static md:z-auto md:translate-x-0 ${
           navOpen ? "translate-x-0" : "-translate-x-full"
         }`}
       >
