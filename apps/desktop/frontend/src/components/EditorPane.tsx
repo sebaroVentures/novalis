@@ -88,7 +88,11 @@ function saveRightPanels(p: RightPanels): void {
 const META_OPEN_KEY = "nv:metaOpen";
 function loadMetaOpen(): boolean {
   try {
-    return localStorage.getItem(META_OPEN_KEY) !== "0";
+    const v = localStorage.getItem(META_OPEN_KEY);
+    if (v !== null) return v !== "0";
+    // No stored preference: collapsed by default on phones (the strip is tall
+    // and eats the editor on a small screen), open on desktop.
+    return !window.matchMedia("(max-width: 767px)").matches;
   } catch {
     return true;
   }
