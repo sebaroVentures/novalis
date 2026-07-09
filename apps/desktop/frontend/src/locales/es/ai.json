@@ -13,6 +13,24 @@
       "title": "Resumir nota"
     }
   },
+  "extract": {
+    "add_one": "Añadir {{count}} tarea",
+    "add_other": "Añadir {{count}} tareas",
+    "analyzing": "Extrayendo tareas…",
+    "cancel": "Cancelar",
+    "due": "Vence",
+    "empty": "No se encontraron tareas accionables.",
+    "error": "No se pudieron extraer las tareas.",
+    "include": "Incluir tarea",
+    "menuItem": "Extraer tareas",
+    "priority": "Prioridad",
+    "project": "Proyecto",
+    "retry": "Reintentar",
+    "saveError": "No se pudieron añadir las tareas.",
+    "start": "Inicio",
+    "textPlaceholder": "Descripción de la tarea",
+    "title": "Extraer tareas"
+  },
   "kind": {
     "anthropic": "Claude (Anthropic)",
     "claudeCli": "Claude Code (CLI)",

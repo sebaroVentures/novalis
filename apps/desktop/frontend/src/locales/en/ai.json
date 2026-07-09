@@ -13,6 +13,24 @@
       "title": "Summarize note"
     }
   },
+  "extract": {
+    "add_one": "Add {{count}} task",
+    "add_other": "Add {{count}} tasks",
+    "analyzing": "Extracting tasks…",
+    "cancel": "Cancel",
+    "due": "Due",
+    "empty": "No actionable tasks found.",
+    "error": "Couldn't extract tasks.",
+    "include": "Include task",
+    "menuItem": "Extract tasks",
+    "priority": "Priority",
+    "project": "Project",
+    "retry": "Retry",
+    "saveError": "Couldn't add the tasks.",
+    "start": "Start",
+    "textPlaceholder": "Task description",
+    "title": "Extract tasks"
+  },
   "kind": {
     "anthropic": "Claude (Anthropic)",
     "claudeCli": "Claude Code (CLI)",

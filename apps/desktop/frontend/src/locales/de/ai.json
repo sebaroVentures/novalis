@@ -13,6 +13,24 @@
       "title": "Notiz zusammenfassen"
     }
   },
+  "extract": {
+    "add_one": "{{count}} Aufgabe hinzufügen",
+    "add_other": "{{count}} Aufgaben hinzufügen",
+    "analyzing": "Aufgaben werden extrahiert…",
+    "cancel": "Abbrechen",
+    "due": "Fällig",
+    "empty": "Keine umsetzbaren Aufgaben gefunden.",
+    "error": "Aufgaben konnten nicht extrahiert werden.",
+    "include": "Aufgabe übernehmen",
+    "menuItem": "Aufgaben extrahieren",
+    "priority": "Priorität",
+    "project": "Projekt",
+    "retry": "Erneut versuchen",
+    "saveError": "Aufgaben konnten nicht hinzugefügt werden.",
+    "start": "Start",
+    "textPlaceholder": "Aufgabenbeschreibung",
+    "title": "Aufgaben extrahieren"
+  },
   "kind": {
     "anthropic": "Claude (Anthropic)",
     "claudeCli": "Claude Code (CLI)",

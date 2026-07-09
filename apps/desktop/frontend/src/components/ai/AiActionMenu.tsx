@@ -122,6 +122,19 @@ export function AiActionMenu({
     closeMenu();
   };
 
+  // "Extract tasks" is a whole-note action: open the review card for this note
+  // (no selection required). The card runs the hidden `extract-tasks` action.
+  const onExtractTasks = () => {
+    if (!editor || !selected || !notePath) return;
+    useAi.getState().startTaskExtract({
+      editor,
+      notePath,
+      noteTitle,
+      body: getMarkdown(editor),
+    });
+    closeMenu();
+  };
+
   // Required-input actions open a prompt box; others run on click.
   const onActionClick = (a: AiActionView) => {
     if (a.input === "required") {
@@ -233,6 +246,15 @@ export function AiActionMenu({
                   </button>
                 );
               })}
+              {/* Extract tasks: a hidden whole-note action (no selection needed),
+                  opening the accept/reject review card via the store. */}
+              <button
+                onClick={onExtractTasks}
+                disabled={!editor || !notePath}
+                className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-fg transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                {t("extract.menuItem")}
+              </button>
               {templates.length > 0 && (
                 <>
                   <div className="my-1 border-t border-border" />

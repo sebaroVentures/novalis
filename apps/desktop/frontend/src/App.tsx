@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 
 import { ActivityRail } from "./components/ActivityRail";
 import { AiActionPanel } from "./components/ai/AiActionPanel";
+import { TaskExtractReview } from "./components/ai/TaskExtractReview";
 import { CalendarView } from "./components/CalendarView";
 import { Cheatsheet } from "./components/Cheatsheet";
 import { CloudHint } from "./components/CloudHint";
@@ -375,6 +376,9 @@ export default function App() {
       <TrashModal open={trashOpen} onClose={() => setTrashOpen(false)} />
       <Cheatsheet open={cheatsheetOpen} onClose={() => setCheatsheetOpen(false)} />
       <AiActionPanel />
+      {/* Meeting-note → task extraction review — store-driven open (sibling of
+          MergeConflictModal above), opened from the editor AI menu / palette. */}
+      <TaskExtractReview />
       {notice && (
         <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-xl border border-border-strong/80 bg-surface/90 px-4 py-2.5 text-sm text-fg shadow-xl backdrop-blur">
           {notice}

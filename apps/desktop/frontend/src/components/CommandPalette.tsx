@@ -2,9 +2,12 @@ import { useEffect, useRef, useState } from "react";
 
 import { useTranslation } from "react-i18next";
 
+import { getMarkdown } from "@novalis/editor";
+
 import { api, type NoteTemplate } from "../ipc/api";
 import { fuzzyRank } from "../lib/fuzzy";
 import { type ActionId, formatChord } from "../lib/keybindings";
+import { useAi } from "../stores/aiStore";
 import { useKeymap } from "../stores/keymapStore";
 import { usePlugins } from "../stores/pluginStore";
 import { useUi } from "../stores/uiStore";
@@ -88,6 +91,19 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     builtin("reveal-in-fm", t("cmdRevealInFm"), null, () => {
       const p = useVault.getState().activeNote?.path;
       if (p) void useVault.getState().revealInFileManager(p);
+    }),
+    // Whole-note AI action: open the task-extraction review for the active note.
+    builtin("extract-tasks", t("cmdExtractTasks"), null, () => {
+      const ed = useUi.getState().activeEditor;
+      const note = useVault.getState().activeNote;
+      if (ed && note) {
+        useAi.getState().startTaskExtract({
+          editor: ed,
+          notePath: note.path,
+          noteTitle: note.title,
+          body: getMarkdown(ed),
+        });
+      }
     }),
   ];
 

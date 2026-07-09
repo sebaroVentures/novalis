@@ -4,6 +4,7 @@
   "cloudHint": "This vault is in a {{provider}} folder. Notes kept <b>online-only</b> download on first open, which can cause a brief delay. For instant access, right-click the folder in Finder and choose <b>“Always keep on this device.”</b>",
   "cmdCore": "core",
   "cmdEmpty": "No matching commands.",
+  "cmdExtractTasks": "Extract tasks from note",
   "cmdInsertTemplate": "Insert template: {{name}}",
   "cmdNewNote": "New note",
   "cmdPlaceholder": "Run a command…",

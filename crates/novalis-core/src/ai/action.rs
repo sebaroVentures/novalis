@@ -85,6 +85,18 @@ const ACTIONS: &[AiActionSpec] = &[
         insert_mode: AiInsertMode::PanelOnly,
         hidden: true,
     },
+    // Internal: extracts actionable to-dos from a note body as STRICT JSON.
+    // Not a prose action, so it is hidden from the editor menu; the task-extract
+    // review UI invokes it, renders the proposals as accept/reject rows, and
+    // appends the accepted ones as task lines under an "## Actions" heading.
+    AiActionSpec {
+        id: "extract-tasks",
+        title_key: "",
+        input: AiInputKind::Optional,
+        scope: AiScope::WholeNote,
+        insert_mode: AiInsertMode::PanelOnly,
+        hidden: true,
+    },
     // Internal: the vehicle for user-defined prompt templates. The template
     // body is passed as the instruction (user_input); not shown in the menu.
     AiActionSpec {
@@ -175,6 +187,14 @@ pub fn build_messages(
                 ));
             }
             Ok(suggest_meta_prompt(ctx, &body, user_input))
+        }
+        "extract-tasks" => {
+            if body.trim().is_empty() {
+                return Err(CoreError::BadRequest(
+                    "nothing to extract: the note is empty".into(),
+                ));
+            }
+            Ok(extract_tasks_prompt(ctx, &body))
         }
         // A user-defined prompt template: the template body is the instruction,
         // applied to the note/selection (which may be empty).
@@ -338,6 +358,43 @@ Output JSON only."
     if let Some(vocab) = user_input.map(str::trim).filter(|s| !s.is_empty()) {
         user.push_str("Known vocabulary and existing metadata (JSON):\n");
         user.push_str(vocab);
+        user.push_str("\n\n");
+    }
+    user.push_str("Note content:\n\n");
+    user.push_str(body);
+
+    BuiltPrompt {
+        system,
+        messages: vec![ChatMessage {
+            role: ChatRole::User,
+            content: user,
+        }],
+    }
+}
+
+fn extract_tasks_prompt(ctx: &AiContext, body: &str) -> BuiltPrompt {
+    // Priority vocabulary + date/slug shapes are constrained to what the task
+    // grammar accepts (tasks/service.rs `update_task`, tasks/index.rs parser) so
+    // the fields the model returns can be turned into valid task lines verbatim.
+    let system = "You extract actionable to-dos from a meeting or project note for a task manager. \
+Respond with STRICT JSON ONLY — no prose, no explanation, no code fences — a single JSON array matching exactly this shape: \
+[{\"text\":\"Email the vendor\",\"due\":\"2026-07-15\",\"start\":\"2026-07-10\",\"project\":\"launch\",\"priority\":\"high\"}]. \
+Rules: extract ONLY concrete, actionable tasks (things a person must DO); ignore background, notes, and decisions that require no action. \
+Keep each \"text\" short and imperative, and do NOT bake dates, projects, or priority into the text — put those in their own fields. \
+\"text\" is required and must be non-empty. \
+Include \"due\" or \"start\" ONLY when the note states an explicit calendar date, formatted as YYYY-MM-DD. \
+Include \"project\" ONLY when the note clearly names one, as a lowercase hyphenated slug (letters, digits, and hyphens only). \
+Include \"priority\" ONLY when the note signals importance, as exactly one of: low, medium, high, urgent. \
+Omit any optional field you are not confident about — never guess or invent values. \
+If the note contains no actionable tasks, return []. \
+Output JSON only."
+        .to_string();
+
+    let mut user = String::new();
+    let title = ctx.title.trim();
+    if !title.is_empty() {
+        user.push_str("Note title: ");
+        user.push_str(title);
         user.push_str("\n\n");
     }
     user.push_str("Note content:\n\n");
@@ -577,6 +634,34 @@ mod tests {
     #[test]
     fn suggest_meta_rejects_an_empty_note() {
         let err = build_messages("suggest-meta", &ctx("   ", None), None).unwrap_err();
+        assert!(matches!(err, CoreError::BadRequest(_)));
+    }
+
+    #[test]
+    fn extract_tasks_exists_but_is_hidden() {
+        assert!(action("extract-tasks").is_some());
+        assert!(!action_views().iter().any(|a| a.id == "extract-tasks"));
+    }
+
+    #[test]
+    fn extract_tasks_builds_a_strict_json_prompt_over_the_note() {
+        let p = build_messages(
+            "extract-tasks",
+            &ctx("Meeting: Alice to email the vendor by Friday.", None),
+            None,
+        )
+        .unwrap();
+        assert!(p.system.contains("JSON"));
+        assert!(p.system.contains("actionable"));
+        assert_eq!(p.messages.len(), 1);
+        assert_eq!(p.messages[0].role, ChatRole::User);
+        assert!(p.messages[0].content.contains("email the vendor"));
+        assert!(p.messages[0].content.contains("My Note"));
+    }
+
+    #[test]
+    fn extract_tasks_rejects_an_empty_note() {
+        let err = build_messages("extract-tasks", &ctx("   \n ", None), None).unwrap_err();
         assert!(matches!(err, CoreError::BadRequest(_)));
     }
 }

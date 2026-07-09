@@ -20,6 +20,17 @@ const SELECTED_KEY = "nv:ai:selectedConnection";
 
 export type AiRunStatus = "streaming" | "done" | "error";
 
+/** The note the meeting-note → task-extraction review is open for. Set by the
+ *  editor AI menu / command palette; the store-mounted review card reads it and
+ *  runs the hidden `extract-tasks` action against `body`. */
+export interface TaskExtractTarget {
+  editor: Editor;
+  notePath: string;
+  noteTitle: string;
+  /** Note body (markdown, without frontmatter) captured when the review opened. */
+  body: string;
+}
+
 /** The single in-flight (or just-finished) AI action, streamed into the panel. */
 export interface AiRun {
   /** Backend request id; empty until `aiRunAction` resolves. */
@@ -43,6 +54,8 @@ interface AiState {
   loadError: string | null;
   selectedConnectionId: string | null;
   run: AiRun | null;
+  /** Open task-extraction review target, or null when closed. */
+  taskExtract: TaskExtractTarget | null;
 
   load: () => Promise<void>;
   setSelectedConnection: (id: string | null) => void;
@@ -63,6 +76,10 @@ interface AiState {
   }) => Promise<void>;
   cancelRun: () => void;
   clearRun: () => void;
+
+  /** Open / close the meeting-note → task-extraction review for a note. */
+  startTaskExtract: (target: TaskExtractTarget) => void;
+  closeTaskExtract: () => void;
 
   /** Run an action to completion and resolve with its full text, WITHOUT
    *  routing it into the floating panel (`run`). Used by features that consume
@@ -142,6 +159,7 @@ export const useAi = create<AiState>((set, get) => ({
   loadError: null,
   selectedConnectionId: localStorage.getItem(SELECTED_KEY),
   run: null,
+  taskExtract: null,
 
   load: async () => {
     try {
@@ -242,6 +260,9 @@ export const useAi = create<AiState>((set, get) => ({
     get().cancelRun();
     set({ run: null });
   },
+
+  startTaskExtract: (target) => set({ taskExtract: target }),
+  closeTaskExtract: () => set({ taskExtract: null }),
 
   collectAiAction: (args) =>
     // Buffer every stream event by request id from the moment we subscribe, so

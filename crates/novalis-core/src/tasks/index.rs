@@ -188,6 +188,56 @@ pub fn build_task_line(
     parts.join(" ")
 }
 
+/// The validated fields of a single AI-extracted task (see the `extract-tasks`
+/// AI action). All optional fields mirror the task grammar's vocabulary.
+#[derive(Debug, Default, Clone)]
+pub struct ExtractedTask {
+    pub text: String,
+    pub due: Option<String>,
+    pub start: Option<String>,
+    pub project: Option<String>,
+    pub priority: Option<String>,
+}
+
+/// Build a canonical markdown task line from AI-extracted fields, reusing
+/// [`build_task_line`] so the result round-trips through [`extract_tasks`].
+///
+/// Optional fields are validated against the task grammar (dates `YYYY-MM-DD`,
+/// `project` an `[a-z0-9-]+` slug, `priority` one of `urgent|high|medium|low`)
+/// and any that fail are dropped rather than emitted — the line never carries a
+/// value the parser would ignore or the grammar would reject. Returns `None`
+/// only when `text` is empty (nothing worth writing).
+pub fn task_line_from_extracted(task: &ExtractedTask) -> Option<String> {
+    let text = task.text.trim();
+    if text.is_empty() {
+        return None;
+    }
+    let valid_date = |s: &&str| chrono::NaiveDate::parse_from_str(s, "%Y-%m-%d").is_ok();
+    let priority = task
+        .priority
+        .as_deref()
+        .filter(|p| matches!(*p, "urgent" | "high" | "medium" | "low"));
+    let start = task.start.as_deref().filter(valid_date);
+    let due = task.due.as_deref().filter(valid_date);
+    let project = task.project.as_deref().filter(|p| is_task_slug(p));
+
+    // Reuse the app's canonical formatter for its shared fields; `@project` is
+    // not part of `build_task_line`'s signature, so append it (annotation order
+    // is irrelevant — the parser matches each `@key(...)` independently).
+    let mut line = build_task_line(text, None, priority, start, due);
+    if let Some(p) = project {
+        line.push_str(&format!(" @project({p})"));
+    }
+    Some(line)
+}
+
+/// A valid `@project` slug: non-empty, `[a-z0-9-]+` (matches the task grammar).
+fn is_task_slug(s: &str) -> bool {
+    !s.is_empty()
+        && s.chars()
+            .all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '-')
+}
+
 /// Compute the next due date for a recurring task, or `None` for an
 /// unrecognized interval.
 pub fn next_due(date: chrono::NaiveDate, repeat: &str) -> Option<chrono::NaiveDate> {
@@ -642,6 +692,57 @@ mod tests {
         assert_eq!(t.start_date.as_deref(), Some("2026-05-28"));
         assert_eq!(t.due_date.as_deref(), Some("2026-05-30"));
         assert!(!t.completed);
+    }
+
+    #[test]
+    fn task_line_from_extracted_round_trips_all_fields() {
+        let line = task_line_from_extracted(&ExtractedTask {
+            text: "  Email the vendor  ".into(),
+            due: Some("2026-07-15".into()),
+            start: Some("2026-07-10".into()),
+            project: Some("launch".into()),
+            priority: Some("high".into()),
+        })
+        .unwrap();
+        let tasks = extract_tasks(&line, "_Inbox.md");
+        assert_eq!(tasks.len(), 1);
+        let t = &tasks[0];
+        assert!(t.text.starts_with("Email the vendor"));
+        assert!(!t.completed);
+        assert_eq!(t.priority.as_deref(), Some("high"));
+        assert_eq!(t.start_date.as_deref(), Some("2026-07-10"));
+        assert_eq!(t.due_date.as_deref(), Some("2026-07-15"));
+        assert_eq!(t.project.as_deref(), Some("launch"));
+    }
+
+    #[test]
+    fn task_line_from_extracted_drops_invalid_optional_fields() {
+        // A malformed date, a non-slug project, and an unknown priority are all
+        // dropped — the surviving line is just the plain task, and re-parsing it
+        // confirms none of the bad values leaked through.
+        let line = task_line_from_extracted(&ExtractedTask {
+            text: "Follow up".into(),
+            due: Some("2026/07/15".into()),
+            start: Some("not-a-date".into()),
+            project: Some("Bad Slug".into()),
+            priority: Some("epic".into()),
+        })
+        .unwrap();
+        assert_eq!(line, "- [ ] Follow up");
+        let t = &extract_tasks(&line, "n.md")[0];
+        assert_eq!(t.due_date, None);
+        assert_eq!(t.start_date, None);
+        assert_eq!(t.project, None);
+        assert_eq!(t.priority, None);
+    }
+
+    #[test]
+    fn task_line_from_extracted_rejects_empty_text() {
+        assert!(task_line_from_extracted(&ExtractedTask {
+            text: "   ".into(),
+            ..Default::default()
+        })
+        .is_none());
     }
 
     #[test]
