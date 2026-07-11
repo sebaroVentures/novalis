@@ -1,10 +1,11 @@
 //! The local SQLite index: a disposable, rebuildable cache (in app-data, never
-//! the vault) holding note metadata, an FTS5 full-text index, and the
-//! `[[wikilink]]` graph. The `tasks` table is created here but only populated
-//! starting in M2.
+//! the vault) holding note metadata, an FTS5 full-text index, the
+//! `[[wikilink]]` graph, and typed frontmatter properties + relations. The
+//! `tasks` table is created here but only populated starting in M2.
 
 pub mod events;
 pub mod links;
+pub mod properties;
 pub mod schema;
 pub mod search;
 pub mod vectors;

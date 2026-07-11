@@ -11,13 +11,14 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use novalis_core::change;
 use novalis_core::conflict;
-use novalis_core::index::{links, schema, search};
+use novalis_core::index::{links, properties, schema, search};
 use novalis_core::models::{
     AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
     CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, FullGraph,
     GitConflict, GitResolution, GitStatus, GitSyncOutcome, LinkReference, Note, NoteGraph,
-    NoteSummary, NoteTemplate, PluginInfo, Preferences, PropertyValue, ResolveConflictRequest,
-    SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
+    NotePropertyEntry, NoteRelations, NoteSummary, NoteTemplate, PluginInfo, Preferences,
+    PropertyValue, ResolveConflictRequest, RollupOp, RollupResult, SearchResult, TagCount, Task,
+    TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::review::{self, ReviewDigest};
 use novalis_core::tasks::service as task_svc;
@@ -657,6 +658,38 @@ pub fn note_graph(state: State<AppEngine>, path: String) -> CmdResult<NoteGraph>
 #[specta::specta]
 pub fn full_graph(state: State<AppEngine>) -> CmdResult<FullGraph> {
     state.with(|e| links::full_graph(&e.db))
+}
+
+// ── Typed properties + relations (query-engine foundation) ───────────────────
+
+/// The indexed frontmatter properties of `path`, typed. Index-only.
+#[tauri::command]
+#[specta::specta]
+pub fn note_properties(state: State<AppEngine>, path: String) -> CmdResult<Vec<NotePropertyEntry>> {
+    state.with(|e| properties::properties_for(&e.db, &path))
+}
+
+/// The typed relations of `path` in both directions: the notes its frontmatter
+/// points to (`outgoing`) and the notes pointing to it (`incoming`,
+/// reciprocal). Index-only.
+#[tauri::command]
+#[specta::specta]
+pub fn note_relations(state: State<AppEngine>, path: String) -> CmdResult<NoteRelations> {
+    state.with(|e| properties::relations_for(&e.db, &path))
+}
+
+/// Roll up a numeric `property_key` over the notes `path` relates to via
+/// `relation_key` (count/sum/avg/min/max). Index-only.
+#[tauri::command]
+#[specta::specta]
+pub fn note_rollup(
+    state: State<AppEngine>,
+    path: String,
+    relation_key: String,
+    property_key: String,
+    op: RollupOp,
+) -> CmdResult<RollupResult> {
+    state.with(|e| properties::rollup_relation(&e.db, &path, &relation_key, &property_key, op))
 }
 
 // ── Vault info / index ──────────────────────────────────────────────────────

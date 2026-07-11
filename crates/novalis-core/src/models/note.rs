@@ -44,6 +44,51 @@ pub struct NotePropertyEntry {
     pub value: PropertyValue,
 }
 
+/// One end of a typed relation between two notes, as seen from the other note:
+/// the note at `path`/`title`, reached via the property `key` that declared the
+/// relation. Used for both the outgoing and (reciprocal) incoming directions.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct RelationRef {
+    pub path: String,
+    pub title: String,
+    pub key: String,
+}
+
+/// A note's typed relations in both directions. `outgoing` are the notes this
+/// note's frontmatter points to; `incoming` are the notes whose frontmatter
+/// points here — the reciprocal side, derived from the same `note_relations`
+/// rows (one forward row per relation serves both queries).
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct NoteRelations {
+    pub outgoing: Vec<RelationRef>,
+    pub incoming: Vec<RelationRef>,
+}
+
+/// A numeric aggregation over the notes a relation points to. The
+/// data-layer primitive a future query engine's "rollup" columns build on.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum RollupOp {
+    Count,
+    Sum,
+    Avg,
+    Min,
+    Max,
+}
+
+/// The result of a rollup: `count` is how many related notes contributed a
+/// numeric value; `value` is the aggregate, or `None` when it is undefined
+/// (`Avg`/`Min`/`Max` over an empty set). `Count`/`Sum` are always defined.
+#[derive(Debug, Clone, Copy, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct RollupResult {
+    pub op: RollupOp,
+    pub count: usize,
+    pub value: Option<f64>,
+}
+
 /// YAML frontmatter. Field names are the literal YAML keys (no camelCase). The
 /// `extra` map preserves any unknown keys verbatim so we never drop a user's
 /// metadata on round-trip; it's skipped from the TS type as it is open-ended.

@@ -23,6 +23,11 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
     db.execute("DELETE FROM note_meta", [])?;
     db.execute("DELETE FROM notes_fts", [])?;
     db.execute("DELETE FROM links", [])?;
+    // Typed properties + relations are per-note replaced by `index_note`, but a
+    // note that vanished offline would strand rows a per-note pass never revisits
+    // (same orphan hazard as tasks/events below) — clear them up front.
+    db.execute("DELETE FROM note_properties", [])?;
+    db.execute("DELETE FROM note_relations", [])?;
     // Tasks and own (note-derived) events are rebuilt per-note by `index_note`
     // below, but — unlike the tables above — they were historically never cleared
     // up front. Rows for a note that vanished while the app wasn't watching
@@ -55,6 +60,11 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
             log::warn!("failed to index {}: {e}", summary.path);
         }
     }
+
+    // Relations resolve to a target's PATH, so per-note resolution during the
+    // loop above misses any target indexed after its source. Re-resolve the
+    // whole `note_relations` table now that every note is in `note_meta`.
+    crate::index::properties::resolve_all_relations(db)?;
 
     tx.commit()?;
     log::info!("indexed {} notes", notes.len());
@@ -112,6 +122,10 @@ pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> Core
     let targets = links::extract_wiki_links(&body);
     links::index_links(db, &summary.path, &targets)?;
 
+    // Typed frontmatter properties + relations (query-engine foundation).
+    let props = frontmatter::properties_from_extra(&fm.extra);
+    crate::index::properties::index_properties(db, &summary.path, &props)?;
+
     // Calendar event, if the note's frontmatter declares one.
     let event = crate::index::events::event_from_note(&fm.extra, &summary.title, &summary.path);
     crate::index::events::index_event(db, event.as_ref(), &summary.path)?;
@@ -125,6 +139,7 @@ pub fn remove_note(db: &Connection, path: &str) -> CoreResult<()> {
     db.execute("DELETE FROM notes_fts WHERE path = ?1", params![path])?;
     db.execute("DELETE FROM tasks WHERE source_note = ?1", params![path])?;
     db.execute("DELETE FROM links WHERE source_path = ?1", params![path])?;
+    crate::index::properties::remove_properties(db, path)?;
     db.execute("DELETE FROM events WHERE note_path = ?1", params![path])?;
     // Drop the semantic vector too (table owned by `index::vectors`), so a
     // deleted/renamed note doesn't strand a vector that could surface in

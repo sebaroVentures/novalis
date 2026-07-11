@@ -138,6 +138,19 @@ export const commands = {
 	 *  note bodies (no cloud hydration on graph open).
 	 */
 	fullGraph: () => typedError<FullGraph, CommandError>(__TAURI_INVOKE("full_graph")),
+	/**  The indexed frontmatter properties of `path`, typed. Index-only. */
+	noteProperties: (path: string) => typedError<NotePropertyEntry[], CommandError>(__TAURI_INVOKE("note_properties", { path })),
+	/**
+	 *  The typed relations of `path` in both directions: the notes its frontmatter
+	 *  points to (`outgoing`) and the notes pointing to it (`incoming`,
+	 *  reciprocal). Index-only.
+	 */
+	noteRelations: (path: string) => typedError<NoteRelations, CommandError>(__TAURI_INVOKE("note_relations", { path })),
+	/**
+	 *  Roll up a numeric `property_key` over the notes `path` relates to via
+	 *  `relation_key` (count/sum/avg/min/max). Index-only.
+	 */
+	noteRollup: (path: string, relationKey: string, propertyKey: string, op: RollupOp) => typedError<RollupResult, CommandError>(__TAURI_INVOKE("note_rollup", { path, relationKey, propertyKey, op })),
 	getVaultInfo: () => typedError<VaultInfo, CommandError>(__TAURI_INVOKE("get_vault_info")),
 	getVaultStats: () => typedError<VaultStats, CommandError>(__TAURI_INVOKE("get_vault_stats")),
 	/**
@@ -1074,6 +1087,17 @@ export type NotePropertyEntry = {
 	value: PropertyValue,
 };
 
+/**
+ *  A note's typed relations in both directions. `outgoing` are the notes this
+ *  note's frontmatter points to; `incoming` are the notes whose frontmatter
+ *  points here — the reciprocal side, derived from the same `note_relations`
+ *  rows (one forward row per relation serves both queries).
+ */
+export type NoteRelations = {
+	outgoing: RelationRef[],
+	incoming: RelationRef[],
+};
+
 /**  Lightweight note metadata used for lists, the file tree, and search results. */
 export type NoteSummary = {
 	path: string,
@@ -1168,6 +1192,17 @@ export type RelatedNote = {
 	score: number | null,
 };
 
+/**
+ *  One end of a typed relation between two notes, as seen from the other note:
+ *  the note at `path`/`title`, reached via the property `key` that declared the
+ *  relation. Used for both the outgoing and (reciprocal) incoming directions.
+ */
+export type RelationRef = {
+	path: string,
+	title: string,
+	key: string,
+};
+
 export type ResolveConflictRequest = {
 	/**  "original" | "conflict" | "both" */
 	keep: string,
@@ -1199,6 +1234,23 @@ export type ReviewDigest = {
 	agenda: AgendaItem[],
 	/**  Canonical markdown section, ready to insert into a note. */
 	markdown: string,
+};
+
+/**
+ *  A numeric aggregation over the notes a relation points to. The
+ *  data-layer primitive a future query engine's "rollup" columns build on.
+ */
+export type RollupOp = "count" | "sum" | "avg" | "min" | "max";
+
+/**
+ *  The result of a rollup: `count` is how many related notes contributed a
+ *  numeric value; `value` is the aggregate, or `None` when it is undefined
+ *  (`Avg`/`Min`/`Max` over an empty set). `Count`/`Sum` are always defined.
+ */
+export type RollupResult = {
+	op: RollupOp,
+	count: number,
+	value: number | null,
 };
 
 /**  A full-text search hit with an FTS5 snippet and rank-derived score. */
