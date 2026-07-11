@@ -13,8 +13,9 @@ use crate::error::CoreResult;
 
 /// Bump this whenever the table layout below changes — or when a column that
 /// already exists starts being populated (v7: `note_meta.aliases` is now written
-/// and queried), so existing caches rebuild and backfill it.
-pub const SCHEMA_VERSION: i64 = 7;
+/// and queried; v8: typed `note_properties` + `note_relations` are indexed), so
+/// existing caches rebuild and backfill it.
+pub const SCHEMA_VERSION: i64 = 8;
 
 /// Open (or create) the index database at `path`, ensuring the schema matches
 /// [`SCHEMA_VERSION`]. On mismatch the tables are dropped and recreated.
@@ -59,6 +60,8 @@ fn drop_tables(conn: &Connection) -> CoreResult<()> {
          DROP TABLE IF EXISTS notes_fts;
          DROP TABLE IF EXISTS tasks;
          DROP TABLE IF EXISTS links;
+         DROP TABLE IF EXISTS note_properties;
+         DROP TABLE IF EXISTS note_relations;
          DROP TABLE IF EXISTS events;",
     )?;
     Ok(())
@@ -113,6 +116,23 @@ fn create_tables(conn: &Connection) -> CoreResult<()> {
         );
         CREATE INDEX IF NOT EXISTS idx_links_target ON links(target_title);
         CREATE INDEX IF NOT EXISTS idx_links_source ON links(source_path);
+
+        CREATE TABLE IF NOT EXISTS note_properties (
+            path TEXT NOT NULL,
+            key TEXT NOT NULL,
+            kind TEXT NOT NULL,
+            value TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_note_properties_path ON note_properties(path);
+        CREATE INDEX IF NOT EXISTS idx_note_properties_key ON note_properties(key);
+
+        CREATE TABLE IF NOT EXISTS note_relations (
+            source_path TEXT NOT NULL,
+            key TEXT NOT NULL,
+            target_path TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_note_relations_source ON note_relations(source_path);
+        CREATE INDEX IF NOT EXISTS idx_note_relations_target ON note_relations(target_path);
 
         CREATE TABLE IF NOT EXISTS events (
             id TEXT PRIMARY KEY,
