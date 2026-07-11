@@ -21,6 +21,15 @@ pub const SCHEMA_VERSION: i64 = 7;
 pub fn open_db(path: &Path) -> CoreResult<Connection> {
     let conn = Connection::open(path)?;
     conn.execute_batch("PRAGMA journal_mode=WAL;")?;
+    // Wait (rather than fail with "database is locked") when the write lock is
+    // briefly held — e.g. a background reindex/WAL checkpoint, or a second app
+    // instance still holding the same notes.db during a restart. WAL gives
+    // concurrent readers + one writer; busy_timeout covers the write-lock
+    // contention WAL alone doesn't (SQLITE_BUSY is returned immediately without
+    // it). NORMAL synchronous is the recommended, durable-enough setting under
+    // WAL and cuts fsyncs on the hot write path.
+    conn.busy_timeout(std::time::Duration::from_secs(5))?;
+    conn.execute_batch("PRAGMA synchronous=NORMAL;")?;
 
     let current: i64 = conn.query_row("PRAGMA user_version", [], |r| r.get(0))?;
     if current != SCHEMA_VERSION {
