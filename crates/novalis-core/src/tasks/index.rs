@@ -35,8 +35,10 @@ pub fn extract_tasks(content: &str, note_path: &str) -> Vec<Task> {
     let priority_re =
         PRIORITY_RE.get_or_init(|| Regex::new(r"@priority\((urgent|high|medium|low)\)").unwrap());
     let status_re = STATUS_RE.get_or_init(|| Regex::new(r"@status\(([a-z0-9-]+)\)").unwrap());
-    let repeat_re =
-        REPEAT_RE.get_or_init(|| Regex::new(r"@repeat\((daily|weekly|monthly|yearly)\)").unwrap());
+    let repeat_re = REPEAT_RE.get_or_init(|| {
+        Regex::new(r"@repeat\((daily|weekly|monthly|yearly|every \d+ (?:days?|weeks?|months?))\)")
+            .unwrap()
+    });
     let project_re = PROJECT_RE.get_or_init(|| Regex::new(r"@project\(([a-z0-9-]+)\)").unwrap());
     let epic_re = EPIC_RE.get_or_init(|| Regex::new(r"@epic\(([a-z0-9-]+)\)").unwrap());
     let tag_re = TAG_RE.get_or_init(|| Regex::new(r"#(\w+)").unwrap());
@@ -239,7 +241,10 @@ fn is_task_slug(s: &str) -> bool {
 }
 
 /// Compute the next due date for a recurring task, or `None` for an
-/// unrecognized interval.
+/// unrecognized interval. Recognizes the fixed intervals
+/// `daily|weekly|monthly|yearly` plus `every N days|weeks|months` (N ≥ 1).
+/// Month arithmetic uses chrono's month-end clamping (e.g. Jan 31 `monthly`
+/// → Feb 28).
 pub fn next_due(date: chrono::NaiveDate, repeat: &str) -> Option<chrono::NaiveDate> {
     use chrono::{Days, Months};
     match repeat {
@@ -247,8 +252,48 @@ pub fn next_due(date: chrono::NaiveDate, repeat: &str) -> Option<chrono::NaiveDa
         "weekly" => date.checked_add_days(Days::new(7)),
         "monthly" => date.checked_add_months(Months::new(1)),
         "yearly" => date.checked_add_months(Months::new(12)),
-        _ => None,
+        other => match parse_every(other)? {
+            (n, EveryUnit::Day) => date.checked_add_days(Days::new(n)),
+            (n, EveryUnit::Week) => date.checked_add_days(Days::new(n.checked_mul(7)?)),
+            (n, EveryUnit::Month) => date.checked_add_months(Months::new(u32::try_from(n).ok()?)),
+        },
     }
+}
+
+/// Whether `s` is a valid `@repeat(...)` interval: a fixed
+/// `daily|weekly|monthly|yearly`, or an `every N days|weeks|months` (N ≥ 1)
+/// interval. Kept in sync with the `@repeat` extraction regex and reused by the
+/// `update_task` validation so both agree on the vocabulary.
+pub fn is_valid_repeat(s: &str) -> bool {
+    matches!(s, "daily" | "weekly" | "monthly" | "yearly") || parse_every(s).is_some()
+}
+
+enum EveryUnit {
+    Day,
+    Week,
+    Month,
+}
+
+/// Parse an `every N days|weeks|months` interval into `(N, unit)`. Rejects
+/// `N == 0` (a zero interval would spawn the same date forever) and any trailing
+/// tokens, so it stays consistent with the extraction regex.
+fn parse_every(s: &str) -> Option<(u64, EveryUnit)> {
+    let rest = s.strip_prefix("every ")?;
+    let mut it = rest.split_whitespace();
+    let n: u64 = it.next()?.parse().ok()?;
+    if n == 0 {
+        return None;
+    }
+    let unit = match it.next()? {
+        "day" | "days" => EveryUnit::Day,
+        "week" | "weeks" => EveryUnit::Week,
+        "month" | "months" => EveryUnit::Month,
+        _ => return None,
+    };
+    if it.next().is_some() {
+        return None;
+    }
+    Some((n, unit))
 }
 
 /// Extract a task's `@rrule(...)` iCal recurrence string, if present.
@@ -782,6 +827,64 @@ mod tests {
         assert_eq!(next_due(d, "monthly"), NaiveDate::from_ymd_opt(2026, 6, 24));
         assert_eq!(next_due(d, "yearly"), NaiveDate::from_ymd_opt(2027, 5, 24));
         assert_eq!(next_due(d, "bogus"), None);
+    }
+
+    #[test]
+    fn next_due_handles_every_n_and_month_end() {
+        use chrono::NaiveDate;
+        let mk = |y, m, d| NaiveDate::from_ymd_opt(y, m, d);
+        let cases: &[(NaiveDate, &str, Option<NaiveDate>)] = &[
+            // every-N, singular + plural units.
+            (mk(2026, 5, 24).unwrap(), "every 2 days", mk(2026, 5, 26)),
+            (mk(2026, 5, 24).unwrap(), "every 1 day", mk(2026, 5, 25)),
+            (mk(2026, 5, 24).unwrap(), "every 2 weeks", mk(2026, 6, 7)),
+            (mk(2026, 5, 24).unwrap(), "every 3 months", mk(2026, 8, 24)),
+            // Month-end clamps rather than overflowing into the next month.
+            (mk(2026, 1, 31).unwrap(), "monthly", mk(2026, 2, 28)),
+            (mk(2026, 1, 31).unwrap(), "every 1 month", mk(2026, 2, 28)),
+            // Leap February still clamps (2028 is a leap year → Feb 29).
+            (mk(2028, 1, 31).unwrap(), "monthly", mk(2028, 2, 29)),
+            // Zero and malformed every-N intervals are rejected (no infinite loop).
+            (mk(2026, 5, 24).unwrap(), "every 0 weeks", None),
+            (mk(2026, 5, 24).unwrap(), "every week", None),
+            (mk(2026, 5, 24).unwrap(), "every 2 fortnights", None),
+        ];
+        for (date, repeat, expected) in cases {
+            assert_eq!(next_due(*date, repeat), *expected, "repeat {repeat:?}");
+        }
+    }
+
+    #[test]
+    fn is_valid_repeat_matches_grammar() {
+        for ok in [
+            "daily",
+            "weekly",
+            "monthly",
+            "yearly",
+            "every 2 weeks",
+            "every 1 month",
+        ] {
+            assert!(is_valid_repeat(ok), "{ok:?} should be valid");
+        }
+        for bad in [
+            "fortnightly",
+            "every 0 days",
+            "every week",
+            "every -1 days",
+            "",
+        ] {
+            assert!(!is_valid_repeat(bad), "{bad:?} should be invalid");
+        }
+    }
+
+    #[test]
+    fn extract_tasks_parses_every_n_repeat() {
+        let tasks = extract_tasks(
+            "- [ ] Sprint @repeat(every 2 weeks) @due(2026-05-25)",
+            "n.md",
+        );
+        assert_eq!(tasks.len(), 1);
+        assert_eq!(tasks[0].repeat.as_deref(), Some("every 2 weeks"));
     }
 
     #[test]

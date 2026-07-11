@@ -9,7 +9,7 @@ use rusqlite::Connection;
 use crate::change;
 use crate::error::{CoreError, CoreResult};
 use crate::models::{CaptureRequest, CreateTaskRequest, Task, TaskQuery};
-use crate::tasks::index;
+use crate::tasks::{index, nldate};
 use crate::vault::{config, fs as vault_fs};
 
 /// List tasks matching `query`.
@@ -32,12 +32,32 @@ pub fn create(db: &Connection, vault: &Path, req: CreateTaskRequest) -> CoreResu
         .task_creation
         .resolve(req.note_path.as_deref(), today);
 
+    // The `dueDate` field accepts a natural-language phrase ("next friday",
+    // "in 3 days") as well as an explicit `YYYY-MM-DD`; resolve it to a concrete
+    // date relative to today. An explicit ISO date passes through unchanged. A
+    // non-empty phrase we can't resolve is a hard error rather than a silently
+    // dropped date.
+    let due = match req
+        .due_date
+        .as_deref()
+        .map(str::trim)
+        .filter(|s| !s.is_empty())
+    {
+        Some(phrase) => Some(
+            nldate::resolve_nl_date(phrase, today)
+                .ok_or_else(|| CoreError::BadRequest(format!("Unrecognized due date: {phrase:?}")))?
+                .format("%Y-%m-%d")
+                .to_string(),
+        ),
+        None => None,
+    };
+
     let line = index::build_task_line(
         &req.text,
         req.status.as_deref(),
         req.priority.as_deref(),
         None,
-        req.due_date.as_deref(),
+        due.as_deref(),
     );
     vault_fs::append_line(vault, &dest, &line)?;
     change::reindex_path(db, vault, &dest)?;
@@ -101,7 +121,8 @@ pub fn set_status(db: &Connection, vault: &Path, id: &str, status: &str) -> Core
 /// key equals `field`). `value = None` removes it. Supported fields and their
 /// value rules: `project`/`epic` → slug `[a-z0-9-]+`; `priority` →
 /// `urgent|high|medium|low`; `due`/`start` → `YYYY-MM-DD`; `remind` →
-/// `YYYY-MM-DDTHH:MM`; `repeat` → `daily|weekly|monthly|yearly`.
+/// `YYYY-MM-DDTHH:MM`; `repeat` → `daily|weekly|monthly|yearly` or
+/// `every N days|weeks|months`.
 pub fn update_task(
     db: &Connection,
     vault: &Path,
@@ -123,7 +144,7 @@ pub fn update_task(
             "priority" => matches!(v, "urgent" | "high" | "medium" | "low"),
             "due" | "start" => chrono::NaiveDate::parse_from_str(v, "%Y-%m-%d").is_ok(),
             "remind" => chrono::NaiveDateTime::parse_from_str(v, "%Y-%m-%dT%H:%M").is_ok(),
-            "repeat" => matches!(v, "daily" | "weekly" | "monthly" | "yearly"),
+            "repeat" => index::is_valid_repeat(v),
             _ => false,
         };
         if !ok {
@@ -184,7 +205,10 @@ fn is_slug(s: &str) -> bool {
 }
 
 /// Quick-capture a single line (task or bullet) into the resolved note.
-/// Returns the destination path.
+/// Returns the destination path. Any inline `@due(...)`/`@start(...)` written
+/// as a natural-language phrase ("next friday") is resolved to a concrete date
+/// relative to today before the line is written; unrecognized phrases are left
+/// verbatim (and logged) rather than dropped.
 pub fn quick_capture(db: &Connection, vault: &Path, req: CaptureRequest) -> CoreResult<String> {
     let text = req.text.trim();
     if text.is_empty() {
@@ -205,6 +229,7 @@ pub fn quick_capture(db: &Connection, vault: &Path, req: CaptureRequest) -> Core
     } else {
         format!("- {text}")
     };
+    let line = nldate::resolve_inline_dates(&line, today);
     vault_fs::append_line(vault, &dest, &line)?;
     change::reindex_path(db, vault, &dest)?;
     Ok(dest)
@@ -576,5 +601,110 @@ mod tests {
         assert!(after
             .iter()
             .any(|t| !t.completed && t.due_date.as_deref() == Some("2026-06-08")));
+    }
+
+    #[test]
+    fn completing_every_n_task_spawns_next() {
+        let c = ctx();
+        create(
+            &c.db,
+            &c.vault,
+            CreateTaskRequest {
+                text: "Sprint review @repeat(every 2 weeks) @due(2026-05-24)".to_string(),
+                status: None,
+                priority: None,
+                due_date: None,
+                note_path: Some("_Inbox.md".to_string()),
+            },
+        )
+        .unwrap();
+
+        let id = list(&c.db, &TaskQuery::default()).unwrap()[0].id.clone();
+        toggle(&c.db, &c.vault, &id).unwrap();
+
+        // Two weeks after 2026-05-24 is 2026-06-07.
+        let after = list(&c.db, &TaskQuery::default()).unwrap();
+        assert!(after
+            .iter()
+            .any(|t| !t.completed && t.due_date.as_deref() == Some("2026-06-07")));
+    }
+
+    #[test]
+    fn create_resolves_natural_language_due_date() {
+        let c = ctx();
+        // An explicit ISO date passes through untouched.
+        let iso = create(
+            &c.db,
+            &c.vault,
+            CreateTaskRequest {
+                text: "Explicit".to_string(),
+                status: None,
+                priority: None,
+                due_date: Some("2026-07-15".to_string()),
+                note_path: Some("_Inbox.md".to_string()),
+            },
+        )
+        .unwrap();
+        assert_eq!(iso.due_date.as_deref(), Some("2026-07-15"));
+
+        // A natural-language phrase resolves relative to today.
+        let today = chrono::Local::now().date_naive();
+        let tomorrow = (today + chrono::Days::new(1))
+            .format("%Y-%m-%d")
+            .to_string();
+        let nl = create(
+            &c.db,
+            &c.vault,
+            CreateTaskRequest {
+                text: "Relative".to_string(),
+                status: None,
+                priority: None,
+                due_date: Some("tomorrow".to_string()),
+                note_path: Some("_Inbox.md".to_string()),
+            },
+        )
+        .unwrap();
+        assert_eq!(nl.due_date.as_deref(), Some(tomorrow.as_str()));
+
+        // An unrecognized phrase fails loud rather than dropping the date.
+        assert!(create(
+            &c.db,
+            &c.vault,
+            CreateTaskRequest {
+                text: "Bad".to_string(),
+                status: None,
+                priority: None,
+                due_date: Some("someday".to_string()),
+                note_path: Some("_Inbox.md".to_string()),
+            },
+        )
+        .is_err());
+    }
+
+    #[test]
+    fn quick_capture_resolves_inline_due_phrase() {
+        let c = ctx();
+        let today = chrono::Local::now().date_naive();
+        let tomorrow = (today + chrono::Days::new(1))
+            .format("%Y-%m-%d")
+            .to_string();
+
+        quick_capture(
+            &c.db,
+            &c.vault,
+            CaptureRequest {
+                text: "Pay rent @due(tomorrow)".to_string(),
+                as_task: true,
+                note_path: Some("_Inbox.md".to_string()),
+            },
+        )
+        .unwrap();
+
+        let tasks = list(&c.db, &TaskQuery::default()).unwrap();
+        let t = tasks
+            .iter()
+            .find(|t| t.text.starts_with("Pay rent"))
+            .unwrap();
+        assert_eq!(t.due_date.as_deref(), Some(tomorrow.as_str()));
     }
 }

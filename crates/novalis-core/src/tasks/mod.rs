@@ -1,11 +1,14 @@
 //! Tasks live inline in notes as markdown checkboxes:
 //! `- [ ] text @due(YYYY-MM-DD) @priority(urgent|high|medium|low)
-//! @status(id) @repeat(daily|weekly|monthly|yearly) #tag`.
+//! @status(id) @repeat(daily|weekly|monthly|yearly|every N days|weeks|months)
+//! #tag`.
 //!
 //! [`index`] extracts/queries them and edits the source files; [`service`]
-//! adds the create/toggle/status/quick-capture orchestration.
+//! adds the create/toggle/status/quick-capture orchestration; [`nldate`]
+//! resolves natural-language date phrases entered in date fields.
 
 pub mod index;
+pub mod nldate;
 pub mod service;
 
 /// `(total, completed)` checkbox counts for note content (used by summaries).
