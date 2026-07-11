@@ -11,7 +11,12 @@ use novalis_core::index::vectors;
 use novalis_core::models::{
     AiActionView, AiConnectionConfig, AiConnectionView, AiEmbeddingConfig, AiProviderKind,
     AiRunRequest, AiTemplate, AiTemplateScope, EmbedStatus, RelatedNote,
+    LOCAL_EMBEDDING_CONNECTION_ID, LOCAL_EMBEDDING_MODEL,
 };
+
+// The bundled on-device embedder is desktop-only (see `crate::ai::embed_local`).
+#[cfg(not(target_os = "android"))]
+use crate::ai::embed_local;
 
 use crate::ai::registry::AiRegistry;
 use crate::ai::{catalog, cli, embeddings, keychain, run_stream, test_connection, AiRequest};
@@ -296,11 +301,40 @@ fn embed_not_configured() -> CommandError {
     }
 }
 
-/// Resolve the embedding config into a usable `(connection, model)`. A missing,
-/// disabled, non-OpenAI-compatible connection or empty model all map to
-/// "not configured", so the UI shows the settings CTA rather than a hard error.
-fn resolve_embedding(app: &AppHandle) -> CmdResult<(AiConnectionConfig, String)> {
+/// A resolved embedding backend: either a remote OpenAI-compatible connection or
+/// the bundled on-device model. Both carry the `note_vectors.model` id they
+/// write under (so local and remote vectors coexist under distinct models).
+enum ResolvedEmbedder {
+    /// Remote embeddings via an enabled OpenAI-compatible connection.
+    Http {
+        conn: AiConnectionConfig,
+        model: String,
+    },
+    /// The bundled, on-device model (desktop only).
+    Local { model: String },
+}
+
+impl ResolvedEmbedder {
+    /// The `note_vectors.model` id for this backend.
+    fn model(&self) -> &str {
+        match self {
+            Self::Http { model, .. } | Self::Local { model } => model,
+        }
+    }
+}
+
+/// Resolve the embedding config into a usable backend. The reserved
+/// [`LOCAL_EMBEDDING_CONNECTION_ID`] selects the bundled on-device model;
+/// otherwise a missing/empty config, or a connection that is disabled, missing,
+/// non-OpenAI-compatible, or has an empty model, all map to "not configured" so
+/// the UI shows the settings CTA rather than a hard error.
+fn resolve_embedding(app: &AppHandle) -> CmdResult<ResolvedEmbedder> {
     let cfg = crate::settings::load_ai_embedding(app).ok_or_else(embed_not_configured)?;
+    if cfg.connection_id == LOCAL_EMBEDDING_CONNECTION_ID {
+        return Ok(ResolvedEmbedder::Local {
+            model: LOCAL_EMBEDDING_MODEL.to_string(),
+        });
+    }
     if cfg.model.trim().is_empty() {
         return Err(embed_not_configured());
     }
@@ -311,7 +345,97 @@ fn resolve_embedding(app: &AppHandle) -> CmdResult<(AiConnectionConfig, String)>
     if !conn.enabled || conn.kind != AiProviderKind::OpenAiCompatible {
         return Err(embed_not_configured());
     }
-    Ok((conn, cfg.model))
+    Ok(ResolvedEmbedder::Http {
+        conn,
+        model: cfg.model,
+    })
+}
+
+/// A ready-to-run embedding backend: the HTTP client + creds for a remote
+/// connection, or the loaded on-device model. Built once per index build via
+/// [`build_embedder`] and reused across batches.
+enum Embedder {
+    Http {
+        client: reqwest::Client,
+        base_url: Option<String>,
+        api_key: Option<String>,
+    },
+    #[cfg(not(target_os = "android"))]
+    Local(embed_local::LocalEmbedder),
+}
+
+impl Embedder {
+    /// Embed one batch into a vector per input. HTTP hits the endpoint; local
+    /// runs the model on a blocking thread (`fastembed` is CPU-bound and takes
+    /// `&mut self`).
+    async fn embed_batch(&self, model: &str, inputs: &[String]) -> CmdResult<Vec<Vec<f32>>> {
+        match self {
+            Embedder::Http {
+                client,
+                base_url,
+                api_key,
+            } => {
+                embeddings::embed_batch(
+                    client,
+                    base_url.as_deref(),
+                    api_key.as_deref(),
+                    model,
+                    inputs,
+                )
+                .await
+            }
+            #[cfg(not(target_os = "android"))]
+            Embedder::Local(local) => {
+                let local = local.clone();
+                let inputs = inputs.to_vec();
+                tauri::async_runtime::spawn_blocking(move || local.embed(&inputs))
+                    .await
+                    .map_err(|e| {
+                        CommandError::internal(format!("local embedding task failed: {e}"))
+                    })?
+            }
+        }
+    }
+}
+
+/// Construct the embedder for a resolved backend. HTTP is cheap; local loads
+/// (and on first use downloads + caches) the model off the async runtime.
+async fn build_embedder(app: &AppHandle, resolved: &ResolvedEmbedder) -> CmdResult<Embedder> {
+    match resolved {
+        ResolvedEmbedder::Http { conn, .. } => Ok(Embedder::Http {
+            // Generous per-batch deadline: a build has no cancel affordance, so a
+            // stalled embeddings endpoint must fail the batch rather than hang.
+            client: crate::ai::bounded_client(std::time::Duration::from_secs(120)),
+            base_url: conn.base_url.clone(),
+            api_key: keychain::read_key(&conn.id),
+        }),
+        ResolvedEmbedder::Local { .. } => build_local_embedder(app).await,
+    }
+}
+
+/// Load the bundled model (weights cached under the app-data dir), off the
+/// async runtime.
+#[cfg(not(target_os = "android"))]
+async fn build_local_embedder(app: &AppHandle) -> CmdResult<Embedder> {
+    let cache_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| CommandError::internal(format!("cannot resolve app data dir: {e}")))?
+        .join("embeddings");
+    let local = tauri::async_runtime::spawn_blocking(move || embed_local::load(&cache_dir))
+        .await
+        .map_err(|e| CommandError::internal(format!("model load task failed: {e}")))??;
+    Ok(Embedder::Local(local))
+}
+
+/// Android has no prebuilt ONNX Runtime, so a "local" config can't run there.
+#[cfg(target_os = "android")]
+async fn build_local_embedder(_app: &AppHandle) -> CmdResult<Embedder> {
+    Err(CommandError {
+        kind: "aiEmbedLocal".to_string(),
+        message: "the bundled on-device embedding model isn't available on this platform"
+            .to_string(),
+    })
 }
 
 /// The current embedding config (which connection + model), if any.
@@ -331,6 +455,12 @@ pub fn ai_set_embedding_config(
 ) -> CmdResult<()> {
     let cfg = if connection_id.trim().is_empty() {
         None
+    } else if connection_id == LOCAL_EMBEDDING_CONNECTION_ID {
+        // The bundled model's id is fixed; ignore whatever model the UI sent.
+        Some(AiEmbeddingConfig {
+            connection_id,
+            model: LOCAL_EMBEDDING_MODEL.to_string(),
+        })
     } else {
         Some(AiEmbeddingConfig {
             connection_id,
@@ -347,7 +477,7 @@ pub fn ai_set_embedding_config(
 #[specta::specta]
 pub fn ai_embed_status(app: AppHandle, state: State<AppEngine>) -> CmdResult<EmbedStatus> {
     let resolved = resolve_embedding(&app).ok();
-    let model = resolved.as_ref().map(|(_, m)| m.clone());
+    let model = resolved.as_ref().map(|r| r.model().to_string());
     let total = state.with(|e| Ok(vectors::eligible_count(&e.db)? as u32))?;
     let embedded = match &model {
         Some(m) => state.with(|e| Ok(vectors::count_for_model(&e.db, m)? as u32))?,
@@ -369,9 +499,8 @@ pub fn ai_embed_status(app: AppHandle, state: State<AppEngine>) -> CmdResult<Emb
 #[tauri::command]
 #[specta::specta]
 pub async fn ai_build_embeddings(app: AppHandle) -> CmdResult<EmbedStatus> {
-    let (conn, model) = resolve_embedding(&app)?;
-    let base_url = conn.base_url.clone();
-    let api_key = keychain::read_key(&conn.id);
+    let resolved = resolve_embedding(&app)?;
+    let model = resolved.model().to_string();
 
     // Snapshot the eligible notes + the per-model freshness oracle under a short
     // lock, then prune vectors orphaned by offline deletes/renames (safe now:
@@ -399,20 +528,13 @@ pub async fn ai_build_embeddings(app: AppHandle) -> CmdResult<EmbedStatus> {
     let total = jobs.len() as u32;
     let _ = app.emit("ai-embed-progress", AiEmbedProgress { done: 0, total });
 
-    // Generous per-batch deadline: a build has no cancel affordance, so a
-    // stalled embeddings endpoint must fail the batch rather than hang forever.
-    let client = crate::ai::bounded_client(std::time::Duration::from_secs(120));
+    // Build the embedder once (loading the local model can download weights on
+    // first use); embedding then stays off the engine lock.
+    let embedder = build_embedder(&app, &resolved).await?;
     let mut done = 0u32;
     for batch in jobs.chunks(EMBED_BATCH) {
         let inputs: Vec<String> = batch.iter().map(|j| j.text.clone()).collect();
-        let vecs = embeddings::embed_batch(
-            &client,
-            base_url.as_deref(),
-            api_key.as_deref(),
-            &model,
-            &inputs,
-        )
-        .await?;
+        let vecs = embedder.embed_batch(&model, &inputs).await?;
 
         app.state::<AppEngine>().with(|e| {
             for (job, vec) in batch.iter().zip(vecs.iter()) {
@@ -440,7 +562,7 @@ pub fn ai_find_related(
     path: String,
     limit: u32,
 ) -> CmdResult<Vec<RelatedNote>> {
-    let (_, model) = resolve_embedding(&app)?;
+    let model = resolve_embedding(&app)?.model().to_string();
 
     fn stale() -> CommandError {
         CommandError {

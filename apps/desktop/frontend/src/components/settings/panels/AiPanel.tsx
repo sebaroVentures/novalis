@@ -44,6 +44,13 @@ const KIND_KEY = {
 // hint; held in a const so the i18next jsx-only rule doesn't flag a JSX literal).
 const OPENAI_BASE_HINT = "https://api.openai.com";
 
+// Sentinel embedding "connection" that selects the bundled on-device model.
+// Must match novalis_core::models::LOCAL_EMBEDDING_CONNECTION_ID /
+// LOCAL_EMBEDDING_MODEL — the backend resolves these to its native embedder and
+// pins the stored model id (real connections are UUIDs, so no collision).
+const LOCAL_EMBED_CONN_ID = "local";
+const LOCAL_EMBED_MODEL = "local:bge-small-en-v1.5";
+
 function defaultModel(kind: AiProviderKind): string {
   switch (kind) {
     case "anthropic":
@@ -172,7 +179,9 @@ function SemanticSearchSection() {
 
   const onConn = (v: string) => {
     setConnId(v);
-    void persist(v, model);
+    // The bundled model has a fixed id; the backend pins it regardless, but send
+    // it so the saved config reads cleanly.
+    void persist(v, v === LOCAL_EMBED_CONN_ID ? LOCAL_EMBED_MODEL : model);
   };
 
   const build = async () => {
@@ -193,16 +202,19 @@ function SemanticSearchSection() {
     }
   };
 
-  // The saved connection may have been disabled/removed since; keep it
-  // selectable so the user can see (and change) what's configured.
+  // The bundled on-device model is always selectable (nothing to install); the
+  // saved connection may have been disabled/removed since, so keep it selectable
+  // too so the user can see (and change) what's configured.
   const connOptions = [
     { value: "", label: t("settings.embed.connectionNone") },
+    { value: LOCAL_EMBED_CONN_ID, label: t("settings.embed.connectionLocal") },
     ...eligible.map((c) => ({ value: c.id, label: c.label })),
-    ...(connId && !eligible.some((c) => c.id === connId)
+    ...(connId && connId !== LOCAL_EMBED_CONN_ID && !eligible.some((c) => c.id === connId)
       ? [{ value: connId, label: connId }]
       : []),
   ];
 
+  const isLocal = connId === LOCAL_EMBED_CONN_ID;
   const total = progress?.total ?? status?.total ?? 0;
   const done = progress?.done ?? 0;
   const pct = total > 0 ? Math.round((done / total) * 100) : 0;
@@ -210,9 +222,12 @@ function SemanticSearchSection() {
 
   return (
     <SettingsSection title={t("settings.embed.title")} description={t("settings.embed.desc")}>
-      {eligible.length === 0 && !connId ? (
-        <p className="py-1 text-sm text-fg-faint">{t("settings.embed.noConnections")}</p>
-      ) : (
+      <div className="flex flex-col gap-3">
+        {/* The form is always available now that a bundled local model exists;
+            this stays as a nudge for anyone who'd rather use a cloud model. */}
+        {eligible.length === 0 && (
+          <p className="py-1 text-sm text-fg-faint">{t("settings.embed.noConnections")}</p>
+        )}
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-[7rem_1fr] items-center gap-x-3 gap-y-2">
             <label className="text-xs text-fg-muted">{t("settings.embed.connection")}</label>
@@ -225,14 +240,19 @@ function SemanticSearchSection() {
 
             <label className="text-xs text-fg-muted">{t("settings.embed.model")}</label>
             <TextField
-              value={model}
+              // Local's model id is fixed; show it read-only.
+              value={isLocal ? LOCAL_EMBED_MODEL : model}
               placeholder={t("settings.embed.modelPlaceholder")}
               onChange={(e) => setModel(e.target.value)}
               onBlur={() => void persist(connId, model)}
-              disabled={!connId}
+              disabled={!connId || isLocal}
               className="w-full"
             />
           </div>
+
+          {isLocal && (
+            <p className="text-xs text-fg-faint">{t("settings.embed.localHint")}</p>
+          )}
 
           <div className="flex items-center justify-between gap-3">
             <span className="text-xs text-fg-muted">
@@ -271,7 +291,7 @@ function SemanticSearchSection() {
 
           {error && <p className="text-xs text-danger">{error}</p>}
         </div>
-      )}
+      </div>
     </SettingsSection>
   );
 }

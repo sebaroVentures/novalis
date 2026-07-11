@@ -211,11 +211,27 @@ pub struct AiTemplate {
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct AiEmbeddingConfig {
-    /// Id of the OpenAI-compatible connection that provides base URL + API key.
+    /// Id of the OpenAI-compatible connection that provides base URL + API key,
+    /// or [`LOCAL_EMBEDDING_CONNECTION_ID`] to use the bundled on-device model.
     pub connection_id: String,
     /// Embedding model id (e.g. `text-embedding-3-small`, `nomic-embed-text`).
+    /// Fixed to [`LOCAL_EMBEDDING_MODEL`] for the bundled model.
     pub model: String,
 }
+
+/// Reserved [`AiEmbeddingConfig::connection_id`] value that selects the bundled,
+/// on-device embedding model instead of referencing an OpenAI-compatible
+/// connection. Real connection ids are UUIDs, so this sentinel can never
+/// collide. The desktop shell resolves it to its native embedder; the settings
+/// UI offers it as the "Local (bundled)" choice. It lives here — not in the
+/// desktop crate — so the config resolver and the frontend agree on the exact
+/// string, the same way the AI error `kind`s are shared across the IPC boundary.
+pub const LOCAL_EMBEDDING_CONNECTION_ID: &str = "local";
+
+/// The `note_vectors.model` id stored for vectors produced by the bundled
+/// on-device model (bge-small-en-v1.5, 384-dim). Namespaced so local vectors
+/// coexist with any remote model's vectors under a distinct `model` column.
+pub const LOCAL_EMBEDDING_MODEL: &str = "local:bge-small-en-v1.5";
 
 /// Coverage of the semantic index, for the settings panel. Carries no secret.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]

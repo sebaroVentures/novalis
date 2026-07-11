@@ -345,9 +345,15 @@ export const commands = {
 	aiDeleteTemplate: (id: string, scope: AiTemplateScope) => typedError<AiTemplate[], CommandError>(__TAURI_INVOKE("ai_delete_template", { id, scope })),
 	/**  The current embedding config (which connection + model), if any. */
 	aiEmbeddingConfig: () => typedError<{
-	/**  Id of the OpenAI-compatible connection that provides base URL + API key. */
+	/**
+	 *  Id of the OpenAI-compatible connection that provides base URL + API key,
+	 *  or [`LOCAL_EMBEDDING_CONNECTION_ID`] to use the bundled on-device model.
+	 */
 	connectionId: string,
-	/**  Embedding model id (e.g. `text-embedding-3-small`, `nomic-embed-text`). */
+	/**
+	 *  Embedding model id (e.g. `text-embedding-3-small`, `nomic-embed-text`).
+	 *  Fixed to [`LOCAL_EMBEDDING_MODEL`] for the bundled model.
+	 */
 	model: string,
 } | null, CommandError>(__TAURI_INVOKE("ai_embedding_config")),
 	/**  Set the embedding config, or clear it when `connection_id` is blank. */
@@ -486,9 +492,15 @@ export type AiEmbedProgress = {
  *  referenced connection must be [`AiProviderKind::OpenAiCompatible`].
  */
 export type AiEmbeddingConfig = {
-	/**  Id of the OpenAI-compatible connection that provides base URL + API key. */
+	/**
+	 *  Id of the OpenAI-compatible connection that provides base URL + API key,
+	 *  or [`LOCAL_EMBEDDING_CONNECTION_ID`] to use the bundled on-device model.
+	 */
 	connectionId: string,
-	/**  Embedding model id (e.g. `text-embedding-3-small`, `nomic-embed-text`). */
+	/**
+	 *  Embedding model id (e.g. `text-embedding-3-small`, `nomic-embed-text`).
+	 *  Fixed to [`LOCAL_EMBEDDING_MODEL`] for the bundled model.
+	 */
 	model: string,
 };
 

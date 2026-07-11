@@ -58,3 +58,17 @@ keyring = { version = "3", features = ["sync-secret-service", "crypto-rust"] }
 
 [target.'cfg(target_os = "windows")'.dependencies]
 keyring = { version = "3", features = ["windows-native"] }
+
+# On-device embeddings for fully-offline semantic search: `fastembed` runs
+# bge-small-en-v1.5 through ONNX Runtime (`ort`) + HuggingFace tokenizers, as a
+# selectable alternative to the OpenAI-compatible HTTP embeddings adapter.
+# rustls variants only — the app is deliberately openssl-free (see `reqwest`
+# above). `ort/download-binaries` links a prebuilt ONNX Runtime at build time;
+# the model weights (~130 MB) download from HuggingFace on the first index build
+# and cache under the app-data dir. Excluded on Android (no prebuilt ORT
+# backend), mirroring the keyring/secrets desktop-only split.
+[target.'cfg(not(target_os = "android"))'.dependencies]
+fastembed = { version = "5", default-features = false, features = [
+    "hf-hub-rustls-tls",
+    "ort-download-binaries-rustls-tls",
+] }
