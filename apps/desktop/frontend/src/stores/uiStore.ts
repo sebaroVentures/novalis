@@ -3,6 +3,7 @@ import { create } from "zustand";
 import type { Editor } from "@novalis/editor";
 
 import type { MainView } from "../components/Sidebar";
+import { loadOnboardingDone, saveOnboardingDone } from "../lib/uiPrefs";
 import {
   emptyWorkspace,
   loadWorkspacePrefs,
@@ -25,10 +26,15 @@ interface UiState {
   /** Editor panes + tabs (device-local, per vault). 1–MAX_PANES panes split
    *  along `workspace.direction`. */
   workspace: Workspace;
+  /** Whether first-run onboarding has been dismissed (persisted per device).
+   *  Seeded from localStorage so a returning user never sees it again. */
+  onboardingDone: boolean;
 
   /** Switch the top-level view. A deliberate switch clears any pending "Back"
    *  target — the user chose where to be. */
   setView: (view: MainView) => void;
+  /** Mark first-run onboarding dismissed (also persists it for this device). */
+  dismissOnboarding: () => void;
   /** Register/clear the open note's editor instance. */
   setActiveEditor: (editor: Editor | null) => void;
   /** Open a note and jump to the Notes view, remembering where we came from so
@@ -139,8 +145,14 @@ export const useUi = create<UiState>((set, get) => ({
   returnView: null,
   activeEditor: null,
   workspace: emptyWorkspace(),
+  onboardingDone: loadOnboardingDone(),
 
   setView: (view) => set({ view, returnView: null }),
+
+  dismissOnboarding: () => {
+    saveOnboardingDone(true);
+    set({ onboardingDone: true });
+  },
 
   setActiveEditor: (editor) => set({ activeEditor: editor }),
 

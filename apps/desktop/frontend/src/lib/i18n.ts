@@ -12,6 +12,7 @@ import deCommon from "../locales/de/common.json";
 import deConflict from "../locales/de/conflict.json";
 import deEditor from "../locales/de/editor.json";
 import deLinks from "../locales/de/links.json";
+import deOnboarding from "../locales/de/onboarding.json";
 import deSettings from "../locales/de/settings.json";
 import deSidebar from "../locales/de/sidebar.json";
 import deTasks from "../locales/de/tasks.json";
@@ -25,6 +26,7 @@ import esCommon from "../locales/es/common.json";
 import esConflict from "../locales/es/conflict.json";
 import esEditor from "../locales/es/editor.json";
 import esLinks from "../locales/es/links.json";
+import esOnboarding from "../locales/es/onboarding.json";
 import esSettings from "../locales/es/settings.json";
 import esSidebar from "../locales/es/sidebar.json";
 import esTasks from "../locales/es/tasks.json";
@@ -38,6 +40,7 @@ import frCommon from "../locales/fr/common.json";
 import frConflict from "../locales/fr/conflict.json";
 import frEditor from "../locales/fr/editor.json";
 import frLinks from "../locales/fr/links.json";
+import frOnboarding from "../locales/fr/onboarding.json";
 import frSettings from "../locales/fr/settings.json";
 import frSidebar from "../locales/fr/sidebar.json";
 import frTasks from "../locales/fr/tasks.json";
@@ -51,6 +54,7 @@ import common from "../locales/en/common.json";
 import conflict from "../locales/en/conflict.json";
 import editor from "../locales/en/editor.json";
 import links from "../locales/en/links.json";
+import onboarding from "../locales/en/onboarding.json";
 import settings from "../locales/en/settings.json";
 import sidebar from "../locales/en/sidebar.json";
 import tasks from "../locales/en/tasks.json";
@@ -64,6 +68,7 @@ export const NAMESPACES = [
   "common",
   "ai",
   "settings",
+  "onboarding",
   "sidebar",
   "calendar",
   "tasks",
@@ -117,11 +122,12 @@ function pseudoize(node: unknown): unknown {
 
 // ---------------------------------------------------------------------------
 
-const en = { common, ai, settings, sidebar, calendar, tasks, today, editor, vault, trash, conflict, versions, links };
+const en = { common, ai, settings, onboarding, sidebar, calendar, tasks, today, editor, vault, trash, conflict, versions, links };
 const de = {
   common: deCommon,
   ai: deAi,
   settings: deSettings,
+  onboarding: deOnboarding,
   sidebar: deSidebar,
   calendar: deCalendar,
   tasks: deTasks,
@@ -137,6 +143,7 @@ const fr = {
   common: frCommon,
   ai: frAi,
   settings: frSettings,
+  onboarding: frOnboarding,
   sidebar: frSidebar,
   calendar: frCalendar,
   tasks: frTasks,
@@ -152,6 +159,7 @@ const es = {
   common: esCommon,
   ai: esAi,
   settings: esSettings,
+  onboarding: esOnboarding,
   sidebar: esSidebar,
   calendar: esCalendar,
   tasks: esTasks,

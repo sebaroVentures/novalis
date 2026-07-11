@@ -1,0 +1,30 @@
+{
+  "close": "Close",
+  "createNote": "Create a starter note",
+  "creating": "Creating…",
+  "features": {
+    "calendar": {
+      "desc": "See your daily notes and events side by side.",
+      "title": "Calendar"
+    },
+    "notes": {
+      "desc": "Write in Markdown and connect ideas with [[wiki-links]].",
+      "title": "Notes"
+    },
+    "search": {
+      "desc": "Jump anywhere with full-text search and the command palette.",
+      "title": "Search"
+    },
+    "tasks": {
+      "desc": "Capture to-dos and track them on a board or a list.",
+      "title": "Tasks"
+    }
+  },
+  "skip": "Explore on my own",
+  "starter": {
+    "body": "# Welcome to Novalis 👋\n\nThis is your first note — a plain Markdown file living in your vault. It's yours to edit, move, or delete.\n\n## A few things to try\n\n- Link to another note with [[wiki-links]].\n- Open search or the command palette to jump anywhere.\n- Check off your first task:\n\n- [ ] Write my first real note\n\nDelete this note whenever you're ready. Happy writing!\n",
+    "filename": "Welcome to Novalis"
+  },
+  "subtitle": "Local-first notes, tasks, and calendar — all in plain files you own. Here's the quick tour.",
+  "title": "Welcome to Novalis"
+}

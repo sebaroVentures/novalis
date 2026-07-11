@@ -1,0 +1,30 @@
+{
+  "close": "Cerrar",
+  "createNote": "Crear una nota inicial",
+  "creating": "Creando…",
+  "features": {
+    "calendar": {
+      "desc": "Ve tus notas diarias y tus eventos uno al lado del otro.",
+      "title": "Calendario"
+    },
+    "notes": {
+      "desc": "Escribe en Markdown y conecta ideas con [[wiki-links]].",
+      "title": "Notas"
+    },
+    "search": {
+      "desc": "Salta a cualquier parte con la búsqueda de texto completo y la paleta de comandos.",
+      "title": "Búsqueda"
+    },
+    "tasks": {
+      "desc": "Registra pendientes y hazles seguimiento en un tablero o una lista.",
+      "title": "Tareas"
+    }
+  },
+  "skip": "Explorar por mi cuenta",
+  "starter": {
+    "body": "# Te damos la bienvenida a Novalis 👋\n\nEsta es tu primera nota: un archivo Markdown simple que vive en tu bóveda. Es tuyo para editar, mover o eliminar.\n\n## Algunas cosas para probar\n\n- Enlaza con otra nota usando [[wiki-links]].\n- Abre la búsqueda o la paleta de comandos para saltar a cualquier parte.\n- Marca tu primera tarea:\n\n- [ ] Escribir mi primera nota de verdad\n\nElimina esta nota cuando quieras. ¡Feliz escritura!\n",
+    "filename": "Bienvenida a Novalis"
+  },
+  "subtitle": "Notas, tareas y calendario locales, todo en archivos simples que te pertenecen. Aquí tienes un recorrido rápido.",
+  "title": "Te damos la bienvenida a Novalis"
+}

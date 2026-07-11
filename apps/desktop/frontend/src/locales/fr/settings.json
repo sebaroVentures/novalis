@@ -28,6 +28,16 @@
       "label": "Taille de police",
       "preview": "Portez ce vieux whisky au juge blond qui fume."
     },
+    "preset": {
+      "desc": "Une palette de couleurs complète, appliquée en clair et en sombre.",
+      "label": "Préréglage de thème",
+      "options": {
+        "default": "Par défaut",
+        "high-contrast": "Contraste élevé",
+        "nord": "Nord",
+        "sepia": "Sépia"
+      }
+    },
     "sectionDisplay": "Affichage",
     "sectionTheme": "Thème"
   },

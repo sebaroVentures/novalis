@@ -4,6 +4,7 @@
 
 const COLLAPSED_KEY = "novalis:device:sidebarCollapsed";
 const WIDTH_KEY = "novalis:device:sidebarWidth";
+const ONBOARDING_KEY = "novalis:device:onboardingDone";
 
 export const SIDEBAR_MIN_WIDTH = 200;
 export const SIDEBAR_MAX_WIDTH = 480;
@@ -43,5 +44,22 @@ export function saveSidebarWidth(n: number): void {
     localStorage.setItem(WIDTH_KEY, String(clampWidth(n)));
   } catch {
     /* ignore */
+  }
+}
+
+/** Whether the first-run onboarding has been seen/dismissed on this device. */
+export function loadOnboardingDone(): boolean {
+  try {
+    return localStorage.getItem(ONBOARDING_KEY) === "1";
+  } catch {
+    return true; // storage unavailable: don't nag with onboarding
+  }
+}
+
+export function saveOnboardingDone(done: boolean): void {
+  try {
+    localStorage.setItem(ONBOARDING_KEY, done ? "1" : "0");
+  } catch {
+    /* ignore quota errors — onboarding state is non-critical */
   }
 }

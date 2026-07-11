@@ -1,0 +1,30 @@
+{
+  "close": "Schließen",
+  "createNote": "Startnotiz erstellen",
+  "creating": "Wird erstellt …",
+  "features": {
+    "calendar": {
+      "desc": "Sieh deine Tagesnotizen und Termine nebeneinander.",
+      "title": "Kalender"
+    },
+    "notes": {
+      "desc": "Schreibe in Markdown und verknüpfe Ideen mit [[wiki-links]].",
+      "title": "Notizen"
+    },
+    "search": {
+      "desc": "Springe überallhin mit Volltextsuche und der Befehlspalette.",
+      "title": "Suche"
+    },
+    "tasks": {
+      "desc": "Halte To-dos fest und verfolge sie auf einem Board oder in einer Liste.",
+      "title": "Aufgaben"
+    }
+  },
+  "skip": "Selbst erkunden",
+  "starter": {
+    "body": "# Willkommen bei Novalis 👋\n\nDies ist deine erste Notiz – eine einfache Markdown-Datei in deinem Tresor. Du kannst sie bearbeiten, verschieben oder löschen.\n\n## Ein paar Dinge zum Ausprobieren\n\n- Verlinke eine andere Notiz mit [[wiki-links]].\n- Öffne die Suche oder die Befehlspalette, um überallhin zu springen.\n- Hake deine erste Aufgabe ab:\n\n- [ ] Meine erste echte Notiz schreiben\n\nLösche diese Notiz, wann immer du bereit bist. Viel Freude beim Schreiben!\n",
+    "filename": "Willkommen bei Novalis"
+  },
+  "subtitle": "Local-first Notizen, Aufgaben und Kalender – alles in einfachen Dateien, die dir gehören. Hier der kurze Rundgang.",
+  "title": "Willkommen bei Novalis"
+}

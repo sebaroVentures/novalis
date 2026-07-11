@@ -11,6 +11,7 @@ import deCommon from "../de/common.json";
 import deConflict from "../de/conflict.json";
 import deEditor from "../de/editor.json";
 import deLinks from "../de/links.json";
+import deOnboarding from "../de/onboarding.json";
 import deSettings from "../de/settings.json";
 import deSidebar from "../de/sidebar.json";
 import deTasks from "../de/tasks.json";
@@ -23,6 +24,7 @@ import esCommon from "../es/common.json";
 import esConflict from "../es/conflict.json";
 import esEditor from "../es/editor.json";
 import esLinks from "../es/links.json";
+import esOnboarding from "../es/onboarding.json";
 import esSettings from "../es/settings.json";
 import esSidebar from "../es/sidebar.json";
 import esTasks from "../es/tasks.json";
@@ -35,6 +37,7 @@ import frCommon from "../fr/common.json";
 import frConflict from "../fr/conflict.json";
 import frEditor from "../fr/editor.json";
 import frLinks from "../fr/links.json";
+import frOnboarding from "../fr/onboarding.json";
 import frSettings from "../fr/settings.json";
 import frSidebar from "../fr/sidebar.json";
 import frTasks from "../fr/tasks.json";
@@ -47,6 +50,7 @@ import common from "../en/common.json";
 import conflict from "../en/conflict.json";
 import editor from "../en/editor.json";
 import links from "../en/links.json";
+import onboarding from "../en/onboarding.json";
 import settings from "../en/settings.json";
 import sidebar from "../en/sidebar.json";
 import tasks from "../en/tasks.json";
@@ -58,6 +62,7 @@ import versions from "../en/versions.json";
 const CATALOGS: Record<string, unknown> = {
   common,
   settings,
+  onboarding,
   sidebar,
   calendar,
   tasks,
@@ -75,6 +80,7 @@ const LOCALES: Record<string, Record<string, unknown>> = {
   de: {
     common: deCommon,
     settings: deSettings,
+    onboarding: deOnboarding,
     sidebar: deSidebar,
     calendar: deCalendar,
     tasks: deTasks,
@@ -89,6 +95,7 @@ const LOCALES: Record<string, Record<string, unknown>> = {
   fr: {
     common: frCommon,
     settings: frSettings,
+    onboarding: frOnboarding,
     sidebar: frSidebar,
     calendar: frCalendar,
     tasks: frTasks,
@@ -103,6 +110,7 @@ const LOCALES: Record<string, Record<string, unknown>> = {
   es: {
     common: esCommon,
     settings: esSettings,
+    onboarding: esOnboarding,
     sidebar: esSidebar,
     calendar: esCalendar,
     tasks: esTasks,

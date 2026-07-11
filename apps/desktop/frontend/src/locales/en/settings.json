@@ -28,6 +28,16 @@
       "label": "Font size",
       "preview": "The quick brown fox jumps over the lazy dog"
     },
+    "preset": {
+      "desc": "A complete color palette, applied over light and dark.",
+      "label": "Theme preset",
+      "options": {
+        "default": "Default",
+        "high-contrast": "High contrast",
+        "nord": "Nord",
+        "sepia": "Sepia"
+      }
+    },
     "sectionDisplay": "Display",
     "sectionTheme": "Theme"
   },

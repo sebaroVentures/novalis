@@ -14,6 +14,7 @@ import { CloudHint } from "./components/CloudHint";
 import { CommandPalette } from "./components/CommandPalette";
 import { ConflictModal } from "./components/ConflictModal";
 import { MergeConflictModal } from "./components/MergeConflictModal";
+import { Onboarding } from "./components/Onboarding";
 import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/settings/SettingsModal";
 import { Sidebar, type MainView } from "./components/Sidebar";
@@ -78,6 +79,7 @@ export default function App() {
   const [cheatsheetOpen, setCheatsheetOpen] = useState(false);
   const conflicts = useConflicts((s) => s.conflicts);
   const [notice, setNotice] = useState<string | null>(null);
+  const onboardingDone = useUi((s) => s.onboardingDone);
   const initialViewVault = useRef<string | null>(null);
   const { t } = useTranslation(["common", "conflict"]);
 
@@ -376,6 +378,9 @@ export default function App() {
       <MergeConflictModal />
       <TrashModal open={trashOpen} onClose={() => setTrashOpen(false)} />
       <Cheatsheet open={cheatsheetOpen} onClose={() => setCheatsheetOpen(false)} />
+      {/* First-run welcome — only reachable here (a vault is open); shows once
+          per device, gated on the persisted onboardingDone flag. */}
+      {!onboardingDone && <Onboarding />}
       <AiActionPanel />
       {/* Meeting-note → task extraction review — store-driven open (sibling of
           MergeConflictModal above), opened from the editor AI menu / palette. */}

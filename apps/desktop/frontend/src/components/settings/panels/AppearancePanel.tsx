@@ -4,6 +4,13 @@ import { useTranslation } from "react-i18next";
 
 import type { AppearancePrefs } from "../../../ipc/api";
 import { COLOR_HEX } from "../../../lib/colors";
+import {
+  applyThemePreset,
+  loadThemePreset,
+  saveThemePreset,
+  THEME_PRESETS,
+  type ThemePreset,
+} from "../../../lib/themePreset";
 import { useSettings } from "../../../stores/settingsStore";
 import {
   ColorSwatchPicker,
@@ -66,6 +73,12 @@ function AppearancePanelBody({ a }: { a: Partial<AppearancePrefs> }) {
             />
           }
         />
+        {/* Full-width row (not SettingRow): the preset previews need the width. */}
+        <div className="border-b border-border/60 py-3 last:border-0">
+          <span className="block text-sm text-fg">{t("appearance.preset.label")}</span>
+          <p className="mt-0.5 text-xs text-fg-subtle">{t("appearance.preset.desc")}</p>
+          <ThemePresetPicker />
+        </div>
       </SettingsSection>
 
       <SettingsSection title={t("appearance.sectionDisplay")}>
@@ -111,5 +124,58 @@ function AppearancePanelBody({ a }: { a: Partial<AppearancePrefs> }) {
         />
       </SettingsSection>
     </>
+  );
+}
+
+// Illustrative preview swatches (app / surface / representative color) — just to
+// convey each preset's character in the picker; the live tokens live in styles.css.
+const PRESET_PREVIEW: Record<ThemePreset, [string, string, string]> = {
+  default: ["#0a0a0a", "#262626", "#818cf8"],
+  sepia: ["#f2e8d5", "#e9dcc0", "#8a6d3b"],
+  nord: ["#2e3440", "#3b4252", "#88c0d0"],
+  "high-contrast": ["#ffffff", "#000000", "#b00000"],
+};
+
+/** Device-local theme-preset picker. The preset isn't part of AppearancePrefs
+ *  (see lib/themePreset.ts), so this reads/writes localStorage directly and
+ *  applies instantly by toggling the `data-theme-preset` attribute. */
+function ThemePresetPicker() {
+  const { t } = useTranslation("settings");
+  const [preset, setPreset] = useState<ThemePreset>(loadThemePreset);
+
+  const select = (p: ThemePreset) => {
+    setPreset(p);
+    saveThemePreset(p);
+    applyThemePreset(p);
+  };
+
+  return (
+    <div className="mt-3 flex flex-wrap gap-2">
+      {THEME_PRESETS.map((p) => {
+        const active = p === preset;
+        return (
+          <button
+            key={p}
+            type="button"
+            aria-pressed={active}
+            onClick={() => select(p)}
+            className={`flex w-24 flex-col items-stretch gap-1.5 rounded-lg border p-1.5 text-left transition-colors ${
+              active
+                ? "border-accent bg-accent-soft"
+                : "border-border hover:border-border-strong hover:bg-hover"
+            }`}
+          >
+            <span className="flex h-8 overflow-hidden rounded-md ring-1 ring-inset ring-border">
+              {PRESET_PREVIEW[p].map((c, i) => (
+                <span key={i} className="flex-1" style={{ background: c }} />
+              ))}
+            </span>
+            <span className="truncate px-0.5 text-xs text-fg-muted">
+              {t(`appearance.preset.options.${p}`)}
+            </span>
+          </button>
+        );
+      })}
+    </div>
   );
 }

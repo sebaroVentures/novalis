@@ -8,6 +8,7 @@ import common from "../locales/en/common.json";
 import conflict from "../locales/en/conflict.json";
 import editor from "../locales/en/editor.json";
 import links from "../locales/en/links.json";
+import onboarding from "../locales/en/onboarding.json";
 import settings from "../locales/en/settings.json";
 import sidebar from "../locales/en/sidebar.json";
 import tasks from "../locales/en/tasks.json";
@@ -23,6 +24,7 @@ declare module "i18next" {
       common: typeof common;
       ai: typeof ai;
       settings: typeof settings;
+      onboarding: typeof onboarding;
       sidebar: typeof sidebar;
       calendar: typeof calendar;
       tasks: typeof tasks;

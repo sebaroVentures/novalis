@@ -90,6 +90,137 @@
   --scrollbar-hover: rgba(0, 0, 0, 0.32);
 }
 
+/* ── Theme presets ─────────────────────────────────────────────────────────
+   A preset is a complete alternate palette layered on top of the dark/light
+   base via `data-theme-preset` on <html> (set by applyThemePreset). Each preset
+   × mode block re-sets the FULL semantic-token set, so no token leaks from the
+   neutral base. Selecting on `:root[data-theme-preset=…][data-theme=…]` gives
+   (0,3,0) specificity — it beats the base `:root[data-theme=…]` (0,2,0), and the
+   base rule still supplies `color-scheme` plus the derived `--accent-soft` /
+   `--diff-*-soft` tokens (their `color-mix(var(--accent|--diff-add|--danger))`
+   lazily picks up each preset's overridden base value). `--accent` is deliberately
+   NOT set here: it stays user-controlled (accent picker → inline style on <html>). */
+
+/* Sepia — warm paper. */
+:root[data-theme-preset="sepia"][data-theme="light"] {
+  --app: #f2e8d5;
+  --surface: #f8f0de;
+  --surface-2: #e9dcc0;
+  --border: #ddceac;
+  --border-strong: #cbb98d;
+  --fg: #423325;
+  --fg-muted: #6f5b43;
+  --fg-subtle: #8f7a5c;
+  --fg-faint: #ac9877;
+  --hover: rgba(94, 71, 38, 0.05);
+  --active: rgba(94, 71, 38, 0.09);
+  --overlay: rgba(59, 44, 22, 0.25);
+  --accent-fg: #ffffff;
+  --danger: #b23a2e;
+  --diff-add: #5a7d3c;
+  --scrollbar: rgba(94, 71, 38, 0.22);
+  --scrollbar-hover: rgba(94, 71, 38, 0.38);
+}
+:root[data-theme-preset="sepia"][data-theme="dark"] {
+  --app: #1b1710;
+  --surface: #241f16;
+  --surface-2: #2f2819;
+  --border: #2f2819;
+  --border-strong: #443c29;
+  --fg: #ece2cf;
+  --fg-muted: #b3a488;
+  --fg-subtle: #8a7c60;
+  --fg-faint: #665b43;
+  --hover: rgba(245, 236, 214, 0.05);
+  --active: rgba(245, 236, 214, 0.1);
+  --overlay: rgba(0, 0, 0, 0.5);
+  --accent-fg: #ffffff;
+  --danger: #e2896b;
+  --diff-add: #9cc77f;
+  --scrollbar: rgba(245, 236, 214, 0.12);
+  --scrollbar-hover: rgba(245, 236, 214, 0.22);
+}
+
+/* Nord — muted arctic blue-grays. */
+:root[data-theme-preset="nord"][data-theme="light"] {
+  --app: #eceff4;
+  --surface: #f4f6f9;
+  --surface-2: #e1e6ee;
+  --border: #d8dee9;
+  --border-strong: #c3ccd9;
+  --fg: #2e3440;
+  --fg-muted: #434c5e;
+  --fg-subtle: #5c667a;
+  --fg-faint: #8892a3;
+  --hover: rgba(46, 52, 64, 0.05);
+  --active: rgba(46, 52, 64, 0.08);
+  --overlay: rgba(46, 52, 64, 0.22);
+  --accent-fg: #ffffff;
+  --danger: #b02f3a;
+  --diff-add: #6a9950;
+  --scrollbar: rgba(46, 52, 64, 0.2);
+  --scrollbar-hover: rgba(46, 52, 64, 0.34);
+}
+:root[data-theme-preset="nord"][data-theme="dark"] {
+  --app: #2e3440;
+  --surface: #333b4a;
+  --surface-2: #3b4252;
+  --border: #3b4252;
+  --border-strong: #4c566a;
+  --fg: #e5e9f0;
+  --fg-muted: #abb4c4;
+  --fg-subtle: #7e8899;
+  --fg-faint: #5c6577;
+  --hover: rgba(236, 239, 244, 0.05);
+  --active: rgba(236, 239, 244, 0.09);
+  --overlay: rgba(20, 24, 33, 0.5);
+  --accent-fg: #ffffff;
+  --danger: #bf616a;
+  --diff-add: #a3be8c;
+  --scrollbar: rgba(236, 239, 244, 0.14);
+  --scrollbar-hover: rgba(236, 239, 244, 0.26);
+}
+
+/* High contrast — pure black/white with strong borders (AAA-leaning). */
+:root[data-theme-preset="high-contrast"][data-theme="light"] {
+  --app: #ffffff;
+  --surface: #ffffff;
+  --surface-2: #ebebeb;
+  --border: #595959;
+  --border-strong: #000000;
+  --fg: #000000;
+  --fg-muted: #262626;
+  --fg-subtle: #363636;
+  --fg-faint: #4d4d4d;
+  --hover: rgba(0, 0, 0, 0.08);
+  --active: rgba(0, 0, 0, 0.14);
+  --overlay: rgba(0, 0, 0, 0.45);
+  --accent-fg: #ffffff;
+  --danger: #b00000;
+  --diff-add: #146c2e;
+  --scrollbar: rgba(0, 0, 0, 0.42);
+  --scrollbar-hover: rgba(0, 0, 0, 0.6);
+}
+:root[data-theme-preset="high-contrast"][data-theme="dark"] {
+  --app: #000000;
+  --surface: #0b0b0b;
+  --surface-2: #1a1a1a;
+  --border: #a3a3a3;
+  --border-strong: #ffffff;
+  --fg: #ffffff;
+  --fg-muted: #e0e0e0;
+  --fg-subtle: #c4c4c4;
+  --fg-faint: #a3a3a3;
+  --hover: rgba(255, 255, 255, 0.1);
+  --active: rgba(255, 255, 255, 0.18);
+  --overlay: rgba(0, 0, 0, 0.7);
+  --accent-fg: #ffffff;
+  --danger: #ff6b6b;
+  --diff-add: #4ade80;
+  --scrollbar: rgba(255, 255, 255, 0.35);
+  --scrollbar-hover: rgba(255, 255, 255, 0.55);
+}
+
 html,
 body,
 #root {

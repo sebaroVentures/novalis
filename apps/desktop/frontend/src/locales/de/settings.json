@@ -28,6 +28,16 @@
       "label": "Schriftgröße",
       "preview": "Franz jagt im komplett verwahrlosten Taxi quer durch Bayern."
     },
+    "preset": {
+      "desc": "Eine vollständige Farbpalette, angewendet auf Hell und Dunkel.",
+      "label": "Design-Voreinstellung",
+      "options": {
+        "default": "Standard",
+        "high-contrast": "Hoher Kontrast",
+        "nord": "Nord",
+        "sepia": "Sepia"
+      }
+    },
     "sectionDisplay": "Anzeige",
     "sectionTheme": "Design"
   },

@@ -28,6 +28,16 @@
       "label": "Tamaño de fuente",
       "preview": "El veloz murciélago hindú comía feliz cardillo y kiwi."
     },
+    "preset": {
+      "desc": "Una paleta de colores completa, aplicada en claro y oscuro.",
+      "label": "Preajuste de tema",
+      "options": {
+        "default": "Predeterminado",
+        "high-contrast": "Alto contraste",
+        "nord": "Nord",
+        "sepia": "Sepia"
+      }
+    },
     "sectionDisplay": "Visualización",
     "sectionTheme": "Tema"
   },

@@ -5,6 +5,7 @@
 
 import type { AppearancePrefs } from "../ipc/api";
 import { COLOR_HEX } from "./colors";
+import { applyThemePreset, loadThemePreset } from "./themePreset";
 
 export const DEFAULT_APPEARANCE: Required<AppearancePrefs> = {
   theme: "dark",
@@ -26,6 +27,9 @@ export function applyAppearance(a: Partial<AppearancePrefs> | undefined | null):
   root.style.setProperty("--accent", COLOR_HEX[ap.accent] ?? COLOR_HEX.indigo);
   root.style.fontSize = `${ap.fontSize}px`;
   root.dataset.density = ap.density;
+  // The preset is device-local (not part of `a`); re-assert it on every apply so
+  // it survives a mount or an accent/theme change without a separate call site.
+  applyThemePreset(loadThemePreset());
 }
 
 /** Re-apply when the OS color scheme changes, but only while theme is "system".
