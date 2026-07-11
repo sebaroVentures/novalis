@@ -88,3 +88,6 @@ Thumbs.db
 .vscode/*
 !.vscode/extensions.json
 !.vscode/settings.json
+
+# Local Linux container build output (scripts/build-linux-container.sh)
+/dist-linux/
