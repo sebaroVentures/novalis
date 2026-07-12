@@ -37,6 +37,7 @@ import { useUi } from "../stores/uiStore";
 import { useVault, type SaveState } from "../stores/vaultStore";
 import { AiActionMenu } from "./ai/AiActionMenu";
 import { AiMetaSuggestions } from "./ai/AiMetaSuggestions";
+import { AmbientSuggestions } from "./ai/AmbientSuggestions";
 import { RewriteReviewBar } from "./ai/RewriteReviewBar";
 import { FindBar } from "./FindBar";
 import { LinksPanel } from "./LinksPanel";
@@ -842,6 +843,19 @@ export function EditorPane({ pane }: { pane: Pane }) {
       )}
       {findOpen && editor && <FindBar editor={editor} onClose={() => setFindOpen(false)} />}
       <RewriteReviewBar editor={editor} />
+      <AmbientSuggestions
+        path={path}
+        noteTitle={note.title}
+        editor={editor}
+        enabled={editorPrefs?.ambientAi ?? false}
+        knownTags={tagSuggestions}
+        existingTags={note.frontmatter.tags ?? []}
+        existingAliases={note.frontmatter.aliases ?? []}
+        existingPropertyKeys={(note.properties ?? []).map((p) => p.key)}
+        onAcceptTag={acceptSuggestedTag}
+        onAcceptAlias={acceptSuggestedAlias}
+        onAcceptProperty={acceptSuggestedProperty}
+      />
       <div className="flex flex-col gap-1 border-b border-border/60 px-4 py-1.5">
         <button
           onClick={toggleMetaOpen}

@@ -13,6 +13,10 @@
       "title": "Résumer la note"
     }
   },
+  "ambient": {
+    "links": "Liens",
+    "title": "Suggestions IA"
+  },
   "extract": {
     "add_one": "Ajouter {{count}} tâche",
     "add_other": "Ajouter {{count}} tâches",
@@ -106,6 +110,13 @@
     "agentic": {
       "hint": "Autorise cette CLI à lire et modifier les fichiers de votre coffre pour réaliser des tâches ouvertes. Chaque exécution est d'abord validée dans git, vous pouvez donc l'annuler. À utiliser avec précaution.",
       "label": "Accès agentique au coffre"
+    },
+    "ambient": {
+      "aria": "Suggestions IA ambiantes",
+      "desc": "Après une pause dans l'édition d'une note, propose discrètement des liens vers des notes connexes et des tags utiles. Utilise la connexion IA sélectionnée et consomme donc des tokens en arrière-plan — désactivé par défaut.",
+      "hint": "S'exécute en arrière-plan une fois une modification stabilisée, uniquement lorsqu'une connexion IA est configurée.",
+      "label": "Suggérer des liens et des tags pendant la saisie",
+      "title": "Suggestions ambiantes"
     },
     "configured": "Clé enregistrée",
     "desc": "Ajoutez des clés API pour Claude, OpenAI et les services compatibles OpenAI (DeepSeek, …), ou utilisez une CLI Claude Code / Codex installée localement. Les clés sont stockées dans le trousseau de votre système d'exploitation.",

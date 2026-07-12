@@ -767,6 +767,12 @@ export type EditorPrefs = {
 	spellcheck?: boolean,
 	/**  Open notes in reading mode (rendered, non-editable) by default. */
 	defaultReadingMode?: boolean,
+	/**
+	 *  Ambient AI suggestions: after an edit settles, compute link/tag
+	 *  suggestions in the background when a provider is configured. Off by
+	 *  default — the background calls cost tokens, so it is explicit opt-in.
+	 */
+	ambientAi?: boolean,
 };
 
 /**

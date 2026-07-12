@@ -24,13 +24,13 @@ function saveMetaOpen(open: boolean): void {
   }
 }
 
-interface Suggestions {
+export interface Suggestions {
   tags: string[];
   aliases: string[];
   properties: { key: string; value: PropertyValue }[];
 }
 
-interface ExistingMeta {
+export interface ExistingMeta {
   existingTags: string[];
   existingAliases: string[];
   existingPropertyKeys: string[];
@@ -50,7 +50,7 @@ export interface AiMetaSuggestionsProps extends ExistingMeta {
 
 /** Pull the first JSON object out of a model response (tolerating code fences
  *  or stray prose around it). */
-function extractJson(raw: string): unknown {
+export function extractJson(raw: string): unknown {
   let s = raw.trim();
   const fence = s.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fence) s = fence[1].trim();
@@ -85,7 +85,7 @@ function coerceValue(kind: unknown, value: unknown): PropertyValue {
   }
 }
 
-function shortValue(v: PropertyValue): string {
+export function shortValue(v: PropertyValue): string {
   switch (v.kind) {
     case "list":
       return v.value.join(", ");
@@ -99,7 +99,7 @@ function shortValue(v: PropertyValue): string {
 }
 
 /** Parse + sanitize a suggestion payload, dropping anything the note already has. */
-function parseSuggestions(raw: string, existing: ExistingMeta): Suggestions {
+export function parseSuggestions(raw: string, existing: ExistingMeta): Suggestions {
   const obj = extractJson(raw);
   if (!obj || typeof obj !== "object") return { tags: [], aliases: [], properties: [] };
   const rec = obj as Record<string, unknown>;
@@ -365,7 +365,7 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
   );
 }
 
-function SuggestionRow({ label, children }: { label: string; children: React.ReactNode }) {
+export function SuggestionRow({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-start gap-2">
       <span className="w-14 shrink-0 pt-1 text-[11px] uppercase tracking-wide text-fg-faint">
@@ -376,7 +376,7 @@ function SuggestionRow({ label, children }: { label: string; children: React.Rea
   );
 }
 
-function Chip({
+export function Chip({
   text,
   onAccept,
   onDismiss,
