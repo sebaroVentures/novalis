@@ -3,6 +3,7 @@
 //! `[[wikilink]]` graph, and typed frontmatter properties + relations. The
 //! `tasks` table is created here but only populated starting in M2.
 
+pub mod blocks;
 pub mod events;
 pub mod links;
 pub mod properties;

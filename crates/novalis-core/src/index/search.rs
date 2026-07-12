@@ -28,6 +28,11 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
     // (same orphan hazard as tasks/events below) — clear them up front.
     db.execute("DELETE FROM note_properties", [])?;
     db.execute("DELETE FROM note_relations", [])?;
+    // Block index + reference graph are per-note replaced by `index_note`, but a
+    // note that vanished offline would strand rows a per-note pass never revisits
+    // — clear them up front (same orphan hazard as properties/relations above).
+    db.execute("DELETE FROM block_index", [])?;
+    db.execute("DELETE FROM block_refs", [])?;
     // Tasks and own (note-derived) events are rebuilt per-note by `index_note`
     // below, but — unlike the tables above — they were historically never cleared
     // up front. Rows for a note that vanished while the app wasn't watching
@@ -122,6 +127,13 @@ pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> Core
     let targets = links::extract_wiki_links(&body);
     links::index_links(db, &summary.path, &targets)?;
 
+    // Stable block ids (` ^id` markers) and the outgoing `((^id))` reference
+    // graph — both rebuilt per-note so they never drift from the Markdown.
+    let blocks = crate::index::blocks::extract_block_ids(&body);
+    crate::index::blocks::index_blocks(db, &summary.path, &blocks)?;
+    let block_refs = crate::index::blocks::extract_block_refs(&body);
+    crate::index::blocks::index_block_refs(db, &summary.path, &block_refs)?;
+
     // Typed frontmatter properties + relations (query-engine foundation).
     let props = frontmatter::properties_from_extra(&fm.extra);
     crate::index::properties::index_properties(db, &summary.path, &props)?;
@@ -139,6 +151,7 @@ pub fn remove_note(db: &Connection, path: &str) -> CoreResult<()> {
     db.execute("DELETE FROM notes_fts WHERE path = ?1", params![path])?;
     db.execute("DELETE FROM tasks WHERE source_note = ?1", params![path])?;
     db.execute("DELETE FROM links WHERE source_path = ?1", params![path])?;
+    crate::index::blocks::remove_blocks(db, path)?;
     crate::index::properties::remove_properties(db, path)?;
     db.execute("DELETE FROM events WHERE note_path = ?1", params![path])?;
     // Drop the semantic vector too (table owned by `index::vectors`), so a

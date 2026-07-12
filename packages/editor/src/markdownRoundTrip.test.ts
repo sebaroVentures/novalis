@@ -67,6 +67,15 @@ describe("markdown round-trip: byte-equal", () => {
     ["heading and tight list", "# Title\n\n- one\n- two"],
     ["single-line callout", "> [!NOTE] Remember this"],
     ["literal star-brackets already escaped", "\\*not bold\\* and \\[brackets\\]"],
+    // Block references: the `((^id))` reference and the trailing ` ^id` marker
+    // are plain base36 text — they must survive every save byte-for-byte, on a
+    // paragraph, heading, and list item, and alongside other constructs.
+    ["block reference", "See ((^k3f9qz)) for the argument."],
+    ["block id marker on a paragraph", "An important claim. ^k3f9qz"],
+    ["block id marker on a heading", "# Section Title ^head01"],
+    ["block id marker on a list item", "- first item ^li0001"],
+    ["reference next to a wikilink", "Per ((^k3f9qz)) and [[Meeting Notes]]."],
+    ["marker on a line that also has math", "The rule $e^{i\\pi}$ holds. ^math01"],
   ];
 
   it.each(cases)("%s", (_name, markdown) => {

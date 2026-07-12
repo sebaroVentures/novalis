@@ -2,8 +2,10 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 
 import {
   NovalisEditor,
+  assignBlockId,
   extractHeadings,
   getMarkdown,
+  type BlockRefResult,
   type Editor,
   type EmbedResult,
   type OutlineItem,
@@ -18,6 +20,7 @@ import {
   ChevronRight,
   FileText,
   FolderOpen,
+  Hash,
   History,
   Link2,
   ListTree,
@@ -495,6 +498,31 @@ export function EditorPane({ pane }: { pane: Pane }) {
     }
   }, []);
 
+  // `((` autocomplete: tagged blocks from the block index, mapped to the
+  // editor's BlockCandidate shape.
+  const searchBlocks = useCallback(async (query: string) => {
+    try {
+      const hits = await api.searchBlocks(query);
+      return hits.map((h) => ({ id: h.id, noteTitle: h.noteTitle, text: h.text }));
+    } catch {
+      return [];
+    }
+  }, []);
+
+  // Resolve a `((^id))` reference to its block (note + text) for inline
+  // rendering. A dangling id (its block was deleted) renders as "missing".
+  const resolveBlock = useCallback(async (id: string): Promise<BlockRefResult> => {
+    try {
+      const r = await api.resolveBlock(id);
+      if (r.found && r.notePath != null && r.text != null) {
+        return { kind: "block", notePath: r.notePath, noteTitle: r.noteTitle ?? "", text: r.text };
+      }
+      return { kind: "missing" };
+    } catch {
+      return { kind: "missing" };
+    }
+  }, []);
+
   // `#` autocomplete: existing tags from the index, filtered by the typed query.
   const searchTags = useCallback(async (query: string) => {
     try {
@@ -640,6 +668,29 @@ export function EditorPane({ pane }: { pane: Pane }) {
   // a literal `Note#Heading.md` file (section embeds are a later phase).
   const onOpenEmbed = (target: string) => onWikiLinkClick(target.split("#")[0].trim() || target);
 
+  // Open the note a `((^id))` block reference points at. The BlockRef chip
+  // passes the resolved note PATH (not a title), so open it directly.
+  const onOpenBlock = async (notePath: string) => {
+    await flushPending();
+    useUi.getState().openInWorkspace(notePath);
+  };
+
+  // "Copy block reference": tag the block the cursor is in with a stable ` ^id`
+  // marker (if it has none) and copy a `((^id))` reference to it. The marker is
+  // written into this note round-trip-safely; the id survives later heading
+  // renames and text edits, so the reference never silently breaks.
+  const copyBlockRef = async () => {
+    if (!editor) return;
+    const id = assignBlockId(editor);
+    if (!id) return;
+    await flushPending();
+    try {
+      await navigator.clipboard.writeText(`((^${id}))`);
+    } catch {
+      /* clipboard denied — the marker is still inserted for manual reference */
+    }
+  };
+
   const doExport = (format: "html" | "docx") => {
     setExportOpen(false);
     void api.exportNote(path, format).catch((e) => reportError(e));
@@ -730,6 +781,13 @@ export function EditorPane({ pane }: { pane: Pane }) {
             }`}
           >
             <BookOpen size={15} />
+          </button>
+          <button
+            onClick={() => void copyBlockRef()}
+            title={t("copyBlockRef")}
+            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
+          >
+            <Hash size={15} />
           </button>
           <button
             onClick={() => togglePanel("links")}
@@ -925,6 +983,9 @@ export function EditorPane({ pane }: { pane: Pane }) {
             onOpenNote={onOpenEmbed}
             onSearchLinkTargets={searchLinkTargets}
             onSearchTags={searchTags}
+            onSearchBlocks={searchBlocks}
+            onResolveBlock={resolveBlock}
+            onOpenBlock={onOpenBlock}
             onWikiLinkHover={onWikiLinkHover}
             onWikiLinkHoverEnd={onWikiLinkHoverEnd}
             onEditorReady={handleEditorReady}

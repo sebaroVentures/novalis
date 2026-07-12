@@ -242,3 +242,27 @@ pub struct EmbedResolution {
     pub title: Option<String>,
     pub body: Option<String>,
 }
+
+/// One indexed block (a line tagged with a stable ` ^id` marker) surfaced to the
+/// `((` reference autocomplete. `text` has the marker stripped.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockHit {
+    pub id: String,
+    pub note_path: String,
+    pub note_title: String,
+    pub text: String,
+}
+
+/// The resolution of a `((^id))` block reference. `notePath`/`noteTitle`/`text`
+/// are set when `found`; all `None`/`false` for a dangling id (its block was
+/// deleted). Unlike `[[wikilinks]]`, a block reference never materializes
+/// anything on a miss — a broken reference simply renders as "missing".
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct BlockResolution {
+    pub found: bool,
+    pub note_path: Option<String>,
+    pub note_title: Option<String>,
+    pub text: Option<String>,
+}

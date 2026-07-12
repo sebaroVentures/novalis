@@ -30,6 +30,7 @@
 import { Node } from "@tiptap/core";
 import type { MarkdownNodeSpec } from "tiptap-markdown";
 
+import { findBlockRefs } from "./blockRefMatches";
 import { findEmbeds } from "./embedMatches";
 import { findMath } from "./mathMatches";
 import { parseCallout } from "./parseCallout";
@@ -58,6 +59,11 @@ function protectedSpans(text: string, atParagraphStart: boolean): Span[] {
   }
   for (const m of findEmbeds(text)) spans.push({ from: m.from, to: m.to });
   for (const m of findMath(text)) spans.push({ from: m.from, to: m.to });
+  // `((^id))` block references — base36 ids need no escaping, but protect them
+  // so the serializer and the BlockRef decoration can never disagree (the same
+  // contract embeds/math/wikilinks keep). The trailing ` ^id` marker is plain
+  // text that also needs no escaping, so it is left to the ordinary path.
+  for (const m of findBlockRefs(text)) spans.push({ from: m.from, to: m.to });
   WIKI_LINK_RE.lastIndex = 0;
   let m: RegExpExecArray | null;
   while ((m = WIKI_LINK_RE.exec(text)) !== null) {

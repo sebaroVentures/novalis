@@ -77,6 +77,11 @@ export const api = {
     unwrap(commands.unlinkedMentions(title, selfPath)),
   linkMention: (path: string, title: string, line: number) =>
     unwrap(commands.linkMention(path, title, line)),
+
+  // Block references (`((^id))`)
+  searchBlocks: (query: string) => unwrap(commands.searchBlocks(query)),
+  resolveBlock: (blockId: string) => unwrap(commands.resolveBlock(blockId)),
+  blockBacklinks: (blockId: string) => unwrap(commands.blockBacklinks(blockId)),
   // note_graph (1-hop, index-only) is retained as a cheap fast path even
   // though the local graph UI now slices the full graph client-side — no
   // frontend caller today, deliberate (not silently dead).

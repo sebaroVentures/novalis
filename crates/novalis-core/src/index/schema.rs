@@ -13,9 +13,10 @@ use crate::error::CoreResult;
 
 /// Bump this whenever the table layout below changes — or when a column that
 /// already exists starts being populated (v7: `note_meta.aliases` is now written
-/// and queried; v8: typed `note_properties` + `note_relations` are indexed), so
+/// and queried; v8: typed `note_properties` + `note_relations` are indexed;
+/// v9: `block_index` + `block_refs` for first-class block references), so
 /// existing caches rebuild and backfill it.
-pub const SCHEMA_VERSION: i64 = 8;
+pub const SCHEMA_VERSION: i64 = 9;
 
 /// Open (or create) the index database at `path`, ensuring the schema matches
 /// [`SCHEMA_VERSION`]. On mismatch the tables are dropped and recreated.
@@ -63,6 +64,8 @@ fn drop_tables(conn: &Connection) -> CoreResult<()> {
          DROP TABLE IF EXISTS links;
          DROP TABLE IF EXISTS note_properties;
          DROP TABLE IF EXISTS note_relations;
+         DROP TABLE IF EXISTS block_index;
+         DROP TABLE IF EXISTS block_refs;
          DROP TABLE IF EXISTS events;",
     )?;
     Ok(())
@@ -134,6 +137,23 @@ fn create_tables(conn: &Connection) -> CoreResult<()> {
         );
         CREATE INDEX IF NOT EXISTS idx_note_relations_source ON note_relations(source_path);
         CREATE INDEX IF NOT EXISTS idx_note_relations_target ON note_relations(target_path);
+
+        CREATE TABLE IF NOT EXISTS block_index (
+            note_path TEXT NOT NULL,
+            block_id TEXT NOT NULL,
+            char_start INTEGER NOT NULL,
+            char_end INTEGER NOT NULL,
+            text TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_block_index_id ON block_index(block_id);
+        CREATE INDEX IF NOT EXISTS idx_block_index_note ON block_index(note_path);
+
+        CREATE TABLE IF NOT EXISTS block_refs (
+            source_path TEXT NOT NULL,
+            block_id TEXT NOT NULL
+        );
+        CREATE INDEX IF NOT EXISTS idx_block_refs_id ON block_refs(block_id);
+        CREATE INDEX IF NOT EXISTS idx_block_refs_source ON block_refs(source_path);
 
         CREATE TABLE IF NOT EXISTS events (
             id TEXT PRIMARY KEY,

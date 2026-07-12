@@ -16,6 +16,8 @@ import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
 import { Markdown } from "tiptap-markdown";
 
+import { BlockRef, type BlockRefResult } from "./BlockRef";
+import { BlockRefSuggestion, type BlockCandidate } from "./BlockRefSuggestion";
 import { Callout } from "./Callout";
 import { Embed, type EmbedResult } from "./Embed";
 import { Find } from "./Find";
@@ -68,6 +70,15 @@ export interface NovalisEditorProps {
   /** Search existing tags for the `#` autocomplete. Host wires it to its index;
    *  returns bare tags (no `#`), inserted as plain `#tag` text. */
   onSearchTags?: (query: string) => Promise<string[]>;
+  /** Search tagged blocks for the `((` autocomplete. Host wires it to its block
+   *  index; results are inserted as plain `((^id))` text. */
+  onSearchBlocks?: (query: string) => Promise<BlockCandidate[]>;
+  /** Resolve a `((^id))` reference to its block (note + text) for inline
+   *  rendering. Host-owned (IPC → block index). Omitted → chips stay loading. */
+  onResolveBlock?: (id: string) => Promise<BlockRefResult>;
+  /** Open the note a `((^id))` reference points at (click on a resolved chip).
+   *  Receives the block's note PATH (not a title). */
+  onOpenBlock?: (notePath: string) => void;
   /** Pointer entered a `[[wikilink]]` — host may show a preview at `rect`. */
   onWikiLinkHover?: (title: string, rect: DOMRect) => void;
   /** Pointer left the hovered wikilink. */
@@ -120,6 +131,10 @@ export interface NovalisEditorLabels {
   embedSectionMissing: string;
   /** Affordance to open the embedded note. */
   embedOpenNote: string;
+  /** Shown inside a `((^id))` reference chip while it is being resolved. */
+  blockRefLoading: string;
+  /** Shown inside a `((^id))` reference chip when the block no longer exists. */
+  blockRefMissing: string;
   /** Tooltip on a kept AI-rewrite change (clicking rejects it). */
   suggestReject: string;
   /** Tooltip on a rejected AI-rewrite change (clicking restores it). */
@@ -149,6 +164,8 @@ const DEFAULT_LABELS: NovalisEditorLabels = {
   embedMissing: "Note not found",
   embedSectionMissing: "Section not found",
   embedOpenNote: "Open note",
+  blockRefLoading: "…",
+  blockRefMissing: "Block not found",
   suggestReject: "Reject this change",
   suggestRestore: "Restore this change",
 };
@@ -175,6 +192,9 @@ export interface EditorExtensionsOptions {
   embedDepth?: number;
   onSearchLinkTargets?: (query: string) => Promise<{ title: string; path: string }[]>;
   onSearchTags?: (query: string) => Promise<string[]>;
+  onSearchBlocks?: (query: string) => Promise<BlockCandidate[]>;
+  onResolveBlock?: (id: string) => Promise<BlockRefResult>;
+  onOpenBlock?: (notePath: string) => void;
 }
 
 /** The full extension stack. Exported (and used by the NovalisEditor component
@@ -255,6 +275,15 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
       createLabel: lbl.wikiCreateNew,
     }),
     TagSuggestion.configure({ onSearch: opts.onSearchTags }),
+    // First-class block references: render `((^id))` inline + dim ` ^id`
+    // markers; `((` autocomplete over the block index. Both are plain-text
+    // constructs (no custom node), so the markdown round-trip stays trivial.
+    BlockRef.configure({
+      onResolve: opts.onResolveBlock,
+      onOpen: opts.onOpenBlock,
+      labels: { loading: lbl.blockRefLoading, missing: lbl.blockRefMissing },
+    }),
+    BlockRefSuggestion.configure({ onSearch: opts.onSearchBlocks }),
     SlashCommand.configure({
       labels: {
         heading1: lbl.heading1,
@@ -292,6 +321,9 @@ export function NovalisEditor({
   embedDepth,
   onSearchLinkTargets,
   onSearchTags,
+  onSearchBlocks,
+  onResolveBlock,
+  onOpenBlock,
   onWikiLinkHover,
   onWikiLinkHoverEnd,
   onEditorReady,
@@ -348,6 +380,8 @@ export function NovalisEditor({
         onWikiLinkClick={onWikiLinkClick}
         onResolveEmbed={onResolveEmbed}
         onOpenNote={onOpenNote}
+        onResolveBlock={onResolveBlock}
+        onOpenBlock={onOpenBlock}
         labels={lbl}
       />,
     );
@@ -369,6 +403,9 @@ export function NovalisEditor({
       embedDepth: depth,
       onSearchLinkTargets,
       onSearchTags,
+      onSearchBlocks,
+      onResolveBlock,
+      onOpenBlock,
     }),
     content: value,
     onUpdate: ({ editor }) => {

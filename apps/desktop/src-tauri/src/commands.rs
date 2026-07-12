@@ -11,14 +11,15 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use novalis_core::change;
 use novalis_core::conflict;
-use novalis_core::index::{links, properties, query as index_query, schema, search};
+use novalis_core::index::{blocks, links, properties, query as index_query, schema, search};
 use novalis_core::models::{
-    AgendaItem, CalendarEvent, CalendarSourceConfig, CaptureRequest, ConflictDiff, ConflictFile,
-    CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput, FolderNode, FullGraph,
-    GitConflict, GitResolution, GitStatus, GitSyncOutcome, LinkReference, MeetingNoteResult, Note,
-    NoteGraph, NotePropertyEntry, NoteRelations, NoteSummary, NoteTemplate, PluginInfo,
-    Preferences, PropertyValue, QueryResult, ResolveConflictRequest, RollupOp, RollupResult,
-    SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo, VaultStats,
+    AgendaItem, BlockHit, BlockResolution, CalendarEvent, CalendarSourceConfig, CaptureRequest,
+    ConflictDiff, ConflictFile, CreateNoteRequest, CreateTaskRequest, EmbedResolution, EventInput,
+    FolderNode, FullGraph, GitConflict, GitResolution, GitStatus, GitSyncOutcome, LinkReference,
+    MeetingNoteResult, Note, NoteGraph, NotePropertyEntry, NoteRelations, NoteSummary,
+    NoteTemplate, PluginInfo, Preferences, PropertyValue, QueryResult, ResolveConflictRequest,
+    RollupOp, RollupResult, SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo,
+    VaultStats,
 };
 use novalis_core::review::{self, ReviewDigest};
 use novalis_core::tasks::service as task_svc;
@@ -650,6 +651,38 @@ pub fn link_mention(
 #[specta::specta]
 pub fn note_graph(state: State<AppEngine>, path: String) -> CmdResult<NoteGraph> {
     state.with(|e| links::note_graph(&e.db, &path))
+}
+
+/// Tagged blocks whose text matches `query`, for the `((` reference
+/// autocomplete. Index-only (no disk reads).
+#[tauri::command]
+#[specta::specta]
+pub fn search_blocks(state: State<AppEngine>, query: String) -> CmdResult<Vec<BlockHit>> {
+    state.with(|e| blocks::search_blocks(&e.db, &query, 20))
+}
+
+/// Resolve a `((^id))` block reference to its note + text, straight from the
+/// index. `found: false` for a dangling id — never errors, never creates.
+#[tauri::command]
+#[specta::specta]
+pub fn resolve_block(state: State<AppEngine>, block_id: String) -> CmdResult<BlockResolution> {
+    state.with(|e| blocks::resolve_block(&e.db, &block_id))
+}
+
+/// Notes that reference the block `block_id` via `((^id))`, with the line(s)
+/// where the reference appears (block-level backlinks).
+///
+/// `async` + `spawn_blocking` for the same reason as [`backlinks`]: it reads
+/// candidate note bodies to extract the context snippet.
+#[tauri::command]
+#[specta::specta]
+pub async fn block_backlinks(app: AppHandle, block_id: String) -> CmdResult<Vec<LinkReference>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        app.state::<AppEngine>()
+            .with(|e| blocks::block_backlinks(&e.db, &e.vault_path, &block_id))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("block_backlinks task panicked: {e}")))?
 }
 
 /// The whole-vault link graph for the Graph view. Index-only — never reads

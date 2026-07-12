@@ -138,6 +138,24 @@ export const commands = {
 	 *  note bodies (no cloud hydration on graph open).
 	 */
 	fullGraph: () => typedError<FullGraph, CommandError>(__TAURI_INVOKE("full_graph")),
+	/**
+	 *  Tagged blocks whose text matches `query`, for the `((` reference
+	 *  autocomplete. Index-only (no disk reads).
+	 */
+	searchBlocks: (query: string) => typedError<BlockHit[], CommandError>(__TAURI_INVOKE("search_blocks", { query })),
+	/**
+	 *  Resolve a `((^id))` block reference to its note + text, straight from the
+	 *  index. `found: false` for a dangling id — never errors, never creates.
+	 */
+	resolveBlock: (blockId: string) => typedError<BlockResolution, CommandError>(__TAURI_INVOKE("resolve_block", { blockId })),
+	/**
+	 *  Notes that reference the block `block_id` via `((^id))`, with the line(s)
+	 *  where the reference appears (block-level backlinks).
+	 * 
+	 *  `async` + `spawn_blocking` for the same reason as [`backlinks`]: it reads
+	 *  candidate note bodies to extract the context snippet.
+	 */
+	blockBacklinks: (blockId: string) => typedError<LinkReference[], CommandError>(__TAURI_INVOKE("block_backlinks", { blockId })),
 	/**  The indexed frontmatter properties of `path`, typed. Index-only. */
 	noteProperties: (path: string) => typedError<NotePropertyEntry[], CommandError>(__TAURI_INVOKE("note_properties", { path })),
 	/**
@@ -673,6 +691,30 @@ export type AppearancePrefs = {
 	fontSize?: number,
 	/**  `"comfortable"` | `"compact"`. */
 	density?: string,
+};
+
+/**
+ *  One indexed block (a line tagged with a stable ` ^id` marker) surfaced to the
+ *  `((` reference autocomplete. `text` has the marker stripped.
+ */
+export type BlockHit = {
+	id: string,
+	notePath: string,
+	noteTitle: string,
+	text: string,
+};
+
+/**
+ *  The resolution of a `((^id))` block reference. `notePath`/`noteTitle`/`text`
+ *  are set when `found`; all `None`/`false` for a dangling id (its block was
+ *  deleted). Unlike `[[wikilinks]]`, a block reference never materializes
+ *  anything on a miss — a broken reference simply renders as "missing".
+ */
+export type BlockResolution = {
+	found: boolean,
+	notePath: string | null,
+	noteTitle: string | null,
+	text: string | null,
 };
 
 /**

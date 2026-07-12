@@ -25,6 +25,12 @@ export { WikiLink } from "./WikiLink";
 export type { WikiLinkOptions } from "./WikiLink";
 export { Embed } from "./Embed";
 export type { EmbedOptions, EmbedResult, EmbedLabels } from "./Embed";
+export { BlockRef, assignBlockId } from "./BlockRef";
+export type { BlockRefOptions, BlockRefResult, BlockRefLabels } from "./BlockRef";
+export { BlockRefSuggestion } from "./BlockRefSuggestion";
+export type { BlockCandidate } from "./BlockRefSuggestion";
+export { findBlockRefs, findBlockId, newBlockId } from "./blockRefMatches";
+export type { BlockRefMatch, BlockIdMatch } from "./blockRefMatches";
 export type { Editor } from "@tiptap/react";
 
 export const EDITOR_PACKAGE_NAME = "@novalis/editor";

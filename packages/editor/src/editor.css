@@ -306,6 +306,55 @@
    sits flush inside the embed box. */
 .nv-editor-content .nv-embed .nv-editor-content { padding: 0; }
 
+/* Block references. The raw `((^id))` is hidden (an inline decoration) while a
+   chip stands in for it; it reappears when the cursor enters the run.
+   Decoration-only — the Markdown stays literal. */
+.nv-editor-content .nv-blockref-src { display: none; }
+.nv-editor-content .nv-blockref {
+  display: inline;
+  border-radius: 4px;
+  padding: 0 4px;
+  background: color-mix(in srgb, var(--nv-accent) 10%, transparent);
+  border: 1px solid color-mix(in srgb, var(--nv-accent) 24%, transparent);
+  font-size: 0.9em;
+  cursor: pointer;
+}
+.nv-editor-content .nv-blockref-loading,
+.nv-editor-content .nv-blockref-missing {
+  color: var(--nv-muted);
+  cursor: default;
+}
+.nv-editor-content .nv-blockref-note {
+  font-weight: 600;
+  color: var(--nv-accent);
+}
+.nv-editor-content .nv-blockref-note::after {
+  content: " › ";
+  color: var(--nv-muted);
+  font-weight: 400;
+}
+.nv-editor-content .nv-blockref-resolved:hover {
+  background: color-mix(in srgb, var(--nv-accent) 18%, transparent);
+}
+/* The trailing ` ^id` anchor marker: kept visible but dimmed, so it is
+   discoverable and editable without dominating the block it tags. */
+.nv-editor-content .nv-block-anchor {
+  color: var(--nv-muted);
+  opacity: 0.55;
+  font-size: 0.85em;
+}
+/* In reading mode the anchor marker is noise — hide it (like wikilink
+   brackets). The block still resolves references; only the raw ` ^id` hides. */
+.nv-editor.nv-reading .nv-block-anchor { display: none; }
+
+/* Two-line block suggestion rows: block text over its note title. */
+.nv-suggest-block-text { display: block; }
+.nv-suggest-block-note {
+  display: block;
+  font-size: 0.8em;
+  color: var(--nv-muted);
+}
+
 /* Mermaid: a ```mermaid block renders the diagram with a raw/rendered toggle. */
 .nv-editor-content .nv-mermaid-block { position: relative; margin: 0.75em 0; }
 .nv-editor-content .nv-mermaid { text-align: center; padding: 8px 0; }
