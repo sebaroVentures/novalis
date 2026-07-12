@@ -8,6 +8,7 @@
   "cmdExtractTasks": "Extract tasks from note",
   "cmdInsertDigest": "Insert weekly digest",
   "cmdInsertTemplate": "Insert template: {{name}}",
+  "cmdNewCanvas": "New canvas",
   "cmdNewNote": "New note",
   "cmdPlaceholder": "Run a command…",
   "cmdReindex": "Reindex vault",

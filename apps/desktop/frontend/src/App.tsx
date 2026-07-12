@@ -29,6 +29,10 @@ import { WorkspaceLayout } from "./components/WorkspaceLayout";
 // Lazy: the Graph view pulls in d3-force, which stays out of the main bundle
 // (the vite manualChunks rule keeps it in its own `d3-force` chunk).
 const GraphView = lazy(() => import("./components/GraphView"));
+// Lazy: the infinite Canvas surface is self-contained (no heavy deps) but is
+// only ever needed in the canvas view, so it ships as its own on-demand chunk
+// rather than bloating the initial bundle — same split as GraphView.
+const CanvasView = lazy(() => import("./components/CanvasView"));
 import { applyAppearance, watchSystemTheme } from "./lib/appearance";
 import { applyLanguage } from "./lib/i18n";
 import { actionForEvent } from "./lib/keybindings";
@@ -165,6 +169,7 @@ export default function App() {
         "view-calendar": () => useUi.getState().setView("calendar"),
         "view-graph": () => useUi.getState().setView("graph"),
         "view-query": () => useUi.getState().setView("query"),
+        "view-canvas": () => useUi.getState().setView("canvas"),
         "new-note": () =>
           void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
         cheatsheet: () => setCheatsheetOpen((v) => !v),
@@ -254,6 +259,7 @@ export default function App() {
     calendar: t("views.calendar"),
     graph: t("views.graph"),
     query: t("views.query"),
+    canvas: t("views.canvas"),
   };
 
   return (
@@ -367,6 +373,16 @@ export default function App() {
               }
             >
               <GraphView />
+            </Suspense>
+          ) : view === "canvas" ? (
+            <Suspense
+              fallback={
+                <div className="flex flex-1 items-center justify-center text-sm text-fg-faint">
+                  {t("loading")}
+                </div>
+              }
+            >
+              <CanvasView />
             </Suspense>
           ) : (
             <CalendarView />

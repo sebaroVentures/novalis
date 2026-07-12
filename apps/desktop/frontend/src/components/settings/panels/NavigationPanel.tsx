@@ -3,6 +3,7 @@ import {
   ChevronDown,
   ChevronUp,
   FileText,
+  Shapes,
   SquareCheckBig,
   Sun,
   Table2,
@@ -25,6 +26,7 @@ const VIEW_ICONS: Record<MainView, LucideIcon> = {
   calendar: Calendar,
   graph: Waypoints,
   query: Table2,
+  canvas: Shapes,
 };
 
 export function NavigationPanel() {
@@ -40,6 +42,7 @@ export function NavigationPanel() {
     calendar: t("common:views.calendar"),
     graph: t("common:views.graph"),
     query: t("common:views.query"),
+    canvas: t("common:views.canvas"),
   };
   const enabledCount = config.filter((i) => i.enabled).length;
 

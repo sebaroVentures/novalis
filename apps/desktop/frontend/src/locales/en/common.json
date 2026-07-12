@@ -1,5 +1,30 @@
 {
   "cancel": "Cancel",
+  "canvas": {
+    "addNote": "Add note",
+    "addText": "Add card",
+    "back": "All canvases",
+    "deleteCanvas": "Delete canvas",
+    "deleteCanvasConfirm": "Delete “{{name}}”? This can't be undone.",
+    "emptyCard": "Empty card",
+    "gallery": {
+      "empty": "No canvases yet",
+      "emptyHint": "Create a spatial board of your notes and ideas.",
+      "title": "Canvases"
+    },
+    "loadError": "Couldn't open this canvas.",
+    "missingFile": "Missing: {{file}}",
+    "new": "New canvas",
+    "pickNote": "Add a note to the canvas",
+    "saveError": "Save failed",
+    "saved": "Saved",
+    "saving": "Saving…",
+    "textPlaceholder": "Type…",
+    "untitled": "Untitled",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "zoomReset": "Fit to content"
+  },
   "delete": "Delete",
   "errorPrefix": "Error: ",
   "graph": {
@@ -61,6 +86,7 @@
   },
   "views": {
     "calendar": "Calendar",
+    "canvas": "Canvas",
     "graph": "Graph",
     "notes": "Notes",
     "query": "Query",

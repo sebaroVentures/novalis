@@ -1,5 +1,30 @@
 {
   "cancel": "Annuler",
+  "canvas": {
+    "addNote": "Ajouter une note",
+    "addText": "Ajouter une carte",
+    "back": "Tous les canevas",
+    "deleteCanvas": "Supprimer le canevas",
+    "deleteCanvasConfirm": "Supprimer « {{name}} » ? Cette action est irréversible.",
+    "emptyCard": "Carte vide",
+    "gallery": {
+      "empty": "Aucun canevas pour l'instant",
+      "emptyHint": "Créez un tableau spatial de vos notes et idées.",
+      "title": "Canevas"
+    },
+    "loadError": "Impossible d'ouvrir ce canevas.",
+    "missingFile": "Manquant : {{file}}",
+    "new": "Nouveau canevas",
+    "pickNote": "Ajouter une note au canevas",
+    "saveError": "Échec de l'enregistrement",
+    "saved": "Enregistré",
+    "saving": "Enregistrement…",
+    "textPlaceholder": "Saisir…",
+    "untitled": "Sans titre",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "zoomReset": "Ajuster au contenu"
+  },
   "delete": "Supprimer",
   "errorPrefix": "Erreur : ",
   "graph": {
@@ -61,6 +86,7 @@
   },
   "views": {
     "calendar": "Calendrier",
+    "canvas": "Canevas",
     "graph": "Graphe",
     "notes": "Notes",
     "query": "Requête",

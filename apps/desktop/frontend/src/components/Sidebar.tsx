@@ -44,7 +44,7 @@ import { newNoteFolder, useVault, type DragItem } from "../stores/vaultStore";
 import { ContextMenu, type MenuItem } from "./ContextMenu";
 import { ConfirmDialog } from "./ui/ConfirmDialog";
 
-export type MainView = "notes" | "today" | "tasks" | "calendar" | "graph" | "query";
+export type MainView = "notes" | "today" | "tasks" | "calendar" | "graph" | "query" | "canvas";
 
 const iconBtn =
   "rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg";

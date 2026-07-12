@@ -24,7 +24,7 @@ use novalis_core::models::{
 use novalis_core::review::{self, ReviewDigest};
 use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
-use novalis_core::vault::{config, frontmatter, fs as vault_fs, stats};
+use novalis_core::vault::{canvas, config, frontmatter, fs as vault_fs, stats};
 use novalis_core::versions::{DiffLine, VersionMeta};
 use novalis_core::{calendar, export, git, media, templates, AppInfo, CoreError};
 
@@ -424,6 +424,52 @@ pub fn delete_note(state: State<AppEngine>, path: String) -> CmdResult<()> {
     state.with(|e| novalis_core::notes::delete(&e.db, &e.vault_path, &path))?;
     mark_self_write(&path);
     Ok(())
+}
+
+// ── Canvas ──────────────────────────────────────────────────────────────────
+//
+// A `.canvas` is a portable JSON Canvas document (Obsidian's format) stored as
+// a plain vault file. The core treats it as opaque text; the frontend owns the
+// schema. Canvas files aren't `.md`, so they're outside the note index and the
+// file watcher — no self-write tracking is needed.
+
+/// List every `.canvas` file in the vault.
+#[tauri::command]
+#[specta::specta]
+pub fn list_canvases(state: State<AppEngine>) -> CmdResult<Vec<canvas::CanvasFile>> {
+    state.with(|e| Ok(canvas::list(&e.vault_path)))
+}
+
+/// Read a canvas file's raw JSON content.
+#[tauri::command]
+#[specta::specta]
+pub fn read_canvas(state: State<AppEngine>, path: String) -> CmdResult<String> {
+    state.with(|e| canvas::read(&e.vault_path, &path))
+}
+
+/// Overwrite an existing canvas file atomically.
+#[tauri::command]
+#[specta::specta]
+pub fn write_canvas(state: State<AppEngine>, path: String, content: String) -> CmdResult<()> {
+    state.with(|e| canvas::write(&e.vault_path, &path, &content))
+}
+
+/// Create a new canvas file with initial JSON content.
+#[tauri::command]
+#[specta::specta]
+pub fn create_canvas(
+    state: State<AppEngine>,
+    path: String,
+    content: String,
+) -> CmdResult<canvas::CanvasFile> {
+    state.with(|e| canvas::create(&e.vault_path, &path, &content))
+}
+
+/// Permanently delete a canvas file.
+#[tauri::command]
+#[specta::specta]
+pub fn delete_canvas(state: State<AppEngine>, path: String) -> CmdResult<()> {
+    state.with(|e| canvas::delete(&e.vault_path, &path))
 }
 
 /// Reveal a note file or folder in the OS file manager (Finder/Explorer/file

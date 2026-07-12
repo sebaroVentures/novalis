@@ -8,6 +8,7 @@
   "cmdExtractTasks": "Extraer tareas de la nota",
   "cmdInsertDigest": "Insertar resumen semanal",
   "cmdInsertTemplate": "Insertar plantilla: {{name}}",
+  "cmdNewCanvas": "Nuevo lienzo",
   "cmdNewNote": "Nueva nota",
   "cmdPlaceholder": "Ejecutar un comando…",
   "cmdReindex": "Reindexar el Vault",

@@ -7,6 +7,7 @@ import {
   PanelLeftOpen,
   Search,
   Settings,
+  Shapes,
   SquareCheckBig,
   Sun,
   Table2,
@@ -36,6 +37,7 @@ const VIEW_ITEMS: Record<MainView, { action: ActionId; Icon: LucideIcon }> = {
   calendar: { action: "view-calendar", Icon: Calendar },
   graph: { action: "view-graph", Icon: Waypoints },
   query: { action: "view-query", Icon: Table2 },
+  canvas: { action: "view-canvas", Icon: Shapes },
 };
 
 /** Vertical activity rail (VS Code/Obsidian style): view switching on top,
@@ -80,6 +82,7 @@ export function ActivityRail({
     calendar: t("views.calendar"),
     graph: t("views.graph"),
     query: t("views.query"),
+    canvas: t("views.canvas"),
   };
   const toggleLabel = sidebarCollapsed ? t("showSidebar") : t("sidebar:collapseSidebar");
 

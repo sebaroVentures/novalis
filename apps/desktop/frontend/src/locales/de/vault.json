@@ -8,6 +8,7 @@
   "cmdExtractTasks": "Aufgaben aus Notiz extrahieren",
   "cmdInsertDigest": "Wochenrückblick einfügen",
   "cmdInsertTemplate": "Vorlage einfügen: {{name}}",
+  "cmdNewCanvas": "Neue Canvas",
   "cmdNewNote": "Neue Notiz",
   "cmdPlaceholder": "Befehl ausführen…",
   "cmdReindex": "Vault neu indizieren",

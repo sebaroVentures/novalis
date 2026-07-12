@@ -78,6 +78,16 @@ export const commands = {
 	moveNote: (path: string, newPath: string) => typedError<Note, CommandError>(__TAURI_INVOKE("move_note", { path, newPath })),
 	duplicateNote: (path: string) => typedError<Note, CommandError>(__TAURI_INVOKE("duplicate_note", { path })),
 	deleteNote: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_note", { path })),
+	/**  List every `.canvas` file in the vault. */
+	listCanvases: () => typedError<CanvasFile[], CommandError>(__TAURI_INVOKE("list_canvases")),
+	/**  Read a canvas file's raw JSON content. */
+	readCanvas: (path: string) => typedError<string, CommandError>(__TAURI_INVOKE("read_canvas", { path })),
+	/**  Overwrite an existing canvas file atomically. */
+	writeCanvas: (path: string, content: string) => typedError<null, CommandError>(__TAURI_INVOKE("write_canvas", { path, content })),
+	/**  Create a new canvas file with initial JSON content. */
+	createCanvas: (path: string, content: string) => typedError<CanvasFile, CommandError>(__TAURI_INVOKE("create_canvas", { path, content })),
+	/**  Permanently delete a canvas file. */
+	deleteCanvas: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_canvas", { path })),
 	/**
 	 *  Reveal a note file or folder in the OS file manager (Finder/Explorer/file
 	 *  manager), selecting the item. `path` is vault-relative (forward-slashed); an
@@ -786,6 +796,14 @@ export type CalendarSourceConfig = {
 	name: string,
 	url: string | null,
 	enabled?: boolean,
+};
+
+/**  A `.canvas` file discovered in the vault. */
+export type CanvasFile = {
+	/**  Vault-relative, forward-slashed path (e.g. `boards/plan.canvas`). */
+	path: string,
+	/**  Display name — the file stem, without the `.canvas` extension. */
+	name: string,
 };
 
 export type CaptureRequest = {

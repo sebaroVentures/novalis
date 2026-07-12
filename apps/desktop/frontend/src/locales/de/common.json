@@ -1,5 +1,30 @@
 {
   "cancel": "Abbrechen",
+  "canvas": {
+    "addNote": "Notiz hinzufügen",
+    "addText": "Karte hinzufügen",
+    "back": "Alle Canvas",
+    "deleteCanvas": "Canvas löschen",
+    "deleteCanvasConfirm": "„{{name}}“ löschen? Das kann nicht rückgängig gemacht werden.",
+    "emptyCard": "Leere Karte",
+    "gallery": {
+      "empty": "Noch keine Canvas",
+      "emptyHint": "Erstelle ein räumliches Board deiner Notizen und Ideen.",
+      "title": "Canvas"
+    },
+    "loadError": "Diese Canvas konnte nicht geöffnet werden.",
+    "missingFile": "Fehlt: {{file}}",
+    "new": "Neue Canvas",
+    "pickNote": "Eine Notiz zur Canvas hinzufügen",
+    "saveError": "Speichern fehlgeschlagen",
+    "saved": "Gespeichert",
+    "saving": "Speichern…",
+    "textPlaceholder": "Tippen…",
+    "untitled": "Ohne Titel",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "zoomReset": "An Inhalt anpassen"
+  },
   "delete": "Löschen",
   "errorPrefix": "Fehlermeldung: ",
   "graph": {
@@ -61,6 +86,7 @@
   },
   "views": {
     "calendar": "Kalender",
+    "canvas": "Canvas",
     "graph": "Graph",
     "notes": "Notizen",
     "query": "Abfrage",

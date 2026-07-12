@@ -9,6 +9,7 @@ import { fuzzyRank } from "../lib/fuzzy";
 import { type ActionId, formatChord } from "../lib/keybindings";
 import { localWeekRange } from "../lib/weeklyReview";
 import { useAi } from "../stores/aiStore";
+import { useCanvas } from "../stores/canvasStore";
 import { useKeymap } from "../stores/keymapStore";
 import { usePlugins } from "../stores/pluginStore";
 import { useUi } from "../stores/uiStore";
@@ -82,12 +83,13 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     run,
   });
 
-  const viewTitle: Record<"notes" | "today" | "tasks" | "calendar" | "graph", string> = {
+  const viewTitle: Record<"notes" | "today" | "tasks" | "calendar" | "graph" | "canvas", string> = {
     notes: t("common:views.notes"),
     today: t("common:views.today"),
     tasks: t("common:views.tasks"),
     calendar: t("common:views.calendar"),
     graph: t("common:views.graph"),
+    canvas: t("common:views.canvas"),
   };
 
   const builtins: Command[] = [
@@ -98,6 +100,10 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       useUi.getState().setView("calendar"),
     ),
     builtin("view-graph", viewTitle.graph, "view-graph", () => useUi.getState().setView("graph")),
+    builtin("view-canvas", viewTitle.canvas, "view-canvas", () =>
+      useUi.getState().setView("canvas"),
+    ),
+    builtin("new-canvas", t("cmdNewCanvas"), null, () => void useCanvas.getState().createAndOpen()),
     builtin("new-note", t("cmdNewNote"), "new-note", () =>
       void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
     ),

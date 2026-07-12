@@ -60,6 +60,13 @@ export const api = {
   removeProperty: (path: string, key: string) => unwrap(commands.removeProperty(path, key)),
   renameProperty: (path: string, from: string, to: string) =>
     unwrap(commands.renameProperty(path, from, to)),
+  // Canvas (.canvas spatial documents — opaque JSON to the backend)
+  listCanvases: () => unwrap(commands.listCanvases()),
+  readCanvas: (path: string) => unwrap(commands.readCanvas(path)),
+  writeCanvas: (path: string, content: string) => unwrap(commands.writeCanvas(path, content)),
+  createCanvas: (path: string, content: string) => unwrap(commands.createCanvas(path, content)),
+  deleteCanvas: (path: string) => unwrap(commands.deleteCanvas(path)),
+
   createFolder: (path: string) => unwrap(commands.createFolder(path)),
   deleteFolder: (path: string) => unwrap(commands.deleteFolder(path)),
   deleteFolderRecursive: (path: string) => unwrap(commands.deleteFolderRecursive(path)),

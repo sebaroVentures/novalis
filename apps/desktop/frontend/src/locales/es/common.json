@@ -1,5 +1,30 @@
 {
   "cancel": "Cancelar",
+  "canvas": {
+    "addNote": "Añadir nota",
+    "addText": "Añadir tarjeta",
+    "back": "Todos los lienzos",
+    "deleteCanvas": "Eliminar lienzo",
+    "deleteCanvasConfirm": "¿Eliminar «{{name}}»? Esto no se puede deshacer.",
+    "emptyCard": "Tarjeta vacía",
+    "gallery": {
+      "empty": "Aún no hay lienzos",
+      "emptyHint": "Crea un tablero espacial de tus notas e ideas.",
+      "title": "Lienzos"
+    },
+    "loadError": "No se pudo abrir este lienzo.",
+    "missingFile": "Falta: {{file}}",
+    "new": "Nuevo lienzo",
+    "pickNote": "Añadir una nota al lienzo",
+    "saveError": "Error al guardar",
+    "saved": "Guardado",
+    "saving": "Guardando…",
+    "textPlaceholder": "Escribe…",
+    "untitled": "Sin título",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "zoomReset": "Ajustar al contenido"
+  },
   "delete": "Eliminar",
   "errorPrefix": "Error: ",
   "graph": {
@@ -61,6 +86,7 @@
   },
   "views": {
     "calendar": "Calendario",
+    "canvas": "Lienzo",
     "graph": "Grafo",
     "notes": "Notas",
     "query": "Consulta",
