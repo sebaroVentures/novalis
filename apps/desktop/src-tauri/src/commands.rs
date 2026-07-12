@@ -26,7 +26,7 @@ use novalis_core::tasks::service as task_svc;
 use novalis_core::trash::{self, TrashItem};
 use novalis_core::vault::{canvas, config, frontmatter, fs as vault_fs, stats};
 use novalis_core::versions::{DiffLine, VersionMeta};
-use novalis_core::{calendar, export, git, media, templates, AppInfo, CoreError};
+use novalis_core::{calendar, export, git, media, pdf, templates, AppInfo, CoreError};
 
 use crate::engine::{AppEngine, CommandError, Engine};
 
@@ -1339,6 +1339,67 @@ pub fn save_pasted_image(
     ext: String,
 ) -> CmdResult<String> {
     state.with(|e| media::save_image(&e.vault_path, &bytes, &ext))
+}
+
+// ── PDF (native viewing + annotate + link, feature W4.2) ─────────────────────
+//
+// PDFs are rendered client-side by pdf.js off the asset protocol; their
+// highlights live in a portable sidecar JSON beside each PDF (not the index/DB).
+
+/// List the PDFs in the vault for the "Open PDF" picker (index-free filesystem walk).
+#[tauri::command]
+#[specta::specta]
+pub fn list_pdfs(state: State<AppEngine>) -> CmdResult<Vec<pdf::PdfSummary>> {
+    state.with(|e| Ok(pdf::list_pdfs(&e.vault_path)))
+}
+
+/// Read a PDF's sidecar annotations. A missing sidecar reads as empty.
+#[tauri::command]
+#[specta::specta]
+pub fn read_pdf_annotations(
+    state: State<AppEngine>,
+    pdf_path: String,
+) -> CmdResult<pdf::PdfAnnotations> {
+    state.with(|e| pdf::read_annotations(&e.vault_path, &pdf_path))
+}
+
+/// Write a PDF's sidecar annotations (atomic; an empty set deletes the sidecar).
+/// The sidecar is an app-initiated write — suppress the watcher echo.
+#[tauri::command]
+#[specta::specta]
+pub fn write_pdf_annotations(
+    state: State<AppEngine>,
+    pdf_path: String,
+    annotations: pdf::PdfAnnotations,
+) -> CmdResult<()> {
+    state.with(|e| pdf::write_annotations(&e.vault_path, &pdf_path, &annotations))?;
+    mark_self_write(&pdf::sidecar_rel(&pdf_path));
+    Ok(())
+}
+
+/// Append a highlight (quote + back-link) to a note, creating it when needed.
+/// `target_note` is a vault-relative `.md` path; `None` files it into the PDF's
+/// default `<stem> Highlights.md`. Returns the target note's path.
+#[tauri::command]
+#[specta::specta]
+pub fn link_highlight_to_note(
+    state: State<AppEngine>,
+    pdf_path: String,
+    highlight: pdf::PdfHighlight,
+    target_note: Option<String>,
+) -> CmdResult<String> {
+    let path = state.with(|e| {
+        pdf::link_highlight_to_note(
+            &e.db,
+            &e.vault_path,
+            &e.data_dir,
+            &pdf_path,
+            &highlight,
+            target_note.as_deref(),
+        )
+    })?;
+    mark_self_write(&path);
+    Ok(path)
 }
 
 // ── Calendar ───────────────────────────────────────────────────────────────

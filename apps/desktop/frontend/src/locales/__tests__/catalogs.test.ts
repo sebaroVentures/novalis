@@ -12,6 +12,7 @@ import deConflict from "../de/conflict.json";
 import deEditor from "../de/editor.json";
 import deLinks from "../de/links.json";
 import deOnboarding from "../de/onboarding.json";
+import dePdf from "../de/pdf.json";
 import deSettings from "../de/settings.json";
 import deSidebar from "../de/sidebar.json";
 import deTasks from "../de/tasks.json";
@@ -25,6 +26,7 @@ import esConflict from "../es/conflict.json";
 import esEditor from "../es/editor.json";
 import esLinks from "../es/links.json";
 import esOnboarding from "../es/onboarding.json";
+import esPdf from "../es/pdf.json";
 import esSettings from "../es/settings.json";
 import esSidebar from "../es/sidebar.json";
 import esTasks from "../es/tasks.json";
@@ -38,6 +40,7 @@ import frConflict from "../fr/conflict.json";
 import frEditor from "../fr/editor.json";
 import frLinks from "../fr/links.json";
 import frOnboarding from "../fr/onboarding.json";
+import frPdf from "../fr/pdf.json";
 import frSettings from "../fr/settings.json";
 import frSidebar from "../fr/sidebar.json";
 import frTasks from "../fr/tasks.json";
@@ -51,6 +54,7 @@ import conflict from "../en/conflict.json";
 import editor from "../en/editor.json";
 import links from "../en/links.json";
 import onboarding from "../en/onboarding.json";
+import pdf from "../en/pdf.json";
 import settings from "../en/settings.json";
 import sidebar from "../en/sidebar.json";
 import tasks from "../en/tasks.json";
@@ -73,6 +77,7 @@ const CATALOGS: Record<string, unknown> = {
   conflict,
   versions,
   links,
+  pdf,
 };
 
 /** Non-English locales, keyed by namespace, checked for parity against English. */
@@ -91,6 +96,7 @@ const LOCALES: Record<string, Record<string, unknown>> = {
     conflict: deConflict,
     versions: deVersions,
     links: deLinks,
+    pdf: dePdf,
   },
   fr: {
     common: frCommon,
@@ -106,6 +112,7 @@ const LOCALES: Record<string, Record<string, unknown>> = {
     conflict: frConflict,
     versions: frVersions,
     links: frLinks,
+    pdf: frPdf,
   },
   es: {
     common: esCommon,
@@ -121,6 +128,7 @@ const LOCALES: Record<string, Record<string, unknown>> = {
     conflict: esConflict,
     versions: esVersions,
     links: esLinks,
+    pdf: esPdf,
   },
 };
 

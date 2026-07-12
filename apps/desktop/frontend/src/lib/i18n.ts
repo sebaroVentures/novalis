@@ -13,6 +13,7 @@ import deConflict from "../locales/de/conflict.json";
 import deEditor from "../locales/de/editor.json";
 import deLinks from "../locales/de/links.json";
 import deOnboarding from "../locales/de/onboarding.json";
+import dePdf from "../locales/de/pdf.json";
 import deSettings from "../locales/de/settings.json";
 import deSidebar from "../locales/de/sidebar.json";
 import deTasks from "../locales/de/tasks.json";
@@ -27,6 +28,7 @@ import esConflict from "../locales/es/conflict.json";
 import esEditor from "../locales/es/editor.json";
 import esLinks from "../locales/es/links.json";
 import esOnboarding from "../locales/es/onboarding.json";
+import esPdf from "../locales/es/pdf.json";
 import esSettings from "../locales/es/settings.json";
 import esSidebar from "../locales/es/sidebar.json";
 import esTasks from "../locales/es/tasks.json";
@@ -41,6 +43,7 @@ import frConflict from "../locales/fr/conflict.json";
 import frEditor from "../locales/fr/editor.json";
 import frLinks from "../locales/fr/links.json";
 import frOnboarding from "../locales/fr/onboarding.json";
+import frPdf from "../locales/fr/pdf.json";
 import frSettings from "../locales/fr/settings.json";
 import frSidebar from "../locales/fr/sidebar.json";
 import frTasks from "../locales/fr/tasks.json";
@@ -55,6 +58,7 @@ import conflict from "../locales/en/conflict.json";
 import editor from "../locales/en/editor.json";
 import links from "../locales/en/links.json";
 import onboarding from "../locales/en/onboarding.json";
+import pdf from "../locales/en/pdf.json";
 import settings from "../locales/en/settings.json";
 import sidebar from "../locales/en/sidebar.json";
 import tasks from "../locales/en/tasks.json";
@@ -79,6 +83,7 @@ export const NAMESPACES = [
   "conflict",
   "versions",
   "links",
+  "pdf",
 ] as const;
 
 // --- dev-only pseudo-locale generation -------------------------------------
@@ -122,7 +127,7 @@ function pseudoize(node: unknown): unknown {
 
 // ---------------------------------------------------------------------------
 
-const en = { common, ai, settings, onboarding, sidebar, calendar, tasks, today, editor, vault, trash, conflict, versions, links };
+const en = { common, ai, settings, onboarding, sidebar, calendar, tasks, today, editor, vault, trash, conflict, versions, links, pdf };
 const de = {
   common: deCommon,
   ai: deAi,
@@ -138,6 +143,7 @@ const de = {
   conflict: deConflict,
   versions: deVersions,
   links: deLinks,
+  pdf: dePdf,
 };
 const fr = {
   common: frCommon,
@@ -154,6 +160,7 @@ const fr = {
   conflict: frConflict,
   versions: frVersions,
   links: frLinks,
+  pdf: frPdf,
 };
 const es = {
   common: esCommon,
@@ -170,6 +177,7 @@ const es = {
   conflict: esConflict,
   versions: esVersions,
   links: esLinks,
+  pdf: esPdf,
 };
 
 const resources: Resource = { en, de, fr, es };

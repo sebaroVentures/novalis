@@ -1,0 +1,38 @@
+{
+  "openPdf": "Abrir PDF…",
+  "picker": {
+    "title": "Abrir PDF",
+    "placeholder": "Buscar PDF…",
+    "empty": "No hay PDF en esta bóveda",
+    "count_one": "{{count}} resaltado",
+    "count_other": "{{count}} resaltados"
+  },
+  "viewer": {
+    "loading": "Cargando PDF…",
+    "error": "No se pudo abrir este PDF.",
+    "close": "Cerrar",
+    "zoomIn": "Acercar",
+    "zoomOut": "Alejar",
+    "pageOf": "{{page}} / {{total}}",
+    "togglePanel": "Resaltados",
+    "highlight": "Resaltar"
+  },
+  "panel": {
+    "title": "Resaltados",
+    "empty": "Selecciona texto en el PDF y haz clic en Resaltar para anotarlo.",
+    "jump": "Ir al resaltado",
+    "copyLink": "Copiar enlace",
+    "copyQuote": "Copiar cita",
+    "addToNote": "Añadir a una nota",
+    "linkToNote": "Enlazar a una nota…",
+    "delete": "Eliminar",
+    "addNote": "Añadir nota",
+    "notePlaceholder": "Tu nota…",
+    "save": "Guardar",
+    "cancel": "Cancelar",
+    "linkedTo": "Enlazado a",
+    "copied": "Copiado al portapapeles",
+    "linkedToast": "Añadido a {{note}}",
+    "linkPickerTitle": "Enlazar resaltado a una nota"
+  }
+}

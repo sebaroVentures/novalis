@@ -1,0 +1,38 @@
+{
+  "openPdf": "Open PDF…",
+  "picker": {
+    "title": "Open PDF",
+    "placeholder": "Search PDFs…",
+    "empty": "No PDFs in this vault",
+    "count_one": "{{count}} highlight",
+    "count_other": "{{count}} highlights"
+  },
+  "viewer": {
+    "loading": "Loading PDF…",
+    "error": "Could not open this PDF.",
+    "close": "Close",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out",
+    "pageOf": "{{page}} / {{total}}",
+    "togglePanel": "Highlights",
+    "highlight": "Highlight"
+  },
+  "panel": {
+    "title": "Highlights",
+    "empty": "Select text in the PDF, then click Highlight to annotate it.",
+    "jump": "Jump to highlight",
+    "copyLink": "Copy link",
+    "copyQuote": "Copy quote",
+    "addToNote": "Add to note",
+    "linkToNote": "Link to note…",
+    "delete": "Delete",
+    "addNote": "Add note",
+    "notePlaceholder": "Your note…",
+    "save": "Save",
+    "cancel": "Cancel",
+    "linkedTo": "Linked to",
+    "copied": "Copied to clipboard",
+    "linkedToast": "Added to {{note}}",
+    "linkPickerTitle": "Link highlight to note"
+  }
+}

@@ -1,0 +1,38 @@
+{
+  "openPdf": "Ouvrir un PDF…",
+  "picker": {
+    "title": "Ouvrir un PDF",
+    "placeholder": "Rechercher des PDF…",
+    "empty": "Aucun PDF dans ce coffre",
+    "count_one": "{{count}} surlignage",
+    "count_other": "{{count}} surlignages"
+  },
+  "viewer": {
+    "loading": "Chargement du PDF…",
+    "error": "Impossible d'ouvrir ce PDF.",
+    "close": "Fermer",
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "pageOf": "{{page}} / {{total}}",
+    "togglePanel": "Surlignages",
+    "highlight": "Surligner"
+  },
+  "panel": {
+    "title": "Surlignages",
+    "empty": "Sélectionnez du texte dans le PDF, puis cliquez sur Surligner pour l'annoter.",
+    "jump": "Aller au surlignage",
+    "copyLink": "Copier le lien",
+    "copyQuote": "Copier la citation",
+    "addToNote": "Ajouter à une note",
+    "linkToNote": "Lier à une note…",
+    "delete": "Supprimer",
+    "addNote": "Ajouter une note",
+    "notePlaceholder": "Votre note…",
+    "save": "Enregistrer",
+    "cancel": "Annuler",
+    "linkedTo": "Lié à",
+    "copied": "Copié dans le presse-papiers",
+    "linkedToast": "Ajouté à {{note}}",
+    "linkPickerTitle": "Lier le surlignage à une note"
+  }
+}
