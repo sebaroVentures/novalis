@@ -13,6 +13,10 @@
       "title": "Resumir nota"
     }
   },
+  "ambient": {
+    "links": "Enlaces",
+    "title": "Sugerencias de IA"
+  },
   "extract": {
     "add_one": "Añadir {{count}} tarea",
     "add_other": "Añadir {{count}} tareas",
@@ -106,6 +110,13 @@
     "agentic": {
       "hint": "Permite que esta CLI lea y edite los archivos de tu bóveda para realizar tareas abiertas. Cada ejecución se confirma primero en git, así que puedes revertirla. Úsalo con cuidado.",
       "label": "Acceso agéntico a la bóveda"
+    },
+    "ambient": {
+      "aria": "Sugerencias de IA ambientales",
+      "desc": "Cuando pausas la edición de una nota, propone en silencio enlaces a notas relacionadas y etiquetas útiles. Usa la conexión de IA seleccionada, por lo que consume tokens en segundo plano — desactivado por defecto.",
+      "hint": "Se ejecuta en segundo plano cuando una edición se estabiliza, solo si hay una conexión de IA configurada.",
+      "label": "Sugerir enlaces y etiquetas mientras escribes",
+      "title": "Sugerencias ambientales"
     },
     "configured": "Clave guardada",
     "desc": "Añade claves de API para Claude, OpenAI y servicios compatibles con OpenAI (DeepSeek, …), o usa una CLI de Claude Code / Codex instalada localmente. Las claves se guardan en el llavero de tu sistema operativo.",

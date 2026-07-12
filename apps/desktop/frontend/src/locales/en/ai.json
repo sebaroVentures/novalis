@@ -13,6 +13,10 @@
       "title": "Summarize note"
     }
   },
+  "ambient": {
+    "links": "Links",
+    "title": "AI suggestions"
+  },
   "extract": {
     "add_one": "Add {{count}} task",
     "add_other": "Add {{count}} tasks",
@@ -100,6 +104,13 @@
     "agentic": {
       "hint": "Let this CLI read and edit your vault's files to carry out open-ended tasks. Each run is committed to git first, so you can revert it. Use with care.",
       "label": "Agentic vault access"
+    },
+    "ambient": {
+      "aria": "Ambient AI suggestions",
+      "desc": "After you pause editing a note, quietly propose links to related notes and useful tags. Runs through the selected AI connection, so it spends tokens in the background — off by default.",
+      "hint": "Runs in the background once an edit settles, only when an AI connection is configured.",
+      "label": "Suggest links and tags as you write",
+      "title": "Ambient suggestions"
     },
     "apiKey": "API key",
     "apiKeyPlaceholder": "Paste your API key",

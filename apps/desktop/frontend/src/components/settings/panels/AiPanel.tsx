@@ -13,7 +13,8 @@ import {
   type EmbedStatus,
 } from "../../../ipc/api";
 import { useAi } from "../../../stores/aiStore";
-import { Select, SettingsSection, Switch, TextField } from "../../ui";
+import { useSettings } from "../../../stores/settingsStore";
+import { Select, SettingRow, SettingsSection, Switch, TextField } from "../../ui";
 
 // Kinds offered in the "add" dropdown.
 const ADDABLE_KINDS: AiProviderKind[] = [
@@ -117,9 +118,35 @@ export function AiPanel() {
         </button>
       </div>
     </SettingsSection>
+    <AmbientSection />
     <SemanticSearchSection />
     <PromptTemplatesSection />
     </>
+  );
+}
+
+/** Opt-in toggle for ambient AI suggestions (link + tag chips computed in the
+ *  background after an edit settles). Off by default — the background calls
+ *  cost tokens. Backed by the `editor.ambientAi` preference. */
+function AmbientSection() {
+  const { t } = useTranslation("ai");
+  const prefs = useSettings((s) => s.prefs);
+  const ambient = prefs?.editor?.ambientAi ?? false;
+
+  return (
+    <SettingsSection title={t("settings.ambient.title")} description={t("settings.ambient.desc")}>
+      <SettingRow
+        label={t("settings.ambient.label")}
+        description={t("settings.ambient.hint")}
+        control={
+          <Switch
+            checked={ambient}
+            onChange={(v) => void useSettings.getState().setEditor({ ambientAi: v })}
+            aria-label={t("settings.ambient.aria")}
+          />
+        }
+      />
+    </SettingsSection>
   );
 }
 

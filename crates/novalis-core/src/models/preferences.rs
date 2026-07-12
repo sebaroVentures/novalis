@@ -129,6 +129,11 @@ pub struct EditorPrefs {
     /// Open notes in reading mode (rendered, non-editable) by default.
     #[serde(default = "default_reading_mode")]
     pub default_reading_mode: bool,
+    /// Ambient AI suggestions: after an edit settles, compute link/tag
+    /// suggestions in the background when a provider is configured. Off by
+    /// default — the background calls cost tokens, so it is explicit opt-in.
+    #[serde(default)]
+    pub ambient_ai: bool,
 }
 
 /// Calendar display preferences.
@@ -328,6 +333,7 @@ impl Default for EditorPrefs {
             serialize_ms: default_serialize_ms(),
             spellcheck: default_spellcheck(),
             default_reading_mode: default_reading_mode(),
+            ambient_ai: false,
         }
     }
 }
@@ -417,6 +423,7 @@ mod tests {
         assert_eq!(p.editor.serialize_ms, 200);
         assert!(p.editor.spellcheck);
         assert!(!p.editor.default_reading_mode);
+        assert!(!p.editor.ambient_ai);
         assert_eq!(p.calendar.week_start, "monday");
         assert_eq!(p.calendar.default_event_minutes, 60);
         assert_eq!(p.calendar.time_format, "24h");

@@ -13,6 +13,10 @@
       "title": "Notiz zusammenfassen"
     }
   },
+  "ambient": {
+    "links": "Verknüpfungen",
+    "title": "KI-Vorschläge"
+  },
   "extract": {
     "add_one": "{{count}} Aufgabe hinzufügen",
     "add_other": "{{count}} Aufgaben hinzufügen",
@@ -106,6 +110,13 @@
     "agentic": {
       "hint": "Erlaubt dieser CLI, die Dateien deines Tresors zu lesen und zu bearbeiten, um offene Aufgaben auszuführen. Jeder Lauf wird zuerst in Git committet, sodass du ihn rückgängig machen kannst. Mit Bedacht verwenden.",
       "label": "Agentischer Tresorzugriff"
+    },
+    "ambient": {
+      "aria": "Umgebungs-KI-Vorschläge",
+      "desc": "Schlägt nach einer Schreibpause leise Verknüpfungen zu verwandten Notizen und passende Tags vor. Läuft über die ausgewählte KI-Verbindung und verbraucht daher im Hintergrund Tokens — standardmäßig aus.",
+      "hint": "Läuft im Hintergrund, sobald eine Bearbeitung zur Ruhe kommt, und nur wenn eine KI-Verbindung konfiguriert ist.",
+      "label": "Verknüpfungen und Tags beim Schreiben vorschlagen",
+      "title": "Umgebungsvorschläge"
     },
     "configured": "Schlüssel gespeichert",
     "desc": "Füge API-Schlüssel für Claude, OpenAI und OpenAI-kompatible Dienste (DeepSeek, …) hinzu oder nutze eine lokal installierte Claude-Code- / Codex-CLI. Schlüssel werden im Schlüsselbund deines Betriebssystems gespeichert.",

@@ -85,6 +85,19 @@ const ACTIONS: &[AiActionSpec] = &[
         insert_mode: AiInsertMode::PanelOnly,
         hidden: true,
     },
+    // Internal: proposes `[[wikilinks]]` to OTHER EXISTING notes the current
+    // note should reference, as STRICT JSON. Hidden; the ambient-suggestions UI
+    // invokes it in the background after an edit settles, passing the candidate
+    // notes (titles + aliases) and the note's existing links as `user_input`
+    // (a JSON blob), and renders the accepted proposals as inserted wikilinks.
+    AiActionSpec {
+        id: "suggest-links",
+        title_key: "",
+        input: AiInputKind::Optional,
+        scope: AiScope::WholeNote,
+        insert_mode: AiInsertMode::PanelOnly,
+        hidden: true,
+    },
     // Internal: extracts actionable to-dos from a note body as STRICT JSON.
     // Not a prose action, so it is hidden from the editor menu; the task-extract
     // review UI invokes it, renders the proposals as accept/reject rows, and
@@ -199,6 +212,14 @@ pub fn build_messages(
                 ));
             }
             Ok(suggest_meta_prompt(ctx, &body, user_input))
+        }
+        "suggest-links" => {
+            if body.trim().is_empty() {
+                return Err(CoreError::BadRequest(
+                    "nothing to analyze: the note is empty".into(),
+                ));
+            }
+            Ok(suggest_links_prompt(ctx, &body, user_input))
         }
         "extract-tasks" => {
             if body.trim().is_empty() {
@@ -378,6 +399,48 @@ Output JSON only."
     if let Some(vocab) = user_input.map(str::trim).filter(|s| !s.is_empty()) {
         user.push_str("Known vocabulary and existing metadata (JSON):\n");
         user.push_str(vocab);
+        user.push_str("\n\n");
+    }
+    user.push_str("Note content:\n\n");
+    user.push_str(body);
+
+    BuiltPrompt {
+        system,
+        messages: vec![ChatMessage {
+            role: ChatRole::User,
+            content: user,
+        }],
+    }
+}
+
+fn suggest_links_prompt(ctx: &AiContext, body: &str, user_input: Option<&str>) -> BuiltPrompt {
+    // The candidate list (titles + aliases) and the note's existing links are
+    // passed opaquely as the `user_input` JSON blob (mirrors suggest-meta's
+    // vocabulary). The model must only propose EXISTING notes; the frontend
+    // additionally validates every proposal against the candidate list so a
+    // hallucinated title can never become a link.
+    let system = "You are a linking assistant for a Markdown note app whose notes reference each other with [[wikilinks]]. \
+Analyze the current note and propose links to OTHER EXISTING notes it should reference. \
+Respond with STRICT JSON ONLY — no prose, no explanation, no code fences — matching exactly this shape: \
+{\"links\":[{\"title\":\"Exact Note Title\",\"reason\":\"why it is relevant\"}]}. \
+Rules: propose ONLY notes drawn from the provided candidates list (each candidate has a title and optional aliases); \
+copy the candidate's EXACT title string into \"title\" — never invent a note, alter a title, or propose a note that is not in the candidates list. \
+Propose a link only when the current note genuinely discusses or references that other note's subject; favor precision over recall. \
+Never link the note to itself, and never repeat a link it already has (see existingLinks). \
+Keep \"reason\" to a short phrase. Propose a handful at most; if nothing fits, return an empty array. \
+Output JSON only."
+        .to_string();
+
+    let mut user = String::new();
+    let title = ctx.title.trim();
+    if !title.is_empty() {
+        user.push_str("Note title: ");
+        user.push_str(title);
+        user.push_str("\n\n");
+    }
+    if let Some(cands) = user_input.map(str::trim).filter(|s| !s.is_empty()) {
+        user.push_str("Candidate notes and existing links (JSON):\n");
+        user.push_str(cands);
         user.push_str("\n\n");
     }
     user.push_str("Note content:\n\n");
@@ -683,6 +746,37 @@ mod tests {
     #[test]
     fn suggest_meta_rejects_an_empty_note() {
         let err = build_messages("suggest-meta", &ctx("   ", None), None).unwrap_err();
+        assert!(matches!(err, CoreError::BadRequest(_)));
+    }
+
+    #[test]
+    fn suggest_links_exists_but_is_hidden() {
+        assert!(action("suggest-links").is_some());
+        assert!(!action_views().iter().any(|a| a.id == "suggest-links"));
+    }
+
+    #[test]
+    fn suggest_links_builds_a_prompt_with_body_and_candidates() {
+        let p = build_messages(
+            "suggest-links",
+            &ctx("Kicked off the Apollo launch review today", None),
+            Some(
+                "{\"candidates\":[{\"title\":\"Project Apollo\"}],\"existingLinks\":[\"Roadmap\"]}",
+            ),
+        )
+        .unwrap();
+        assert!(p.system.contains("JSON"));
+        assert!(p.system.contains("[[wikilinks]]"));
+        assert_eq!(p.messages.len(), 1);
+        assert_eq!(p.messages[0].role, ChatRole::User);
+        assert!(p.messages[0].content.contains("Apollo launch review"));
+        assert!(p.messages[0].content.contains("Project Apollo"));
+        assert!(p.messages[0].content.contains("existingLinks"));
+    }
+
+    #[test]
+    fn suggest_links_rejects_an_empty_note() {
+        let err = build_messages("suggest-links", &ctx("   \n ", None), None).unwrap_err();
         assert!(matches!(err, CoreError::BadRequest(_)));
     }
 
