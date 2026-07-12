@@ -25,6 +25,7 @@ import {
   Link2,
   ListTree,
   Loader2,
+  Network,
   Orbit,
   Trash2,
 } from "lucide-react";
@@ -43,6 +44,7 @@ import { AiMetaSuggestions } from "./ai/AiMetaSuggestions";
 import { AmbientSuggestions } from "./ai/AmbientSuggestions";
 import { RewriteReviewBar } from "./ai/RewriteReviewBar";
 import { FindBar } from "./FindBar";
+import { EntitiesPanel } from "./EntitiesPanel";
 import { LinksPanel } from "./LinksPanel";
 import { OutlinePanel } from "./OutlinePanel";
 import { RelatedPanel } from "./RelatedPanel";
@@ -58,25 +60,26 @@ interface RightPanels {
   links: boolean;
   outline: boolean;
   related: boolean;
+  entities: boolean;
 }
 function loadRightPanels(): RightPanels {
   try {
     const v = localStorage.getItem(RIGHT_PANEL_KEY);
     // Back-compat with the old mutually-exclusive string value.
-    if (v === "links") return { links: true, outline: false, related: false };
-    if (v === "outline") return { links: false, outline: true, related: false };
-    if (v === "none") return { links: false, outline: false, related: false };
+    if (v === "links") return { links: true, outline: false, related: false, entities: false };
+    if (v === "outline") return { links: false, outline: true, related: false, entities: false };
+    if (v === "none") return { links: false, outline: false, related: false, entities: false };
     if (v) {
       const p = JSON.parse(v) as Partial<RightPanels>;
-      return { links: !!p.links, outline: !!p.outline, related: !!p.related };
+      return { links: !!p.links, outline: !!p.outline, related: !!p.related, entities: !!p.entities };
     }
     // No stored preference. On a phone the panel is a full-screen overlay, so
     // it must start closed or it would hide the editor on first open; on
     // desktop it opens on linked references beside the editor.
     const phone = window.matchMedia("(max-width: 767px)").matches;
-    return { links: !phone, outline: false, related: false };
+    return { links: !phone, outline: false, related: false, entities: false };
   } catch {
-    return { links: true, outline: false, related: false };
+    return { links: true, outline: false, related: false, entities: false };
   }
 }
 function saveRightPanels(p: RightPanels): void {
@@ -189,9 +192,9 @@ export function EditorPane({ pane }: { pane: Pane }) {
   const [hovered, setHovered] = useState<HoverTarget | null>(null);
   const [tagSuggestions, setTagSuggestions] = useState<string[]>([]);
   const hoverTimer = useRef<number | null>(null);
-  const { t } = useTranslation(["editor", "common", "trash", "versions", "links"]);
+  const { t } = useTranslation(["editor", "common", "trash", "versions", "links", "ai"]);
 
-  const togglePanel = (panel: "links" | "outline" | "related") =>
+  const togglePanel = (panel: "links" | "outline" | "related" | "entities") =>
     setPanels((cur) => {
       const next = { ...cur, [panel]: !cur[panel] };
       saveRightPanels(next);
@@ -820,6 +823,16 @@ export function EditorPane({ pane }: { pane: Pane }) {
             <Orbit size={15} />
           </button>
           <button
+            onClick={() => togglePanel("entities")}
+            title={panels.entities ? t("ai:entities.hide") : t("ai:entities.show")}
+            aria-pressed={panels.entities}
+            className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
+              panels.entities ? "bg-active text-fg" : "text-fg-muted"
+            }`}
+          >
+            <Network size={15} />
+          </button>
+          <button
             onClick={() => setHistoryOpen(true)}
             title={t("versions:open")}
             className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
@@ -1020,7 +1033,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
             }}
           />
         </div>
-        {(panels.links || panels.outline || panels.related) && (
+        {(panels.links || panels.outline || panels.related || panels.entities) && (
           <div
             className={
               isMobile
@@ -1050,6 +1063,12 @@ export function EditorPane({ pane }: { pane: Pane }) {
             )}
             {panels.related && (
               <RelatedPanel path={path} onClose={() => togglePanel("related")} stacked />
+            )}
+            {(panels.outline || panels.links || panels.related) && panels.entities && (
+              <div className="border-t border-border" />
+            )}
+            {panels.entities && (
+              <EntitiesPanel path={path} onClose={() => togglePanel("entities")} stacked />
             )}
           </div>
         )}

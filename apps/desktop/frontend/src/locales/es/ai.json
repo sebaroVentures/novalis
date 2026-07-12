@@ -31,6 +31,32 @@
     "thinking": "Pensando…",
     "title": "Chatea con tu bóveda"
   },
+  "entities": {
+    "back": "Todas las entidades",
+    "empty": "Aún no hay entidades. Extráelas de esta nota.",
+    "emptyMentions": "No se encontraron menciones.",
+    "error": "No se pudieron cargar las entidades.",
+    "everythingAbout": "Todo sobre {{name}}",
+    "extract": "Extraer de esta nota",
+    "extractError": "No se pudieron extraer las entidades.",
+    "extracting": "Extrayendo entidades…",
+    "hide": "Ocultar entidades",
+    "kind": {
+      "org": "Organización",
+      "other": "Entidad",
+      "person": "Persona",
+      "place": "Lugar",
+      "project": "Proyecto"
+    },
+    "mentionCount_one": "{{count}} nota",
+    "mentionCount_other": "{{count}} notas",
+    "notConfigured": "Configura una conexión de IA en Ajustes → IA para extraer entidades.",
+    "refresh": "Actualizar",
+    "scopeAll": "Todas",
+    "scopeNote": "Esta nota",
+    "show": "Mostrar entidades",
+    "title": "Entidades"
+  },
   "extract": {
     "add_one": "Añadir {{count}} tarea",
     "add_other": "Añadir {{count}} tareas",

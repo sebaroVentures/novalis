@@ -299,3 +299,52 @@ pub struct Usage {
     #[serde(default)]
     pub output_tokens: Option<u32>,
 }
+
+/// What kind of thing an extracted entity is. The `extract-entities` action asks
+/// the model for exactly one of these strings; an unknown/missing value maps to
+/// [`EntityKind::Other`] rather than dropping the entity. Serializes lowercase
+/// (`person`, `project`, …), matching the STRICT-JSON `kind` field the model
+/// returns and the value stored in `entities.kind`.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub enum EntityKind {
+    Person,
+    Project,
+    Org,
+    Place,
+    Other,
+}
+
+/// One entity in the local entity graph, with its live mention count — the row
+/// the entities panel lists. `id` is the store's autoincrement key (rendered as
+/// a JS number via the global bigint cast); `aliases` are the alternative
+/// surface forms merged into this entity.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct EntitySummary {
+    pub id: i64,
+    pub name: String,
+    pub kind: EntityKind,
+    /// Case-folded, whitespace-collapsed key the entity is deduped by.
+    pub canonical_name: String,
+    pub aliases: Vec<String>,
+    /// Notes that mention this entity (counting only notes still in the index).
+    pub mention_count: u32,
+}
+
+/// One mention of an entity in a note — a row of the "everything about X" view.
+/// The `snippet` is a passage of the note around the mention (the surrounding
+/// context), with `char_start`/`char_end` its offsets into the note body; when
+/// the entity was inferred rather than found literally, the snippet is empty and
+/// the offsets are `0..0`.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct EntityMention {
+    pub note_path: String,
+    pub note_title: String,
+    /// The surface form that matched in the note (the entity name or an alias).
+    pub surface: String,
+    pub snippet: String,
+    pub char_start: u32,
+    pub char_end: u32,
+}

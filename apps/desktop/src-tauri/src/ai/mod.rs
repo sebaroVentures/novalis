@@ -7,6 +7,7 @@ pub mod anthropic;
 pub mod catalog;
 pub mod cli;
 pub mod commands;
+pub mod entities;
 // Bundled on-device embeddings (desktop only — no prebuilt ONNX Runtime on
 // Android, mirroring the keyring backend in `crate::secrets`).
 #[cfg(not(target_os = "android"))]

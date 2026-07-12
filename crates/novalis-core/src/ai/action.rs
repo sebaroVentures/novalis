@@ -110,6 +110,18 @@ const ACTIONS: &[AiActionSpec] = &[
         insert_mode: AiInsertMode::PanelOnly,
         hidden: true,
     },
+    // Internal: extracts named entities (people / projects / orgs / places) from
+    // a note body as STRICT JSON, for the local entity graph. Not a prose action,
+    // so it is hidden from the editor menu; the entities feature invokes it on
+    // demand, resolves/dedupes the result, and upserts entities + mentions.
+    AiActionSpec {
+        id: "extract-entities",
+        title_key: "",
+        input: AiInputKind::Optional,
+        scope: AiScope::WholeNote,
+        insert_mode: AiInsertMode::PanelOnly,
+        hidden: true,
+    },
     // Internal: turns a deterministic weekly-review digest (crate::review) into
     // a short narrative + proposed carry-over tasks, as STRICT JSON. Hidden; the
     // weekly-review card invokes it with the digest markdown as the note body and
@@ -228,6 +240,14 @@ pub fn build_messages(
                 ));
             }
             Ok(extract_tasks_prompt(ctx, &body))
+        }
+        "extract-entities" => {
+            if body.trim().is_empty() {
+                return Err(CoreError::BadRequest(
+                    "nothing to extract: the note is empty".into(),
+                ));
+            }
+            Ok(extract_entities_prompt(ctx, &body))
         }
         "weekly-review" => {
             if body.trim().is_empty() {
@@ -470,6 +490,42 @@ Include \"project\" ONLY when the note clearly names one, as a lowercase hyphena
 Include \"priority\" ONLY when the note signals importance, as exactly one of: low, medium, high, urgent. \
 Omit any optional field you are not confident about — never guess or invent values. \
 If the note contains no actionable tasks, return []. \
+Output JSON only."
+        .to_string();
+
+    let mut user = String::new();
+    let title = ctx.title.trim();
+    if !title.is_empty() {
+        user.push_str("Note title: ");
+        user.push_str(title);
+        user.push_str("\n\n");
+    }
+    user.push_str("Note content:\n\n");
+    user.push_str(body);
+
+    BuiltPrompt {
+        system,
+        messages: vec![ChatMessage {
+            role: ChatRole::User,
+            content: user,
+        }],
+    }
+}
+
+fn extract_entities_prompt(ctx: &AiContext, body: &str) -> BuiltPrompt {
+    // The `kind` vocabulary is closed and matches `EntityKind`
+    // (index::entities::kind_from_str), so the backend can store every returned
+    // kind verbatim. Claude CLI has no JSON mode, hence the emphatic constraints.
+    let system = "You extract the named entities a note is about, for a personal knowledge graph. \
+Respond with STRICT JSON ONLY — no prose, no explanation, no code fences — a single object matching exactly this shape: \
+{\"entities\":[{\"name\":\"Ada Lovelace\",\"kind\":\"person\",\"aliases\":[\"Ada\"]}]}. \
+Rules: extract ONLY concrete, named real-world entities the note actually discusses — specific people, projects, organizations, and places. \
+\"name\" is required, non-empty, and the entity's full canonical name (e.g. \"Ada Lovelace\", not \"she\"; \"Project Apollo\", not \"the project\"). \
+\"kind\" is required and must be EXACTLY one of: person, project, org, place, other. Use \"org\" for companies/teams/institutions and \"other\" only when none of the first four fit. \
+Include \"aliases\" ONLY for alternative surface forms the SAME entity is genuinely called in this note (nicknames, short names, acronyms) — never invent them; omit the field or use [] when there are none. \
+Do NOT extract generic nouns, dates, quantities, common concepts, or pronouns; favor precision over recall and never guess. \
+Merge duplicates: return each distinct entity once, folding its other surface forms into \"aliases\". \
+If the note names no such entities, return {\"entities\":[]}. \
 Output JSON only."
         .to_string();
 
@@ -805,6 +861,36 @@ mod tests {
     #[test]
     fn extract_tasks_rejects_an_empty_note() {
         let err = build_messages("extract-tasks", &ctx("   \n ", None), None).unwrap_err();
+        assert!(matches!(err, CoreError::BadRequest(_)));
+    }
+
+    #[test]
+    fn extract_entities_exists_but_is_hidden() {
+        assert!(action("extract-entities").is_some());
+        assert!(!action_views().iter().any(|a| a.id == "extract-entities"));
+    }
+
+    #[test]
+    fn extract_entities_builds_a_strict_json_prompt_over_the_note() {
+        let p = build_messages(
+            "extract-entities",
+            &ctx("Bob from Acme kicked off Project Apollo.", None),
+            None,
+        )
+        .unwrap();
+        assert!(p.system.contains("JSON"));
+        assert!(p.system.contains("entities"));
+        // The closed kind vocabulary is spelled out for the model.
+        assert!(p.system.contains("person, project, org, place, other"));
+        assert_eq!(p.messages.len(), 1);
+        assert_eq!(p.messages[0].role, ChatRole::User);
+        assert!(p.messages[0].content.contains("Project Apollo"));
+        assert!(p.messages[0].content.contains("My Note"));
+    }
+
+    #[test]
+    fn extract_entities_rejects_an_empty_note() {
+        let err = build_messages("extract-entities", &ctx("   \n ", None), None).unwrap_err();
         assert!(matches!(err, CoreError::BadRequest(_)));
     }
 

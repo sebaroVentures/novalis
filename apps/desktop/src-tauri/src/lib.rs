@@ -217,6 +217,10 @@ fn specta_builder() -> Builder<tauri::Wry> {
             ai::commands::ai_build_embeddings,
             ai::commands::ai_find_related,
             ai::commands::ai_rag_answer,
+            ai::entities::entities_extract_note,
+            ai::entities::entities_list,
+            ai::entities::entities_for_note,
+            ai::entities::entities_mentions,
         ])
         .events(collect_events![
             ReindexedEvent,
