@@ -182,6 +182,44 @@
     "section": "Plugins"
   },
   "sync": {
+    "p2p": {
+      "desc": "Synchronisiere direkt zwischen deinen eigenen Geräten – ganz ohne Server. Dateiinhalte sind Ende-zu-Ende-verschlüsselt, sodass nur deine gekoppelten Geräte sie lesen können. Eine optionale Alternative zur Git-Synchronisierung.",
+      "error": "Synchronisierung fehlgeschlagen: {{message}}",
+      "outcome": {
+        "conflicts": "{{n}} Datei(en) sind auseinandergelaufen und wurden zur Auflösung in der Konfliktansicht belassen",
+        "noPeers": "Zuerst ein Gerät koppeln",
+        "notConfigured": "Zuerst Peer-to-Peer-Synchronisierung einrichten",
+        "synced": "Synchronisiert – {{taken}} empfangen, {{sent}} gesendet",
+        "unreachable": "Kein gekoppeltes Gerät war erreichbar – versuche es erneut, wenn beide online sind",
+        "upToDate": "Auf dem neuesten Stand"
+      },
+      "pair": {
+        "copied": "Kopiert",
+        "copy": "Code kopieren",
+        "desc": "Erstelle auf einem Gerät einen Code und füge ihn auf dem anderen ein. Wer den Code hat, kann diesen Tresor lesen – teile ihn nur privat.",
+        "generate": "Kopplungscode erstellen",
+        "joinBtn": "Koppeln",
+        "joinLabel": "Hast du einen Code von einem anderen Gerät?",
+        "joinPlaceholder": "Kopplungscode einfügen …",
+        "joined": "Gekoppelt. Nutze „Jetzt synchronisieren“, um Dateien auszutauschen.",
+        "ticketLabel": "Kopplungscode – kopiere ihn auf dein anderes Gerät",
+        "title": "Gerät koppeln"
+      },
+      "peers": {
+        "lastSynced": "zuletzt synchronisiert {{when}}",
+        "never": "nie synchronisiert",
+        "none": "Noch keine gekoppelten Geräte",
+        "title": "Gekoppelte Geräte"
+      },
+      "status": {
+        "notConfigured": "Noch nicht eingerichtet",
+        "offline": "Offline",
+        "online": "Online",
+        "thisDevice": "Dieses Gerät: {{id}}"
+      },
+      "syncNow": "Jetzt synchronisieren",
+      "title": "Peer-to-Peer-Synchronisierung (Ende-zu-Ende-verschlüsselt)"
+    },
     "authorEmail": {
       "desc": "Wird als E-Mail des Commit-Autors eingetragen.",
       "label": "Autor-E-Mail"

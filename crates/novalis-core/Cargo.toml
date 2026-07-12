@@ -27,6 +27,15 @@ rrule = "0.14"
 similar = "2"
 uuid = { workspace = true }
 git2 = { workspace = true }
+# P2P sync (W4.4): pure crypto/framing/pairing logic. `chacha20poly1305`
+# (XChaCha20-Poly1305 AEAD) seals file contents E2E; `postcard` frames the
+# wire protocol; `base64` encodes the pairing ticket. All pure-Rust — no
+# openssl — so they add nothing to the openssl isolation surface. The async
+# `iroh` QUIC transport lives in the desktop shell, not here.
+chacha20poly1305 = "0.10"
+rand = "0.8"
+base64 = "0.22"
+postcard = { version = "1", features = ["use-std"] }
 # Pure-Rust HNSW: the native ANN backing chunk-level semantic retrieval. Chosen
 # over the sqlite-vec vec0 extension so the multi-model/variable-dim vectors that
 # already coexist in one table stay supported, queries run off the engine

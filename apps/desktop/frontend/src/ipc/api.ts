@@ -113,6 +113,13 @@ export const api = {
   gitFinalizeMerge: (resolutions: Parameters<typeof commands.gitFinalizeMerge>[0]) =>
     unwrap(commands.gitFinalizeMerge(resolutions)),
 
+  // P2P E2E sync (W4.4) — opt-in, serverless alternative to git sync.
+  syncStatus: () => unwrap(commands.syncStatus()),
+  // The returned ticket carries the vault key — treat it as a secret.
+  syncGenerateTicket: () => unwrap(commands.syncGenerateTicket()),
+  syncJoin: (ticket: string) => unwrap(commands.syncJoin(ticket)),
+  syncNow: () => unwrap(commands.syncNow()),
+
   // Tasks
   listTasks: (status: "open" | "completed" | "all" = "open") =>
     unwrap(

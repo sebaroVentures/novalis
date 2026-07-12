@@ -286,6 +286,29 @@ export const commands = {
 	 *  network plus checkout work (mirrors `git_sync_now`).
 	 */
 	gitFinalizeMerge: (resolutions: GitResolution[]) => typedError<null, CommandError>(__TAURI_INVOKE("git_finalize_merge", { resolutions })),
+	/**
+	 *  Snapshot of the P2P sync backend for the settings panel: whether it's set
+	 *  up, this device's node id, the paired peers, and whether we're listening.
+	 */
+	syncStatus: () => typedError<SyncStatus, CommandError>(__TAURI_INVOKE("sync_status")),
+	/**
+	 *  Generate a shareable pairing ticket for a second device. Bootstraps the
+	 *  device identity + vault key (kept in the keychain) and brings the endpoint
+	 *  online. The returned string carries the vault key — treat it as a secret and
+	 *  share it out-of-band.
+	 */
+	syncGenerateTicket: () => typedError<string, CommandError>(__TAURI_INVOKE("sync_generate_ticket")),
+	/**
+	 *  Pair this vault with the device that produced `ticket`: store the shared
+	 *  E2E key, record the peer, and come online.
+	 */
+	syncJoin: (ticket: string) => typedError<null, CommandError>(__TAURI_INVOKE("sync_join", { ticket })),
+	/**
+	 *  Run one sync cycle against every paired peer: exchange manifests, transfer
+	 *  the E2E-encrypted changed files, and surface divergences as conflict copies
+	 *  (never a silent merge).
+	 */
+	syncNow: () => typedError<SyncOutcome, CommandError>(__TAURI_INVOKE("sync_now")),
 	listTasks: (query: TaskQuery) => typedError<Task[], CommandError>(__TAURI_INVOKE("list_tasks", { query })),
 	createTask: (req: CreateTaskRequest) => typedError<Task, CommandError>(__TAURI_INVOKE("create_task", { req })),
 	toggleTask: (id: string) => typedError<boolean, CommandError>(__TAURI_INVOKE("toggle_task", { id })),
@@ -1633,6 +1656,74 @@ export type SearchResult = {
 	title: string,
 	snippet: string,
 	score: number | null,
+};
+
+/**
+ *  What one P2P sync cycle did. Mirrors the shape of git's `GitSyncOutcome`:
+ *  counts plus a conflict list the existing conflict UI surfaces.
+ */
+export type SyncOutcome = {
+	kind: SyncOutcomeKind,
+	/**  Files written locally from a peer this cycle. */
+	taken: number,
+	/**  Files sent to a peer this cycle. */
+	sent: number,
+	/**
+	 *  Vault-relative paths that diverged (both sides edited): the peer's
+	 *  version was written as a conflict copy for the existing resolver to
+	 *  surface. Empty on a clean sync.
+	 */
+	conflicts: string[],
+	/**
+	 *  Deletions detected but deliberately NOT propagated in this foundation
+	 *  (see `FileAction::DeletePending`). Surfaced so the boundary is visible.
+	 */
+	unsyncedDeletes: number,
+};
+
+/**
+ *  Externally tagged like `GitSyncKind`: unit variants cross IPC as plain
+ *  strings (`"upToDate"`), so the TS side can `switch` on them.
+ */
+export type SyncOutcomeKind = 
+/**  Sync ran and both peers converged (files may have transferred). */
+"synced" | 
+/**  Nothing to transfer with any peer. */
+"upToDate" | 
+/**  No peers are paired yet. */
+"noPeers" | 
+/**  Sync isn't set up for this vault. */
+"notConfigured" | 
+/**
+ *  A peer was unreachable this cycle (offline / NAT). Non-fatal: the next
+ *  attempt retries.
+ */
+"peerUnreachable";
+
+/**  A paired peer, as shown in the UI. */
+export type SyncPeerInfo = {
+	nodeId: string,
+	label: string,
+	lastSyncedMs: number | null,
+};
+
+/**  Snapshot of the P2P sync backend for the settings panel. */
+export type SyncStatus = {
+	/**
+	 *  Whether sync has been set up for this vault (a device identity + vault
+	 *  key + vault id exist). `false` = the panel shows the "get started" state.
+	 */
+	configured: boolean,
+	/**  This device's node id (hex), once the endpoint exists. */
+	nodeId: string | null,
+	/**  The shared logical vault id, once configured. */
+	vaultId: string | null,
+	/**  Number of paired peer devices. */
+	peerCount: number,
+	/**  Whether the local QUIC endpoint is up and accepting connections. */
+	listening: boolean,
+	/**  Paired peers (non-secret summary). */
+	peers: SyncPeerInfo[],
 };
 
 /**

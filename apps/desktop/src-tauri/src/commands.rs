@@ -18,8 +18,8 @@ use novalis_core::models::{
     FolderNode, FullGraph, GitConflict, GitResolution, GitStatus, GitSyncOutcome, LinkReference,
     MeetingNoteResult, Note, NoteGraph, NotePropertyEntry, NoteRelations, NoteSummary,
     NoteTemplate, PluginInfo, Preferences, PropertyValue, QueryResult, ResolveConflictRequest,
-    RollupOp, RollupResult, SearchResult, TagCount, Task, TaskQuery, UpdateMetaRequest, VaultInfo,
-    VaultStats,
+    RollupOp, RollupResult, SearchResult, SyncOutcome, SyncStatus, TagCount, Task, TaskQuery,
+    UpdateMetaRequest, VaultInfo, VaultStats,
 };
 use novalis_core::review::{self, ReviewDigest};
 use novalis_core::tasks::service as task_svc;
@@ -1186,6 +1186,47 @@ pub async fn git_finalize_merge(app: AppHandle, resolutions: Vec<GitResolution>)
     })
     .await
     .map_err(|e| CommandError::internal(format!("git_finalize_merge task panicked: {e}")))?
+}
+
+// ── P2P sync (W4.4) ─────────────────────────────────────────────────────────
+//
+// A serverless, end-to-end-encrypted sync backend (iroh QUIC) offered as an
+// opt-in ALTERNATIVE to the git sync above — the two never share state. See
+// `crate::sync` and `novalis_core::sync`.
+
+/// Snapshot of the P2P sync backend for the settings panel: whether it's set
+/// up, this device's node id, the paired peers, and whether we're listening.
+#[tauri::command]
+#[specta::specta]
+pub fn sync_status(app: AppHandle) -> CmdResult<SyncStatus> {
+    crate::sync::service::status(&app)
+}
+
+/// Generate a shareable pairing ticket for a second device. Bootstraps the
+/// device identity + vault key (kept in the keychain) and brings the endpoint
+/// online. The returned string carries the vault key — treat it as a secret and
+/// share it out-of-band.
+#[tauri::command]
+#[specta::specta]
+pub async fn sync_generate_ticket(app: AppHandle) -> CmdResult<String> {
+    crate::sync::service::generate_ticket(&app).await
+}
+
+/// Pair this vault with the device that produced `ticket`: store the shared
+/// E2E key, record the peer, and come online.
+#[tauri::command]
+#[specta::specta]
+pub async fn sync_join(app: AppHandle, ticket: String) -> CmdResult<()> {
+    crate::sync::service::join(&app, ticket).await
+}
+
+/// Run one sync cycle against every paired peer: exchange manifests, transfer
+/// the E2E-encrypted changed files, and surface divergences as conflict copies
+/// (never a silent merge).
+#[tauri::command]
+#[specta::specta]
+pub async fn sync_now(app: AppHandle) -> CmdResult<SyncOutcome> {
+    crate::sync::service::sync_now(&app).await
 }
 
 // ── Tasks ────────────────────────────────────────────────────────────────

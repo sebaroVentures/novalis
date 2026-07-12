@@ -16,6 +16,7 @@ mod mobile;
 mod oauth;
 mod secrets;
 mod settings;
+mod sync;
 mod voice;
 #[cfg(desktop)]
 mod watcher;
@@ -171,6 +172,10 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::git_sync_now,
             commands::git_merge_conflicts,
             commands::git_finalize_merge,
+            commands::sync_status,
+            commands::sync_generate_ticket,
+            commands::sync_join,
+            commands::sync_now,
             commands::list_tasks,
             commands::create_task,
             commands::toggle_task,

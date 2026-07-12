@@ -44,11 +44,26 @@ tokio = { version = "1", default-features = false, features = ["sync", "macros",
 novalis-core.workspace = true
 tauri-plugin-log = "2"
 
+[features]
+# Opt-in: a real two-endpoint QUIC loopback sync test (network-touching, relays
+# disabled). Off by default so it never gates fmt/clippy/test. Run with:
+#   cargo test -p novalis-desktop --features p2p-loopback-test p2p_loopback
+p2p-loopback-test = []
+
 [dev-dependencies]
 # Tests only: `net` powers the hand-rolled localhost server that mocks the AI
 # providers' HTTP endpoints; `time` bounds those tests with timeouts. These are
 # feature additions to the tokio dependency above — no new crate.
 tokio = { version = "1", default-features = false, features = ["net", "time"] }
+# Temp vaults for the P2P sync session tests.
+tempfile = "3"
+
+# P2P E2E sync transport (W4.4): iroh QUIC with rustls (`tls-ring` — no
+# openssl). Desktop-only, mirroring the fastembed/keyring split (no prebuilt
+# mobile path in this foundation); the pure crypto/protocol logic lives in
+# novalis-core and IS cross-platform.
+[target.'cfg(not(any(target_os = "android", target_os = "ios")))'.dependencies]
+iroh = "1"
 
 [target.'cfg(target_os = "macos")'.dependencies]
 keyring = { version = "3", features = ["apple-native"] }
