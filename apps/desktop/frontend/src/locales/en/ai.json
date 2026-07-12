@@ -31,6 +31,32 @@
     "thinking": "Thinking…",
     "title": "Chat with your vault"
   },
+  "entities": {
+    "back": "All entities",
+    "empty": "No entities yet. Extract them from this note.",
+    "emptyMentions": "No mentions found.",
+    "error": "Couldn't load entities.",
+    "everythingAbout": "Everything about {{name}}",
+    "extract": "Extract from this note",
+    "extractError": "Couldn't extract entities.",
+    "extracting": "Extracting entities…",
+    "hide": "Hide entities",
+    "kind": {
+      "org": "Organization",
+      "other": "Entity",
+      "person": "Person",
+      "place": "Place",
+      "project": "Project"
+    },
+    "mentionCount_one": "{{count}} note",
+    "mentionCount_other": "{{count}} notes",
+    "notConfigured": "Configure an AI connection in Settings → AI to extract entities.",
+    "refresh": "Refresh",
+    "scopeAll": "All",
+    "scopeNote": "This note",
+    "show": "Show entities",
+    "title": "Entities"
+  },
   "extract": {
     "add_one": "Add {{count}} task",
     "add_other": "Add {{count}} tasks",

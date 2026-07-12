@@ -31,6 +31,32 @@
     "thinking": "Denke nach…",
     "title": "Mit deinem Vault chatten"
   },
+  "entities": {
+    "back": "Alle Entitäten",
+    "empty": "Noch keine Entitäten. Extrahiere sie aus dieser Notiz.",
+    "emptyMentions": "Keine Erwähnungen gefunden.",
+    "error": "Entitäten konnten nicht geladen werden.",
+    "everythingAbout": "Alles über {{name}}",
+    "extract": "Aus dieser Notiz extrahieren",
+    "extractError": "Entitäten konnten nicht extrahiert werden.",
+    "extracting": "Entitäten werden extrahiert…",
+    "hide": "Entitäten ausblenden",
+    "kind": {
+      "org": "Organisation",
+      "other": "Entität",
+      "person": "Person",
+      "place": "Ort",
+      "project": "Projekt"
+    },
+    "mentionCount_one": "{{count}} Notiz",
+    "mentionCount_other": "{{count}} Notizen",
+    "notConfigured": "Richte unter Einstellungen → KI eine KI-Verbindung ein, um Entitäten zu extrahieren.",
+    "refresh": "Aktualisieren",
+    "scopeAll": "Alle",
+    "scopeNote": "Diese Notiz",
+    "show": "Entitäten anzeigen",
+    "title": "Entitäten"
+  },
   "extract": {
     "add_one": "{{count}} Aufgabe hinzufügen",
     "add_other": "{{count}} Aufgaben hinzufügen",

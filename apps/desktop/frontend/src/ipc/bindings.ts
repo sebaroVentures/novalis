@@ -414,6 +414,28 @@ export const commands = {
 	 *  honest "not in your notes" message rather than a hallucinated answer.
 	 */
 	aiRagAnswer: (connectionId: string, question: string) => typedError<RagResponse, CommandError>(__TAURI_INVOKE("ai_rag_answer", { connectionId, question })),
+	/**
+	 *  Extract entities from one note on demand: run the LLM action, parse + resolve
+	 *  + dedupe the result, and upsert the entities and this note's mentions
+	 *  (replacing any prior ones). Returns the note's resulting entity backlinks.
+	 * 
+	 *  Long-running (awaits the whole model reply), like `ai_build_embeddings`; all
+	 *  network + file IO stay off the engine lock, which is taken only for short
+	 *  snapshot/upsert bursts.
+	 */
+	entitiesExtractNote: (connectionId: string, path: string) => typedError<EntitySummary[], CommandError>(__TAURI_INVOKE("entities_extract_note", { connectionId, path })),
+	/**
+	 *  Every entity with at least one live mention, most-mentioned first — the
+	 *  entities-panel list. Index-only, no network.
+	 */
+	entitiesList: () => typedError<EntitySummary[], CommandError>(__TAURI_INVOKE("entities_list")),
+	/**  The entities a note mentions (its entity backlinks). Index-only. */
+	entitiesForNote: (path: string) => typedError<EntitySummary[], CommandError>(__TAURI_INVOKE("entities_for_note", { path })),
+	/**
+	 *  All mentions of one entity across the vault — the "everything about X" view.
+	 *  Index-only, no network.
+	 */
+	entitiesMentions: (entityId: number) => typedError<EntityMention[], CommandError>(__TAURI_INVOKE("entities_mentions", { entityId })),
 };
 
 /** Events */
@@ -822,6 +844,49 @@ export type EmbedStatus = {
  *  never materialize a note on miss.
  */
 export type EmbedTargetKind = "note" | "image" | "missing";
+
+/**
+ *  What kind of thing an extracted entity is. The `extract-entities` action asks
+ *  the model for exactly one of these strings; an unknown/missing value maps to
+ *  [`EntityKind::Other`] rather than dropping the entity. Serializes lowercase
+ *  (`person`, `project`, …), matching the STRICT-JSON `kind` field the model
+ *  returns and the value stored in `entities.kind`.
+ */
+export type EntityKind = "person" | "project" | "org" | "place" | "other";
+
+/**
+ *  One mention of an entity in a note — a row of the "everything about X" view.
+ *  The `snippet` is a passage of the note around the mention (the surrounding
+ *  context), with `char_start`/`char_end` its offsets into the note body; when
+ *  the entity was inferred rather than found literally, the snippet is empty and
+ *  the offsets are `0..0`.
+ */
+export type EntityMention = {
+	notePath: string,
+	noteTitle: string,
+	/**  The surface form that matched in the note (the entity name or an alias). */
+	surface: string,
+	snippet: string,
+	charStart: number,
+	charEnd: number,
+};
+
+/**
+ *  One entity in the local entity graph, with its live mention count — the row
+ *  the entities panel lists. `id` is the store's autoincrement key (rendered as
+ *  a JS number via the global bigint cast); `aliases` are the alternative
+ *  surface forms merged into this entity.
+ */
+export type EntitySummary = {
+	id: number,
+	name: string,
+	kind: EntityKind,
+	/**  Case-folded, whitespace-collapsed key the entity is deduped by. */
+	canonicalName: string,
+	aliases: string[],
+	/**  Notes that mention this entity (counting only notes still in the index). */
+	mentionCount: number,
+};
 
 /**  Request to create/update an own event (written to a markdown note). */
 export type EventInput = {

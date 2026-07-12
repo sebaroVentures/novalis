@@ -51,6 +51,11 @@ pub fn open_db(path: &Path) -> CoreResult<Connection> {
     // absent from `drop_tables`, and carry their own layout version — see
     // `index::vectors`.
     crate::index::vectors::ensure_schema(&conn)?;
+    // The extracted entity graph is expensive (LLM tokens) exactly like the
+    // vectors above, so it lives outside the disposable cache the same way:
+    // its own tables + layout version in `index::entities`, absent from
+    // `drop_tables`, so a `SCHEMA_VERSION` bump preserves it.
+    crate::index::entities::ensure_schema(&conn)?;
 
     Ok(conn)
 }

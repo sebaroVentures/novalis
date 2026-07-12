@@ -229,6 +229,13 @@ export const api = {
   // the shared ai-stream-* events keyed by the returned requestId.
   aiRagAnswer: (connectionId: string, question: string) =>
     unwrap(commands.aiRagAnswer(connectionId, question)),
+  // Entity graph (W3.3): on-demand LLM extraction, then index-only reads.
+  // extractNote runs the model to completion, so it's the only network/token cost.
+  entitiesExtractNote: (connectionId: string, path: string) =>
+    unwrap(commands.entitiesExtractNote(connectionId, path)),
+  entitiesList: () => unwrap(commands.entitiesList()),
+  entitiesForNote: (path: string) => unwrap(commands.entitiesForNote(path)),
+  entitiesMentions: (entityId: number) => unwrap(commands.entitiesMentions(entityId)),
 };
 
 export interface EventDraft {

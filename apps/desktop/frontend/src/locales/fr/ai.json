@@ -31,6 +31,32 @@
     "thinking": "Réflexion…",
     "title": "Discuter avec votre coffre"
   },
+  "entities": {
+    "back": "Toutes les entités",
+    "empty": "Aucune entité pour le moment. Extrayez-les de cette note.",
+    "emptyMentions": "Aucune mention trouvée.",
+    "error": "Impossible de charger les entités.",
+    "everythingAbout": "Tout sur {{name}}",
+    "extract": "Extraire de cette note",
+    "extractError": "Impossible d'extraire les entités.",
+    "extracting": "Extraction des entités…",
+    "hide": "Masquer les entités",
+    "kind": {
+      "org": "Organisation",
+      "other": "Entité",
+      "person": "Personne",
+      "place": "Lieu",
+      "project": "Projet"
+    },
+    "mentionCount_one": "{{count}} note",
+    "mentionCount_other": "{{count}} notes",
+    "notConfigured": "Configurez une connexion IA dans Paramètres → IA pour extraire les entités.",
+    "refresh": "Actualiser",
+    "scopeAll": "Toutes",
+    "scopeNote": "Cette note",
+    "show": "Afficher les entités",
+    "title": "Entités"
+  },
   "extract": {
     "add_one": "Ajouter {{count}} tâche",
     "add_other": "Ajouter {{count}} tâches",
