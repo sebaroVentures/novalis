@@ -156,6 +156,21 @@ export const api = {
   savePastedImage: (bytes: number[], ext: string) =>
     unwrap(commands.savePastedImage(bytes, ext)),
 
+  // PDF viewing + highlight annotations (portable sidecar; no DB)
+  listPdfs: () => unwrap(commands.listPdfs()),
+  readPdfAnnotations: (pdfPath: string) => unwrap(commands.readPdfAnnotations(pdfPath)),
+  writePdfAnnotations: (
+    pdfPath: string,
+    annotations: Parameters<typeof commands.writePdfAnnotations>[1],
+  ) => unwrap(commands.writePdfAnnotations(pdfPath, annotations)),
+  // Appends the highlight's quote + back-link to a note (creating it if needed);
+  // targetNote null files it into the PDF's default "<stem> Highlights.md".
+  linkHighlightToNote: (
+    pdfPath: string,
+    highlight: Parameters<typeof commands.linkHighlightToNote>[1],
+    targetNote: string | null,
+  ) => unwrap(commands.linkHighlightToNote(pdfPath, highlight, targetNote)),
+
   // Calendar
   listEvents: (start: string, end: string) => unwrap(commands.listEvents(start, end)),
   getAgenda: (start: string, end: string) => unwrap(commands.getAgenda(start, end)),

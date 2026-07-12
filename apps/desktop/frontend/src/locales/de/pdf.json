@@ -1,0 +1,38 @@
+{
+  "openPdf": "PDF öffnen…",
+  "picker": {
+    "title": "PDF öffnen",
+    "placeholder": "PDFs durchsuchen…",
+    "empty": "Keine PDFs in diesem Tresor",
+    "count_one": "{{count}} Markierung",
+    "count_other": "{{count}} Markierungen"
+  },
+  "viewer": {
+    "loading": "PDF wird geladen…",
+    "error": "Dieses PDF konnte nicht geöffnet werden.",
+    "close": "Schließen",
+    "zoomIn": "Vergrößern",
+    "zoomOut": "Verkleinern",
+    "pageOf": "{{page}} / {{total}}",
+    "togglePanel": "Markierungen",
+    "highlight": "Markieren"
+  },
+  "panel": {
+    "title": "Markierungen",
+    "empty": "Text im PDF auswählen und auf „Markieren“ klicken, um ihn zu annotieren.",
+    "jump": "Zur Markierung springen",
+    "copyLink": "Link kopieren",
+    "copyQuote": "Zitat kopieren",
+    "addToNote": "Zur Notiz hinzufügen",
+    "linkToNote": "Mit Notiz verknüpfen…",
+    "delete": "Löschen",
+    "addNote": "Notiz hinzufügen",
+    "notePlaceholder": "Deine Notiz…",
+    "save": "Speichern",
+    "cancel": "Abbrechen",
+    "linkedTo": "Verknüpft mit",
+    "copied": "In die Zwischenablage kopiert",
+    "linkedToast": "Zu {{note}} hinzugefügt",
+    "linkPickerTitle": "Markierung mit Notiz verknüpfen"
+  }
+}

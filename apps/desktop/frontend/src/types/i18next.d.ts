@@ -9,6 +9,7 @@ import conflict from "../locales/en/conflict.json";
 import editor from "../locales/en/editor.json";
 import links from "../locales/en/links.json";
 import onboarding from "../locales/en/onboarding.json";
+import pdf from "../locales/en/pdf.json";
 import settings from "../locales/en/settings.json";
 import sidebar from "../locales/en/sidebar.json";
 import tasks from "../locales/en/tasks.json";
@@ -35,6 +36,7 @@ declare module "i18next" {
       conflict: typeof conflict;
       versions: typeof versions;
       links: typeof links;
+      pdf: typeof pdf;
     };
   }
 }

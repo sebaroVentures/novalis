@@ -311,6 +311,21 @@ export const commands = {
 	 *  vault-relative path for embedding as `![](...)`.
 	 */
 	savePastedImage: (bytes: number[], ext: string) => typedError<string, CommandError>(__TAURI_INVOKE("save_pasted_image", { bytes, ext })),
+	/**  List the PDFs in the vault for the "Open PDF" picker (index-free filesystem walk). */
+	listPdfs: () => typedError<PdfSummary[], CommandError>(__TAURI_INVOKE("list_pdfs")),
+	/**  Read a PDF's sidecar annotations. A missing sidecar reads as empty. */
+	readPdfAnnotations: (pdfPath: string) => typedError<PdfAnnotations, CommandError>(__TAURI_INVOKE("read_pdf_annotations", { pdfPath })),
+	/**
+	 *  Write a PDF's sidecar annotations (atomic; an empty set deletes the sidecar).
+	 *  The sidecar is an app-initiated write — suppress the watcher echo.
+	 */
+	writePdfAnnotations: (pdfPath: string, annotations: PdfAnnotations) => typedError<null, CommandError>(__TAURI_INVOKE("write_pdf_annotations", { pdfPath, annotations })),
+	/**
+	 *  Append a highlight (quote + back-link) to a note, creating it when needed.
+	 *  `target_note` is a vault-relative `.md` path; `None` files it into the PDF's
+	 *  default `<stem> Highlights.md`. Returns the target note's path.
+	 */
+	linkHighlightToNote: (pdfPath: string, highlight: PdfHighlight, targetNote: string | null) => typedError<string, CommandError>(__TAURI_INVOKE("link_highlight_to_note", { pdfPath, highlight, targetNote })),
 	listEvents: (rangeStart: string, rangeEnd: string) => typedError<CalendarEvent[], CommandError>(__TAURI_INVOKE("list_events", { rangeStart, rangeEnd })),
 	createEvent: (input: EventInput) => typedError<CalendarEvent, CommandError>(__TAURI_INVOKE("create_event", { input })),
 	updateEvent: (input: EventInput) => typedError<CalendarEvent, CommandError>(__TAURI_INVOKE("update_event", { input })),
@@ -1303,6 +1318,60 @@ export type NoteTemplate = {
 	description: string,
 	content: string,
 	created: string,
+};
+
+/**  The full sidecar document for one PDF. */
+export type PdfAnnotations = {
+	version: number,
+	highlights: PdfHighlight[],
+};
+
+/**  A single text highlight on one page of a PDF. */
+export type PdfHighlight = {
+	/**  Stable id (uuid) — the fragment a note back-link points at (`#hl=<id>`). */
+	id: string,
+	/**  1-based page number. */
+	page: number,
+	/**  Palette token (e.g. `"yellow"`), resolved to a color by the frontend. */
+	color: string,
+	/**  The selected/quoted text. */
+	text: string,
+	/**  Optional user annotation attached to the highlight. */
+	note?: string | null,
+	/**
+	 *  One or more rectangles covering the selection (multi-line selections
+	 *  produce several), in normalized page coordinates.
+	 */
+	rects: PdfRect[],
+	/**
+	 *  Vault-relative paths of notes this highlight has been linked into, so the
+	 *  side panel can show "linked to …" and open them. Kept in sync by the
+	 *  frontend after a successful [`link_highlight_to_note`].
+	 */
+	linkedNotes?: string[],
+	/**  RFC 3339 creation timestamp. */
+	created: string,
+};
+
+/**
+ *  One rectangle of a highlight, in **normalized page coordinates** (0..1 of the
+ *  page's width/height, origin top-left). Normalizing makes a highlight
+ *  resolution- and zoom-independent, so it re-projects onto any render scale.
+ */
+export type PdfRect = {
+	x: number | null,
+	y: number | null,
+	width: number | null,
+	height: number | null,
+};
+
+/**  Lightweight metadata for a PDF in the vault (the "Open PDF" picker). */
+export type PdfSummary = {
+	path: string,
+	name: string,
+	folder: string,
+	modified: string,
+	highlightCount: number,
 };
 
 /**  A discovered plugin plus whether it is enabled. */

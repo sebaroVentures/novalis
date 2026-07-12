@@ -10,6 +10,7 @@ import { type ActionId, formatChord } from "../lib/keybindings";
 import { localWeekRange } from "../lib/weeklyReview";
 import { useAi } from "../stores/aiStore";
 import { useKeymap } from "../stores/keymapStore";
+import { usePdf } from "../stores/pdfStore";
 import { usePlugins } from "../stores/pluginStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
@@ -25,7 +26,7 @@ interface Command {
 }
 
 export function CommandPalette({ open, onClose }: { open: boolean; onClose: () => void }) {
-  const { t } = useTranslation(["vault", "common", "today"]);
+  const { t } = useTranslation(["vault", "common", "today", "pdf"]);
   const [query, setQuery] = useState("");
   const [selected, setSelected] = useState(0);
   const [templates, setTemplates] = useState<NoteTemplate[]>([]);
@@ -102,6 +103,7 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
     ),
     builtin("today-note", t("today:openTodaysNote"), null, openTodaysNote),
+    builtin("open-pdf", t("pdf:openPdf"), null, () => usePdf.getState().openPicker()),
     builtin("reindex", t("cmdReindex"), null, () => void api.reindexVault()),
     builtin("reveal-in-fm", t("cmdRevealInFm"), null, () => {
       const p = useVault.getState().activeNote?.path;

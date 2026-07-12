@@ -28,6 +28,9 @@ export default defineConfig({
         manualChunks(id) {
           if (id.includes("/katex/")) return "katex";
           if (id.includes("/mermaid/")) return "mermaid";
+          // pdf.js loads only with the lazy PDF viewer — keep it (and its
+          // worker/text-layer code) out of the main bundle.
+          if (id.includes("/pdfjs-dist/")) return "pdfjs";
           // d3-force + its own deps load with the lazy Graph view only.
           // Scoped to exactly these packages — a bare `d3-` prefix would also
           // capture mermaid's d3 modules into this chunk.

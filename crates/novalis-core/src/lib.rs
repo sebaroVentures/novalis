@@ -16,6 +16,7 @@ pub mod index;
 pub mod media;
 pub mod models;
 pub mod notes;
+pub mod pdf;
 pub mod plugins;
 pub mod review;
 pub mod tasks;

@@ -15,6 +15,7 @@ import { CommandPalette } from "./components/CommandPalette";
 import { ConflictModal } from "./components/ConflictModal";
 import { MergeConflictModal } from "./components/MergeConflictModal";
 import { Onboarding } from "./components/Onboarding";
+import { PdfPicker } from "./components/PdfPicker";
 import { QueryView } from "./components/QueryView";
 import { SearchModal } from "./components/SearchModal";
 import { SettingsModal } from "./components/settings/SettingsModal";
@@ -29,6 +30,9 @@ import { WorkspaceLayout } from "./components/WorkspaceLayout";
 // Lazy: the Graph view pulls in d3-force, which stays out of the main bundle
 // (the vite manualChunks rule keeps it in its own `d3-force` chunk).
 const GraphView = lazy(() => import("./components/GraphView"));
+// Lazy: the PDF viewer pulls in pdfjs-dist (+ its worker), kept out of the main
+// bundle by the manualChunks `pdfjs` rule — loaded only when a PDF is opened.
+const PdfViewer = lazy(() => import("./components/PdfViewer"));
 import { applyAppearance, watchSystemTheme } from "./lib/appearance";
 import { applyLanguage } from "./lib/i18n";
 import { actionForEvent } from "./lib/keybindings";
@@ -46,6 +50,7 @@ import { useAiEvents } from "./lib/useAiEvents";
 import { useNovalisEvents } from "./lib/useNovalisEvents";
 import { useConflicts } from "./stores/conflictStore";
 import { useKeymap } from "./stores/keymapStore";
+import { usePdf } from "./stores/pdfStore";
 import { usePlugins } from "./stores/pluginStore";
 import { useSettings } from "./stores/settingsStore";
 import { useUi } from "./stores/uiStore";
@@ -82,6 +87,7 @@ export default function App() {
   const conflicts = useConflicts((s) => s.conflicts);
   const [notice, setNotice] = useState<string | null>(null);
   const onboardingDone = useUi((s) => s.onboardingDone);
+  const pdfPath = usePdf((s) => s.path);
   const initialViewVault = useRef<string | null>(null);
   const { t } = useTranslation(["common", "conflict"]);
 
@@ -394,6 +400,14 @@ export default function App() {
       {/* Meeting-note → task extraction review — store-driven open (sibling of
           MergeConflictModal above), opened from the editor AI menu / palette. */}
       <TaskExtractReview />
+      {/* Native PDF viewing + annotate + link (W4.2): store-driven picker + a
+          lazy full-screen viewer overlay (pdfjs-dist loads only on open). */}
+      <PdfPicker />
+      {pdfPath && (
+        <Suspense fallback={null}>
+          <PdfViewer />
+        </Suspense>
+      )}
       {/* AI weekly review — narrative + carry-over proposals over the current
           week's deterministic digest, opened from the command palette. */}
       <WeeklyReviewCard />
