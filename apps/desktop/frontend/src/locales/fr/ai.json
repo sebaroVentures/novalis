@@ -204,5 +204,17 @@
       "ok": "La connexion fonctionne"
     },
     "title": "Connexions IA"
+  },
+  "voice": {
+    "record": "Enregistrer la réunion",
+    "recording": "Enregistrement…",
+    "stop": "Arrêter et transcrire",
+    "cancel": "Annuler",
+    "transcribing": "Transcription sur l'appareil…",
+    "tooltip": "Enregistrer une réunion et extraire les tâches (sur l'appareil)",
+    "noSpeech": "Aucune parole détectée dans l'enregistrement.",
+    "error": "Échec de l'enregistrement.",
+    "unavailable": "La capture vocale n'est pas disponible sur cette plateforme.",
+    "saved": "Transcription enregistrée dans {{path}}"
   }
 }

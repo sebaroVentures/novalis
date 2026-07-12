@@ -204,5 +204,17 @@
       "ok": "Verbindung funktioniert"
     },
     "title": "KI-Verbindungen"
+  },
+  "voice": {
+    "record": "Meeting aufnehmen",
+    "recording": "Aufnahme läuft…",
+    "stop": "Stopp & transkribieren",
+    "cancel": "Abbrechen",
+    "transcribing": "Transkription auf dem Gerät…",
+    "tooltip": "Ein Meeting aufnehmen und Aufgaben extrahieren (auf dem Gerät)",
+    "noSpeech": "In der Aufnahme wurde keine Sprache erkannt.",
+    "error": "Aufnahme fehlgeschlagen.",
+    "unavailable": "Sprachaufnahme ist auf dieser Plattform nicht verfügbar.",
+    "saved": "Transkript gespeichert unter {{path}}"
   }
 }

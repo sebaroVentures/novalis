@@ -16,6 +16,7 @@ mod mobile;
 mod oauth;
 mod secrets;
 mod settings;
+mod voice;
 #[cfg(desktop)]
 mod watcher;
 
@@ -221,6 +222,10 @@ fn specta_builder() -> Builder<tauri::Wry> {
             ai::entities::entities_list,
             ai::entities::entities_for_note,
             ai::entities::entities_mentions,
+            voice::commands::voice_capabilities,
+            voice::commands::voice_start_recording,
+            voice::commands::voice_stop_recording,
+            voice::commands::voice_transcribe,
         ])
         .events(collect_events![
             ReindexedEvent,

@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- Merged by Tauri into the macOS app bundle (and the `tauri dev` binary).
+     NSMicrophoneUsageDescription is REQUIRED for the W4.3 voice-capture feature:
+     without it macOS TCC denies microphone access outright instead of prompting. -->
+<plist version="1.0">
+<dict>
+	<key>NSMicrophoneUsageDescription</key>
+	<string>Novalis records your microphone to transcribe meetings and voice notes on-device.</string>
+</dict>
+</plist>

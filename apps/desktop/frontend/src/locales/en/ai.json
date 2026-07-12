@@ -204,5 +204,17 @@
       "ok": "Connection works"
     },
     "title": "AI connections"
+  },
+  "voice": {
+    "record": "Record meeting",
+    "recording": "Recording…",
+    "stop": "Stop & transcribe",
+    "cancel": "Cancel",
+    "transcribing": "Transcribing on-device…",
+    "tooltip": "Record a meeting and extract tasks (on-device)",
+    "noSpeech": "No speech was detected in the recording.",
+    "error": "Recording failed.",
+    "unavailable": "Voice capture isn't available on this platform.",
+    "saved": "Transcript saved to {{path}}"
   }
 }

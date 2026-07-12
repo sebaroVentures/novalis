@@ -242,6 +242,15 @@ export const api = {
   entitiesList: () => unwrap(commands.entitiesList()),
   entitiesForNote: (path: string) => unwrap(commands.entitiesForNote(path)),
   entitiesMentions: (entityId: number) => unwrap(commands.entitiesMentions(entityId)),
+
+  // Native voice/meeting capture (W4.3): mic capture + on-device whisper
+  // transcription. Desktop-only; `voiceCapabilities().available` is false on
+  // mobile. `voiceTranscribe` may download the model on first use, so it can be
+  // slow — it runs off the async runtime on the backend.
+  voiceCapabilities: () => commands.voiceCapabilities(),
+  voiceStartRecording: () => unwrap(commands.voiceStartRecording()),
+  voiceStopRecording: () => unwrap(commands.voiceStopRecording()),
+  voiceTranscribe: (wavPath: string) => unwrap(commands.voiceTranscribe(wavPath)),
 };
 
 export interface EventDraft {

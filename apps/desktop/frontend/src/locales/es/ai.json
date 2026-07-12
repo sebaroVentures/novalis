@@ -204,5 +204,17 @@
       "ok": "La conexión funciona"
     },
     "title": "Conexiones de IA"
+  },
+  "voice": {
+    "record": "Grabar reunión",
+    "recording": "Grabando…",
+    "stop": "Detener y transcribir",
+    "cancel": "Cancelar",
+    "transcribing": "Transcribiendo en el dispositivo…",
+    "tooltip": "Graba una reunión y extrae tareas (en el dispositivo)",
+    "noSpeech": "No se detectó voz en la grabación.",
+    "error": "La grabación falló.",
+    "unavailable": "La captura de voz no está disponible en esta plataforma.",
+    "saved": "Transcripción guardada en {{path}}"
   }
 }

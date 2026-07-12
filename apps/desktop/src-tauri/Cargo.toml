@@ -72,3 +72,15 @@ fastembed = { version = "5", default-features = false, features = [
     "hf-hub-rustls-tls",
     "ort-download-binaries-rustls-tls",
 ] }
+# Native voice/meeting capture (feature W4.3): `cpal` reaches the OS microphone
+# (CoreAudio/WASAPI/ALSA — the wedge a browser-sandboxed plugin can't touch),
+# `hound` encodes/decodes the captured WAV, and `whisper-rs` runs whisper.cpp
+# on-device for privacy-first, fully-offline transcription. Default (CPU-only)
+# whisper-rs features — no CUDA/Metal/openssl — keeping the app openssl-free and
+# portable; whisper.cpp is compiled from the vendored source at build time
+# (needs cmake + a C/C++ toolchain), and the model weights download on first use
+# and cache under the app-data dir (see `voice::transcribe`). Excluded on Android
+# (no mic-capture story yet), mirroring the fastembed/keyring desktop-only split.
+cpal = "0.18"
+hound = "3"
+whisper-rs = "0.16"

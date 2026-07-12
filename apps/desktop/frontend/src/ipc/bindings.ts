@@ -465,6 +465,20 @@ export const commands = {
 	 *  Index-only, no network.
 	 */
 	entitiesMentions: (entityId: number) => typedError<EntityMention[], CommandError>(__TAURI_INVOKE("entities_mentions", { entityId })),
+	/**  Report whether voice capture works here (false on mobile). */
+	voiceCapabilities: () => __TAURI_INVOKE<VoiceCapabilities>("voice_capabilities"),
+	/**
+	 *  Start capturing the default microphone. Fails loudly when no input device is
+	 *  available or the OS denies mic access.
+	 */
+	voiceStartRecording: () => typedError<null, CommandError>(__TAURI_INVOKE("voice_start_recording")),
+	/**  Stop capturing and finalize the recording as a WAV under `app-data/voice/`. */
+	voiceStopRecording: () => typedError<VoiceRecording, CommandError>(__TAURI_INVOKE("voice_stop_recording")),
+	/**
+	 *  Transcribe a recorded WAV on-device. Downloads + caches the whisper model on
+	 *  first use; runs off the async runtime (whisper is CPU-bound and blocking).
+	 */
+	voiceTranscribe: (wavPath: string) => typedError<string, CommandError>(__TAURI_INVOKE("voice_transcribe", { wavPath })),
 };
 
 /** Events */
@@ -1661,6 +1675,24 @@ export type VersionMeta = {
 	createdAt: string,
 	/**  Byte size of the snapshot content. */
 	size: number,
+};
+
+/**
+ *  Whether native capture + transcription is available on this platform, and the
+ *  model it uses (so the capture UI can hint at the first-use model download).
+ */
+export type VoiceCapabilities = {
+	available: boolean,
+	model: string,
+};
+
+/**
+ *  A finalized recording: a 16 kHz mono WAV under the app-data dir, plus its
+ *  duration. Ready to hand to [`voice_transcribe`].
+ */
+export type VoiceRecording = {
+	path: string,
+	durationSecs: number | null,
 };
 
 /* Tauri Specta runtime */
