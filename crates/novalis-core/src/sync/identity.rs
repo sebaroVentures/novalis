@@ -50,9 +50,9 @@ impl DeviceIdentity {
     /// Parse a hex-encoded seed produced by [`DeviceIdentity::to_hex`].
     pub fn from_hex(hex: &str) -> CoreResult<Self> {
         let bytes = decode_hex(hex)?;
-        let seed: [u8; SEED_LEN] = bytes.try_into().map_err(|_| {
-            CoreError::BadRequest("sync: device seed must be 32 bytes".to_string())
-        })?;
+        let seed: [u8; SEED_LEN] = bytes
+            .try_into()
+            .map_err(|_| CoreError::BadRequest("sync: device seed must be 32 bytes".to_string()))?;
         Ok(DeviceIdentity(seed))
     }
 }
@@ -60,7 +60,7 @@ impl DeviceIdentity {
 /// Decode an even-length lowercase/uppercase hex string to bytes.
 fn decode_hex(hex: &str) -> CoreResult<Vec<u8>> {
     let hex = hex.trim();
-    if hex.len() % 2 != 0 {
+    if !hex.len().is_multiple_of(2) {
         return Err(CoreError::BadRequest(
             "sync: hex string has odd length".to_string(),
         ));

@@ -1,9 +1,16 @@
 import { useCallback, useEffect, useState } from "react";
 
-import { GitCommitHorizontal, Loader2, RefreshCw } from "lucide-react";
+import { Copy, GitCommitHorizontal, Loader2, RefreshCw } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { api, type GitStatus, type GitSyncKind, type GitSyncOutcome } from "../../../ipc/api";
+import {
+  api,
+  type GitStatus,
+  type GitSyncKind,
+  type GitSyncOutcome,
+  type SyncOutcome,
+  type SyncStatus,
+} from "../../../ipc/api";
 import { useGitConflicts } from "../../../stores/gitConflictStore";
 import { resolveGitPrefs, useSettings } from "../../../stores/settingsStore";
 import { NumberField, SettingRow, SettingsSection, Switch, TextField } from "../../ui";
@@ -331,7 +338,231 @@ export function SyncPanel() {
           <p className="pt-2 text-xs text-danger">{t("sync.repo.commitFailed", { message: error })}</p>
         )}
       </SettingsSection>
+
+      <P2PSyncSection />
     </>
+  );
+}
+
+// i18next-parser only scans static t() literals; the P2P outcome message
+// resolves at runtime via t(P2P_OUTCOME[kind]), so list the keys to keep them.
+// t("settings:sync.p2p.outcome.synced")
+// t("settings:sync.p2p.outcome.upToDate")
+// t("settings:sync.p2p.outcome.noPeers")
+// t("settings:sync.p2p.outcome.notConfigured")
+// t("settings:sync.p2p.outcome.unreachable")
+const P2P_OUTCOME = {
+  synced: "sync.p2p.outcome.synced",
+  upToDate: "sync.p2p.outcome.upToDate",
+  noPeers: "sync.p2p.outcome.noPeers",
+  notConfigured: "sync.p2p.outcome.notConfigured",
+  peerUnreachable: "sync.p2p.outcome.unreachable",
+} as const satisfies Record<SyncOutcome["kind"], string>;
+
+/**
+ * W4.4 peer-to-peer, end-to-end-encrypted sync: an opt-in alternative to the
+ * Git backend above. The frontend is thin — the backend owns identity, crypto,
+ * pairing and transport; this panel drives generate-ticket / join / sync-now
+ * and surfaces status. Divergences land as conflict copies handled by the
+ * existing conflict resolver, so there is no bespoke merge UI here.
+ */
+function P2PSyncSection() {
+  const { t, i18n } = useTranslation("settings");
+  const [status, setStatus] = useState<SyncStatus | null>(null);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [ticket, setTicket] = useState<string | null>(null);
+  const [copied, setCopied] = useState(false);
+  const [joinDraft, setJoinDraft] = useState("");
+  const [outcome, setOutcome] = useState<SyncOutcome | null>(null);
+
+  const refresh = useCallback(async () => {
+    try {
+      setStatus(await api.syncStatus());
+    } catch {
+      setStatus(null);
+    }
+  }, []);
+
+  useEffect(() => {
+    void refresh();
+    const id = setInterval(() => void refresh(), 5000);
+    return () => clearInterval(id);
+  }, [refresh]);
+
+  const run = async (op: () => Promise<void>) => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await op();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const generate = () =>
+    run(async () => {
+      setTicket(await api.syncGenerateTicket());
+      setCopied(false);
+      await refresh();
+    });
+
+  const copyTicket = async () => {
+    if (!ticket) return;
+    try {
+      await navigator.clipboard.writeText(ticket);
+      setCopied(true);
+    } catch {
+      // Clipboard denied — the code is visible for a manual copy.
+    }
+  };
+
+  const join = () =>
+    run(async () => {
+      const code = joinDraft.trim();
+      if (!code) return;
+      await api.syncJoin(code);
+      setJoinDraft("");
+      await refresh();
+    });
+
+  const syncNow = () =>
+    run(async () => {
+      setOutcome(null);
+      setOutcome(await api.syncNow());
+      await refresh();
+    });
+
+  const online = status?.listening ?? false;
+  const shortId = status?.nodeId ? status.nodeId.slice(0, 8) : null;
+  const peers = status?.peers ?? [];
+
+  const outcomeText = outcome
+    ? t(P2P_OUTCOME[outcome.kind], { taken: outcome.taken, sent: outcome.sent })
+    : null;
+
+  return (
+    <SettingsSection title={t("sync.p2p.title")} description={t("sync.p2p.desc")}>
+      <SettingRow
+        label={
+          online ? t("sync.p2p.status.online") : t("sync.p2p.status.offline")
+        }
+        description={
+          shortId
+            ? t("sync.p2p.status.thisDevice", { id: shortId })
+            : t("sync.p2p.status.notConfigured")
+        }
+        control={
+          <button
+            type="button"
+            onClick={() => void syncNow()}
+            disabled={busy || peers.length === 0}
+            className="flex items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            {t("sync.p2p.syncNow")}
+          </button>
+        }
+      />
+
+      <SettingRow
+        label={t("sync.p2p.pair.title")}
+        description={t("sync.p2p.pair.desc")}
+        control={
+          <button
+            type="button"
+            onClick={() => void generate()}
+            disabled={busy}
+            className="rounded-md bg-accent px-2.5 py-1.5 text-xs font-medium text-accent-fg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+          >
+            {t("sync.p2p.pair.generate")}
+          </button>
+        }
+      />
+
+      {ticket && (
+        <div className="pt-1">
+          <label className="mb-1 block text-xs text-fg-muted">
+            {t("sync.p2p.pair.ticketLabel")}
+          </label>
+          <div className="flex items-start gap-1.5">
+            <textarea
+              readOnly
+              value={ticket}
+              rows={3}
+              onFocus={(e) => e.currentTarget.select()}
+              className="w-full resize-none rounded-md border border-border bg-surface px-2 py-1.5 font-mono text-[11px] text-fg"
+            />
+            <button
+              type="button"
+              onClick={() => void copyTicket()}
+              className="flex shrink-0 items-center gap-1 rounded-md border border-border px-2 py-1.5 text-xs text-fg transition-colors hover:bg-hover"
+            >
+              <Copy size={13} />
+              {copied ? t("sync.p2p.pair.copied") : t("sync.p2p.pair.copy")}
+            </button>
+          </div>
+        </div>
+      )}
+
+      <SettingRow
+        label={t("sync.p2p.pair.joinLabel")}
+        control={
+          <span className="flex items-center gap-1.5">
+            <TextField
+              value={joinDraft}
+              placeholder={t("sync.p2p.pair.joinPlaceholder")}
+              onChange={(e) => setJoinDraft(e.target.value)}
+              className="w-56"
+            />
+            <button
+              type="button"
+              onClick={() => void join()}
+              disabled={busy || joinDraft.trim() === ""}
+              className="rounded-md bg-accent px-2.5 py-1.5 text-xs font-medium text-accent-fg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {t("sync.p2p.pair.joinBtn")}
+            </button>
+          </span>
+        }
+      />
+
+      <SettingRow
+        label={t("sync.p2p.peers.title")}
+        control={
+          <span className="text-sm text-fg-muted">
+            {peers.length === 0 ? t("sync.p2p.peers.none") : peers.length}
+          </span>
+        }
+      />
+      {peers.length > 0 && (
+        <ul className="space-y-1 pt-1 text-xs">
+          {peers.map((p) => (
+            <li key={p.nodeId} className="flex items-center justify-between gap-2">
+              <span className="font-mono text-fg">{p.label}</span>
+              <span className="text-fg-muted">
+                {p.lastSyncedMs
+                  ? t("sync.p2p.peers.lastSynced", {
+                      when: new Date(p.lastSyncedMs).toLocaleString(i18n.language),
+                    })
+                  : t("sync.p2p.peers.never")}
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {outcomeText && <p className="pt-2 text-xs text-fg-muted">{outcomeText}</p>}
+      {outcome && outcome.conflicts.length > 0 && (
+        <p className="pt-1 text-xs text-danger">
+          {t("sync.p2p.outcome.conflicts", { n: outcome.conflicts.length })}
+        </p>
+      )}
+      {error && <p className="pt-2 text-xs text-danger">{t("sync.p2p.error", { message: error })}</p>}
+    </SettingsSection>
   );
 }
 

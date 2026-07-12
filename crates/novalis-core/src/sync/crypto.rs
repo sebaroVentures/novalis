@@ -94,7 +94,12 @@ mod tests {
     #[test]
     fn round_trips_arbitrary_bytes() {
         let key = VaultKey::generate();
-        for body in [&b""[..], b"hello", &[0u8; 4096][..], "# Note\n\ncontent".as_bytes()] {
+        for body in [
+            &b""[..],
+            b"hello",
+            &[0u8; 4096][..],
+            "# Note\n\ncontent".as_bytes(),
+        ] {
             let sealed = key.seal(body).unwrap();
             assert_eq!(key.open(&sealed).unwrap(), body);
         }
@@ -105,11 +110,12 @@ mod tests {
         let key = VaultKey::generate();
         let body = b"secret note body";
         let sealed = key.seal(body).unwrap();
-        assert!(sealed.len() > NONCE_LEN + body.len(), "must carry nonce + tag");
         assert!(
-            !sealed
-                .windows(body.len())
-                .any(|w| w == body),
+            sealed.len() > NONCE_LEN + body.len(),
+            "must carry nonce + tag"
+        );
+        assert!(
+            !sealed.windows(body.len()).any(|w| w == body),
             "plaintext must not appear in the sealed blob"
         );
     }

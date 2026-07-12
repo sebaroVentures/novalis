@@ -182,6 +182,44 @@
     "section": "Plugins"
   },
   "sync": {
+    "p2p": {
+      "desc": "Synchronisez directement entre vos propres appareils, sans serveur. Le contenu des fichiers est chiffré de bout en bout, de sorte que seuls vos appareils jumelés peuvent le lire. Une alternative facultative à la synchronisation Git.",
+      "error": "Échec de la synchronisation : {{message}}",
+      "outcome": {
+        "conflicts": "{{n}} fichier(s) ont divergé et ont été laissés pour résolution dans la vue des conflits",
+        "noPeers": "Jumelez d’abord un appareil",
+        "notConfigured": "Configurez d’abord la synchronisation pair-à-pair",
+        "synced": "Synchronisé — {{taken}} reçu(s), {{sent}} envoyé(s)",
+        "unreachable": "Aucun appareil jumelé n’était joignable — réessayez lorsque les deux sont en ligne",
+        "upToDate": "À jour"
+      },
+      "pair": {
+        "copied": "Copié",
+        "copy": "Copier le code",
+        "desc": "Créez un code sur un appareil, puis collez-le sur l’autre. Quiconque possède le code peut lire ce coffre — partagez-le en privé.",
+        "generate": "Créer un code de jumelage",
+        "joinBtn": "Jumeler",
+        "joinLabel": "Vous avez un code d’un autre appareil ?",
+        "joinPlaceholder": "Collez un code de jumelage…",
+        "joined": "Jumelé. Utilisez « Synchroniser maintenant » pour échanger les fichiers.",
+        "ticketLabel": "Code de jumelage — copiez-le sur votre autre appareil",
+        "title": "Jumeler un appareil"
+      },
+      "peers": {
+        "lastSynced": "dernière synchro {{when}}",
+        "never": "jamais synchronisé",
+        "none": "Aucun appareil jumelé pour l’instant",
+        "title": "Appareils jumelés"
+      },
+      "status": {
+        "notConfigured": "Pas encore configuré",
+        "offline": "Hors ligne",
+        "online": "En ligne",
+        "thisDevice": "Cet appareil : {{id}}"
+      },
+      "syncNow": "Synchroniser maintenant",
+      "title": "Synchronisation pair-à-pair (chiffrée de bout en bout)"
+    },
     "authorEmail": {
       "desc": "Enregistré comme e-mail de l'auteur du commit.",
       "label": "E-mail de l'auteur"

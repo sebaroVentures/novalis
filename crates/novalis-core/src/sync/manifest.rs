@@ -126,7 +126,7 @@ pub enum FileAction {
     /// The file was deleted on one side and unchanged on the other. **Detected
     /// but not applied** in this foundation — propagating deletes over a sync
     /// the tests can't yet fully exercise is a destructive operation held back
-    /// deliberately (see the module docs / SYNC_P2P.md). The session reports a
+    /// deliberately (see the module docs above). The session reports a
     /// count so the boundary is visible, and takes no action.
     DeletePending(String),
 }
@@ -188,6 +188,85 @@ pub fn plan(base: &Manifest, local: &Manifest, remote: &Manifest) -> Vec<FileAct
     actions
 }
 
+/// Build the vault-relative path of a "conflict copy" for a diverged file,
+/// inserting a `(peer's conflicted copy <tag>)` marker before the extension.
+///
+/// The marker is shaped to match the EXISTING conflict detector's
+/// `'s conflicted copy` regex ([`crate::conflict`]) so a diverged P2P file is
+/// surfaced in the very same resolver used for OneDrive/Dropbox conflicts — no
+/// new UI. `tag` is a content-hash prefix (deterministic), so re-running a sync
+/// on an unresolved conflict rewrites the *same* name instead of spamming
+/// timestamped copies — free dedup.
+pub fn conflict_copy_path(rel: &str, tag: &str) -> String {
+    let (dir, name) = match rel.rfind('/') {
+        Some(i) => (&rel[..=i], &rel[i + 1..]),
+        None => ("", rel),
+    };
+    // Split the extension off, but keep a leading-dot name (e.g. no stem) whole.
+    let (stem, ext) = match name.rfind('.') {
+        Some(i) if i > 0 => (&name[..i], &name[i..]),
+        _ => (name, ""),
+    };
+    format!("{dir}{stem} (peer's conflicted copy {tag}){ext}")
+}
+
+/// The base manifest to persist after a sync cycle, derived from the same
+/// three-way verdict as [`plan`]. Pure so the "next sync doesn't re-flag a
+/// clean file" and "a deferred delete never resurrects" invariants are tested
+/// directly. Rules per path:
+/// - transferred (send/take): record the now-shared hash so it's clean next
+///   time;
+/// - already-identical: record that hash;
+/// - conflict: **omit** — the file stays un-based so it re-surfaces (never
+///   auto-resolves, never overwrites) until the user reconciles it;
+/// - delete-pending: **retain** the old base entry, which both keeps the file
+///   from resurrecting on the deleting side and keeps it "pending" (not
+///   deleted) on the other — matching the deferred-delete boundary;
+/// - gone on both sides: drop.
+pub fn next_base(base: &Manifest, local: &Manifest, remote: &Manifest) -> Manifest {
+    let mut all: BTreeSet<&String> = BTreeSet::new();
+    all.extend(local.paths());
+    all.extend(remote.paths());
+    all.extend(base.paths());
+
+    let mut out = Manifest::default();
+    let mut keep = |e: &FileEntry| {
+        out.entries.insert(e.path.clone(), e.clone());
+    };
+
+    for path in all {
+        let le = local.entries.get(path);
+        let re = remote.entries.get(path);
+        let be = base.entries.get(path);
+        let b = be.map(|e| e.hash.as_str());
+
+        match (le, re) {
+            (Some(l), Some(r)) if l.hash == r.hash => keep(l),
+            (Some(l), Some(r)) => {
+                let local_changed = b != Some(l.hash.as_str());
+                let remote_changed = b != Some(r.hash.as_str());
+                match (local_changed, remote_changed) {
+                    (false, true) => keep(r), // take
+                    (true, false) => keep(l), // send
+                    _ => {}                   // conflict → omit
+                }
+            }
+            (Some(l), None) => match b {
+                None => keep(l),                               // local create → sent
+                Some(bh) if bh == l.hash => keep(be.unwrap()), // delete pending → retain
+                Some(_) => {}                                  // delete vs edit → omit
+            },
+            (None, Some(r)) => match b {
+                None => keep(r),                               // remote create → taken
+                Some(bh) if bh == r.hash => keep(be.unwrap()), // delete pending → retain
+                Some(_) => {}
+            },
+            (None, None) => {} // gone on both → drop
+        }
+    }
+    out
+}
+
 #[cfg(test)]
 mod tests {
     use std::path::PathBuf;
@@ -245,7 +324,10 @@ mod tests {
         let base = Manifest::default();
         let local = manifest(&[("new.md", "hi")]);
         let remote = Manifest::default();
-        assert_eq!(plan(&base, &local, &remote), vec![FileAction::Send("new.md".into())]);
+        assert_eq!(
+            plan(&base, &local, &remote),
+            vec![FileAction::Send("new.md".into())]
+        );
     }
 
     #[test]
@@ -253,7 +335,10 @@ mod tests {
         let base = Manifest::default();
         let local = Manifest::default();
         let remote = manifest(&[("new.md", "hi")]);
-        assert_eq!(plan(&base, &local, &remote), vec![FileAction::Take("new.md".into())]);
+        assert_eq!(
+            plan(&base, &local, &remote),
+            vec![FileAction::Take("new.md".into())]
+        );
     }
 
     #[test]
@@ -261,7 +346,10 @@ mod tests {
         let base = manifest(&[("a.md", "v1")]);
         let local = manifest(&[("a.md", "v2")]);
         let remote = manifest(&[("a.md", "v1")]);
-        assert_eq!(plan(&base, &local, &remote), vec![FileAction::Send("a.md".into())]);
+        assert_eq!(
+            plan(&base, &local, &remote),
+            vec![FileAction::Send("a.md".into())]
+        );
     }
 
     #[test]
@@ -269,7 +357,10 @@ mod tests {
         let base = manifest(&[("a.md", "v1")]);
         let local = manifest(&[("a.md", "v1")]);
         let remote = manifest(&[("a.md", "v2")]);
-        assert_eq!(plan(&base, &local, &remote), vec![FileAction::Take("a.md".into())]);
+        assert_eq!(
+            plan(&base, &local, &remote),
+            vec![FileAction::Take("a.md".into())]
+        );
     }
 
     #[test]
@@ -277,7 +368,10 @@ mod tests {
         let base = manifest(&[("a.md", "v1")]);
         let local = manifest(&[("a.md", "mine")]);
         let remote = manifest(&[("a.md", "theirs")]);
-        assert_eq!(plan(&base, &local, &remote), vec![FileAction::Conflict("a.md".into())]);
+        assert_eq!(
+            plan(&base, &local, &remote),
+            vec![FileAction::Conflict("a.md".into())]
+        );
     }
 
     #[test]
@@ -294,7 +388,10 @@ mod tests {
         let base = Manifest::default();
         let local = manifest(&[("a.md", "mine")]);
         let remote = manifest(&[("a.md", "theirs")]);
-        assert_eq!(plan(&base, &local, &remote), vec![FileAction::Conflict("a.md".into())]);
+        assert_eq!(
+            plan(&base, &local, &remote),
+            vec![FileAction::Conflict("a.md".into())]
+        );
     }
 
     #[test]
@@ -313,7 +410,10 @@ mod tests {
         let base = manifest(&[("a.md", "v1")]);
         let local = manifest(&[("a.md", "edited")]); // edited locally
         let remote = Manifest::default(); // deleted remotely
-        assert_eq!(plan(&base, &local, &remote), vec![FileAction::Conflict("a.md".into())]);
+        assert_eq!(
+            plan(&base, &local, &remote),
+            vec![FileAction::Conflict("a.md".into())]
+        );
     }
 
     #[test]
@@ -322,5 +422,92 @@ mod tests {
         let local = Manifest::default();
         let remote = Manifest::default();
         assert!(plan(&base, &local, &remote).is_empty());
+    }
+
+    #[test]
+    fn conflict_copy_path_inserts_marker_before_extension() {
+        assert_eq!(
+            conflict_copy_path("notes/Foo.md", "a1b2c3d4"),
+            "notes/Foo (peer's conflicted copy a1b2c3d4).md"
+        );
+        assert_eq!(
+            conflict_copy_path("Bar.md", "deadbeef"),
+            "Bar (peer's conflicted copy deadbeef).md"
+        );
+        // Extensionless files keep the marker at the end.
+        assert_eq!(
+            conflict_copy_path("LICENSE", "cafe"),
+            "LICENSE (peer's conflicted copy cafe)"
+        );
+    }
+
+    #[test]
+    fn conflict_copy_is_surfaced_by_the_existing_detector() {
+        // The whole point of the naming: reuse crate::conflict's resolver.
+        let (_tmp, vault) = temp_vault();
+        std::fs::write(vault.join("Foo.md"), "mine").unwrap();
+        let copy = conflict_copy_path("Foo.md", "abc12345");
+        std::fs::write(vault.join(&copy), "theirs").unwrap();
+
+        let conflicts = crate::conflict::list_conflicts(&vault);
+        assert_eq!(
+            conflicts.len(),
+            1,
+            "detector must see the P2P conflict copy"
+        );
+        assert_eq!(conflicts[0].original_path, "Foo.md");
+        assert_eq!(conflicts[0].conflict_path, copy);
+    }
+
+    #[test]
+    fn next_base_records_transfers_and_omits_conflicts() {
+        // send: local edited only → base adopts local hash.
+        let base = manifest(&[("s.md", "v1"), ("t.md", "v1"), ("c.md", "v1")]);
+        let local = manifest(&[("s.md", "v2"), ("t.md", "v1"), ("c.md", "mine")]);
+        let remote = manifest(&[("s.md", "v1"), ("t.md", "v2"), ("c.md", "theirs")]);
+        let nb = next_base(&base, &local, &remote);
+        // s.md sent → base = local v2; t.md taken → base = remote v2.
+        assert_eq!(nb.entries["s.md"].hash, local.entries["s.md"].hash);
+        assert_eq!(nb.entries["t.md"].hash, remote.entries["t.md"].hash);
+        // c.md conflicted → omitted so it re-surfaces, never auto-resolves.
+        assert!(!nb.entries.contains_key("c.md"));
+    }
+
+    #[test]
+    fn next_base_retains_delete_pending_to_prevent_resurrection() {
+        // Local deleted a file the peer still has (unchanged). Base must KEEP
+        // the entry, else the next sync would re-download (resurrect) it.
+        let base = manifest(&[("gone.md", "v1")]);
+        let local = Manifest::default();
+        let remote = manifest(&[("gone.md", "v1")]);
+        let nb = next_base(&base, &local, &remote);
+        assert!(
+            nb.entries.contains_key("gone.md"),
+            "delete-pending must retain its base entry"
+        );
+        // And it stays delete-pending (not a Take) on the following cycle.
+        assert_eq!(
+            plan(&nb, &local, &remote),
+            vec![FileAction::DeletePending("gone.md".into())]
+        );
+    }
+
+    #[test]
+    fn next_base_drops_converged_deletions() {
+        let base = manifest(&[("a.md", "v1")]);
+        let nb = next_base(&base, &Manifest::default(), &Manifest::default());
+        assert!(nb.entries.is_empty());
+    }
+
+    #[test]
+    fn next_base_makes_a_clean_sync_a_noop_next_time() {
+        // After first sync of a new local file, base should record it so the
+        // next plan is empty.
+        let base = Manifest::default();
+        let local = manifest(&[("a.md", "hi")]);
+        let remote = Manifest::default();
+        let nb = next_base(&base, &local, &remote);
+        // Peer now also has it; simulate remote == local next round.
+        assert!(plan(&nb, &local, &local).is_empty());
     }
 }

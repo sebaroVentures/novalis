@@ -106,9 +106,9 @@ impl SyncTicket {
             ));
         }
 
-        let node_id: [u8; SEED_LEN] = decode_hex(&payload.node)?
-            .try_into()
-            .map_err(|_| CoreError::BadRequest("sync: ticket node id must be 32 bytes".to_string()))?;
+        let node_id: [u8; SEED_LEN] = decode_hex(&payload.node)?.try_into().map_err(|_| {
+            CoreError::BadRequest("sync: ticket node id must be 32 bytes".to_string())
+        })?;
         let key_bytes: [u8; KEY_LEN] = decode_hex(&payload.key)?
             .try_into()
             .map_err(|_| CoreError::BadRequest("sync: ticket key must be 32 bytes".to_string()))?;
@@ -135,8 +135,10 @@ fn to_hex(bytes: &[u8]) -> String {
 
 fn decode_hex(hex: &str) -> CoreResult<Vec<u8>> {
     let hex = hex.trim();
-    if hex.len() % 2 != 0 {
-        return Err(CoreError::BadRequest("sync: hex has odd length".to_string()));
+    if !hex.len().is_multiple_of(2) {
+        return Err(CoreError::BadRequest(
+            "sync: hex has odd length".to_string(),
+        ));
     }
     (0..hex.len())
         .step_by(2)

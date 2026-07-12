@@ -182,6 +182,44 @@
     "section": "Plugins"
   },
   "sync": {
+    "p2p": {
+      "desc": "Sincroniza directamente entre tus propios dispositivos, sin servidor. El contenido de los archivos está cifrado de extremo a extremo, de modo que solo tus dispositivos emparejados pueden leerlo. Una alternativa opcional a la sincronización con Git.",
+      "error": "Error de sincronización: {{message}}",
+      "outcome": {
+        "conflicts": "{{n}} archivo(s) divergieron y se dejaron para que los resuelvas en la vista de conflictos",
+        "noPeers": "Empareja primero un dispositivo",
+        "notConfigured": "Configura primero la sincronización entre pares",
+        "synced": "Sincronizado — {{taken}} recibido(s), {{sent}} enviado(s)",
+        "unreachable": "Ningún dispositivo emparejado estaba accesible — inténtalo de nuevo cuando ambos estén en línea",
+        "upToDate": "Al día"
+      },
+      "pair": {
+        "copied": "Copiado",
+        "copy": "Copiar código",
+        "desc": "Crea un código en un dispositivo y luego pégalo en el otro. Cualquiera con el código puede leer esta bóveda — compártelo en privado.",
+        "generate": "Crear código de emparejamiento",
+        "joinBtn": "Emparejar",
+        "joinLabel": "¿Tienes un código de otro dispositivo?",
+        "joinPlaceholder": "Pega un código de emparejamiento…",
+        "joined": "Emparejado. Usa «Sincronizar ahora» para intercambiar archivos.",
+        "ticketLabel": "Código de emparejamiento — cópialo en tu otro dispositivo",
+        "title": "Emparejar un dispositivo"
+      },
+      "peers": {
+        "lastSynced": "última sincronización {{when}}",
+        "never": "nunca sincronizado",
+        "none": "Aún no hay dispositivos emparejados",
+        "title": "Dispositivos emparejados"
+      },
+      "status": {
+        "notConfigured": "Aún no configurado",
+        "offline": "Sin conexión",
+        "online": "En línea",
+        "thisDevice": "Este dispositivo: {{id}}"
+      },
+      "syncNow": "Sincronizar ahora",
+      "title": "Sincronización entre pares (cifrada de extremo a extremo)"
+    },
     "authorEmail": {
       "desc": "Se registra como correo del autor del commit.",
       "label": "Correo del autor"
