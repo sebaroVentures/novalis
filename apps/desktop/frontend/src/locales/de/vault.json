@@ -4,6 +4,7 @@
   "cloudHint": "Dieser Vault liegt in einem {{provider}}-Ordner. Notizen, die <b>nur online</b> gehalten werden, werden beim ersten Öffnen heruntergeladen, was zu einer kurzen Verzögerung führen kann. Für sofortigen Zugriff im Finder mit der rechten Maustaste auf den Ordner klicken und <b>„Immer auf diesem Gerät behalten“</b> wählen.",
   "cmdCore": "Kern",
   "cmdEmpty": "Keine passenden Befehle.",
+  "cmdChatVault": "Mit deinem Vault chatten",
   "cmdExtractTasks": "Aufgaben aus Notiz extrahieren",
   "cmdInsertDigest": "Wochenrückblick einfügen",
   "cmdInsertTemplate": "Vorlage einfügen: {{name}}",

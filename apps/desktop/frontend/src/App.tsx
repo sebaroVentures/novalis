@@ -21,6 +21,7 @@ import { Sidebar, type MainView } from "./components/Sidebar";
 import { TasksView } from "./components/TasksView";
 import { TodayView } from "./components/TodayView";
 import { TrashModal } from "./components/TrashModal";
+import { VaultChatPanel } from "./components/VaultChatPanel";
 import { VaultGate } from "./components/VaultGate";
 import { WorkspaceLayout } from "./components/WorkspaceLayout";
 
@@ -382,6 +383,9 @@ export default function App() {
           per device, gated on the persisted onboardingDone flag. */}
       {!onboardingDone && <Onboarding />}
       <AiActionPanel />
+      {/* Chat with your vault — store-driven right-docked panel; opened from the
+          command palette / activity rail. Hybrid retrieval + cited streamed answer. */}
+      <VaultChatPanel />
       {/* Meeting-note → task extraction review — store-driven open (sibling of
           MergeConflictModal above), opened from the editor AI menu / palette. */}
       <TaskExtractReview />

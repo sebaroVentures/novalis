@@ -4,6 +4,7 @@
   "cloudHint": "Este Vault está en una carpeta de {{provider}}. Las notas que se mantienen <b>solo en línea</b> se descargan al abrirlas por primera vez, lo que puede causar un breve retraso. Para un acceso instantáneo, hacer clic derecho en la carpeta en el Finder y elegir <b>«Conservar siempre en este dispositivo».</b>",
   "cmdCore": "Integrado",
   "cmdEmpty": "No hay comandos coincidentes.",
+  "cmdChatVault": "Chatea con tu bóveda",
   "cmdExtractTasks": "Extraer tareas de la nota",
   "cmdInsertDigest": "Insertar resumen semanal",
   "cmdInsertTemplate": "Insertar plantilla: {{name}}",

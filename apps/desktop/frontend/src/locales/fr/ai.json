@@ -17,6 +17,20 @@
     "links": "Liens",
     "title": "Suggestions IA"
   },
+  "chat": {
+    "cancel": "Annuler",
+    "close": "Fermer",
+    "emptyState": "Posez une question : je réponds à partir de vos notes, avec des liens vers les sources.",
+    "error": "Une erreur s'est produite.",
+    "noConnections": "Aucune connexion IA configurée. Ajoutez-en une dans Réglages → IA.",
+    "noResults": "Je n'ai pas trouvé cela dans vos notes.",
+    "placeholder": "Posez une question sur vos notes…",
+    "retrieving": "Recherche dans vos notes…",
+    "send": "Demander",
+    "sources": "Sources",
+    "thinking": "Réflexion…",
+    "title": "Discuter avec votre coffre"
+  },
   "extract": {
     "add_one": "Ajouter {{count}} tâche",
     "add_other": "Ajouter {{count}} tâches",

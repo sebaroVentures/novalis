@@ -2,6 +2,7 @@
   "appName": "Novalis",
   "chooseHint": "Choose a folder of Markdown files (e.g. your OneDrive NexusNotes folder). Novalis reads and writes plain <1>.md</1> files — nothing leaves your device.",
   "cloudHint": "This vault is in a {{provider}} folder. Notes kept <b>online-only</b> download on first open, which can cause a brief delay. For instant access, right-click the folder in Finder and choose <b>“Always keep on this device.”</b>",
+  "cmdChatVault": "Chat with your vault",
   "cmdCore": "core",
   "cmdEmpty": "No matching commands.",
   "cmdExtractTasks": "Extract tasks from note",

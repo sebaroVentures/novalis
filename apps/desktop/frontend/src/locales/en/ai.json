@@ -17,6 +17,20 @@
     "links": "Links",
     "title": "AI suggestions"
   },
+  "chat": {
+    "cancel": "Cancel",
+    "close": "Close",
+    "emptyState": "Ask a question and I'll answer from your notes, with links to the sources.",
+    "error": "Something went wrong.",
+    "noConnections": "No AI connection configured. Add one in Settings → AI.",
+    "noResults": "I couldn't find that in your notes.",
+    "placeholder": "Ask about your notes…",
+    "retrieving": "Searching your notes…",
+    "send": "Ask",
+    "sources": "Sources",
+    "thinking": "Thinking…",
+    "title": "Chat with your vault"
+  },
   "extract": {
     "add_one": "Add {{count}} task",
     "add_other": "Add {{count}} tasks",

@@ -212,6 +212,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             ai::commands::ai_embed_status,
             ai::commands::ai_build_embeddings,
             ai::commands::ai_find_related,
+            ai::commands::ai_rag_answer,
         ])
         .events(collect_events![
             ReindexedEvent,

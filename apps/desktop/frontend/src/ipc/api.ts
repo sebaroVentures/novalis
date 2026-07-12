@@ -225,6 +225,10 @@ export const api = {
   aiBuildEmbeddings: () => unwrap(commands.aiBuildEmbeddings()),
   aiFindRelated: (path: string, limit: number) =>
     unwrap(commands.aiFindRelated(path, limit)),
+  // Chat with your vault: retrieves + returns citations, streams the answer over
+  // the shared ai-stream-* events keyed by the returned requestId.
+  aiRagAnswer: (connectionId: string, question: string) =>
+    unwrap(commands.aiRagAnswer(connectionId, question)),
 };
 
 export interface EventDraft {

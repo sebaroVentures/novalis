@@ -17,6 +17,20 @@
     "links": "Verknüpfungen",
     "title": "KI-Vorschläge"
   },
+  "chat": {
+    "cancel": "Abbrechen",
+    "close": "Schließen",
+    "emptyState": "Stelle eine Frage – ich antworte aus deinen Notizen und verlinke die Quellen.",
+    "error": "Etwas ist schiefgelaufen.",
+    "noConnections": "Keine KI-Verbindung konfiguriert. Füge eine unter Einstellungen → KI hinzu.",
+    "noResults": "Das habe ich in deinen Notizen nicht gefunden.",
+    "placeholder": "Frage zu deinen Notizen…",
+    "retrieving": "Durchsuche deine Notizen…",
+    "send": "Fragen",
+    "sources": "Quellen",
+    "thinking": "Denke nach…",
+    "title": "Mit deinem Vault chatten"
+  },
   "extract": {
     "add_one": "{{count}} Aufgabe hinzufügen",
     "add_other": "{{count}} Aufgaben hinzufügen",

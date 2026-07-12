@@ -2,15 +2,18 @@
 //! [`crate::settings`]; API keys live in the OS keychain. Running an action
 //! streams text deltas back as `ai-stream-*` events keyed by a `request_id`.
 
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::Arc;
 
 use tauri::{AppHandle, Emitter, Manager, State};
+use tokio::sync::Notify;
 
-use novalis_core::ai::{action_views, build_messages};
-use novalis_core::index::vectors;
+use novalis_core::ai::{action_views, build_messages, rag};
+use novalis_core::index::{search as index_search, vectors};
 use novalis_core::models::{
     AiActionView, AiConnectionConfig, AiConnectionView, AiEmbeddingConfig, AiProviderKind,
-    AiRunRequest, AiTemplate, AiTemplateScope, EmbedStatus, RelatedNote,
+    AiRunRequest, AiTemplate, AiTemplateScope, EmbedStatus, RagCitation, RagResponse, RelatedNote,
     LOCAL_EMBEDDING_CONNECTION_ID, LOCAL_EMBEDDING_MODEL,
 };
 
@@ -661,6 +664,248 @@ pub fn ai_find_related(
             })
             .collect(),
     )
+}
+
+// ---------------------------------------------------------------------------
+// Chat with your vault (RAG): hybrid retrieval → grounded, cited, streamed answer.
+// ---------------------------------------------------------------------------
+
+/// Answer a question from the vault. Runs hybrid retrieval (FTS keyword hits ∪
+/// vector chunk hits, reciprocal-rank-fused — reusing [`index_search::search`]
+/// and [`vectors::retrieve_related`]), returns the top-K passages as `citations`
+/// up front, then streams a grounded answer over the shared `ai-stream-*` events
+/// (keyed by the returned `request_id`, cancellable via [`ai_cancel`]). The
+/// answer cites each claim as `[[n]]`, which the frontend resolves back to
+/// `citations[n-1]`.
+///
+/// Graceful degrade: with no embedding backend configured (or an index not yet
+/// built), retrieval falls back to FTS-only. When retrieval finds nothing, the
+/// model is **not** called — `request_id` is empty and the frontend shows the
+/// honest "not in your notes" message rather than a hallucinated answer.
+#[tauri::command]
+#[specta::specta]
+pub async fn ai_rag_answer(
+    app: AppHandle,
+    registry: State<'_, AiRegistry>,
+    connection_id: String,
+    question: String,
+) -> CmdResult<RagResponse> {
+    let question = question.trim().to_string();
+    if question.is_empty() {
+        return Err(CommandError {
+            kind: "badRequest".to_string(),
+            message: "the question is empty".to_string(),
+        });
+    }
+
+    // Resolve + validate the chat connection up front, so a missing provider/key
+    // fails loud before any retrieval work (mirrors `ai_run_action`).
+    let conn = find_connection(&app, &connection_id)?;
+    if !conn.enabled {
+        return Err(CommandError {
+            kind: "badRequest".to_string(),
+            message: "this AI connection is disabled".to_string(),
+        });
+    }
+    let api_key = match conn.kind {
+        AiProviderKind::Anthropic | AiProviderKind::OpenAiCompatible => {
+            match keychain::read_key(&conn.id) {
+                Some(k) => Some(k),
+                None => {
+                    return Err(CommandError {
+                        kind: "aiAuth".to_string(),
+                        message: "no API key is configured for this connection".to_string(),
+                    })
+                }
+            }
+        }
+        AiProviderKind::ClaudeCli | AiProviderKind::CodexCli => None,
+    };
+
+    // The embedding backend is optional: absent/unbuilt → FTS-only retrieval.
+    let embedder = resolve_embedding(&app).ok();
+    let model = embedder.as_ref().map(|r| r.model().to_string());
+
+    // Snapshot under a short engine lock: one FTS ranked list per question
+    // keyword (each reuses the hardened `search`), the vector candidate chunk
+    // rows for the embedding model, and the vault path. All file IO + embedding
+    // happen off the lock (a cloud-synced vault can hydrate files during reads).
+    let kws = rag::keywords(&question);
+    let (fts_lists, fts_meta, cand_rows, vault) = app.state::<AppEngine>().with(|e| {
+        let mut lists: Vec<Vec<String>> = Vec::with_capacity(kws.len());
+        // path → (title, cleaned snippet) for keyword-only passage assembly.
+        let mut meta: HashMap<String, (String, String)> = HashMap::new();
+        for kw in &kws {
+            let hits = index_search::search(&e.db, kw, None, None)?;
+            let mut list = Vec::with_capacity(hits.len());
+            for h in hits {
+                meta.entry(h.path.clone())
+                    .or_insert_with(|| (h.title.clone(), rag::strip_fts_marks(&h.snippet)));
+                list.push(h.path);
+            }
+            lists.push(list);
+        }
+        let rows = match &model {
+            Some(m) => vectors::chunk_rows_for_model(&e.db, m)?,
+            None => Vec::new(),
+        };
+        Ok((lists, meta, rows, e.vault_path.clone()))
+    })?;
+
+    // Vector half: embed the QUESTION with the same resolved embedder, then run
+    // the reused chunk ANN. Any embedding failure degrades to FTS-only (logged,
+    // not fatal) so a network/model hiccup still returns a keyword-grounded
+    // answer rather than erroring the whole chat.
+    let mut vector_list: Vec<String> = Vec::new();
+    let mut vec_hits: HashMap<String, vectors::RelatedChunk> = HashMap::new();
+    if let (Some(resolved), false) = (embedder.as_ref(), cand_rows.is_empty()) {
+        match embed_question(&app, resolved, &question).await {
+            Ok(qvec) => {
+                let cands = vectors::decode_chunk_rows(cand_rows);
+                for h in vectors::retrieve_related(&cands, &[qvec], rag::DEFAULT_TOP_K * 2, "") {
+                    vector_list.push(h.path.clone());
+                    vec_hits.insert(h.path.clone(), h);
+                }
+            }
+            Err(e) => log::warn!("RAG: query embedding failed, using FTS only: {}", e.message),
+        }
+    }
+
+    // Fuse every source (each keyword list + the vector list) into one ranking.
+    let mut all_lists = fts_lists;
+    all_lists.push(vector_list);
+    let ranked = rag::reciprocal_rank_fusion(&all_lists);
+
+    // Assemble the top-K passages: prefer the vector chunk (precise offsets +
+    // sliced text) and fall back to the FTS snippet.
+    let mut citations: Vec<RagCitation> = Vec::new();
+    for fused in ranked.into_iter().take(rag::DEFAULT_TOP_K) {
+        let path = fused.key;
+        if let Some(hit) = vec_hits.get(&path) {
+            let snippet = vectors::read_embed_text(&vault, &path, &hit.title)
+                .map(|full| {
+                    let src = vectors::truncate_chars(&full, vectors::EMBED_CHAR_BUDGET);
+                    rag::passage_slice(&src, hit.char_start, hit.char_end)
+                })
+                .filter(|s| !s.trim().is_empty())
+                // The note vanished/emptied since it was embedded: fall back to
+                // any FTS snippet it also matched, else drop it.
+                .or_else(|| fts_meta.get(&path).map(|(_, s)| s.clone()));
+            if let Some(snippet) = snippet {
+                citations.push(RagCitation {
+                    id: 0,
+                    path: path.clone(),
+                    title: hit.title.clone(),
+                    char_start: hit.char_start,
+                    char_end: hit.char_end,
+                    snippet,
+                });
+            }
+        } else if let Some((title, snippet)) = fts_meta.get(&path) {
+            citations.push(RagCitation {
+                id: 0,
+                path: path.clone(),
+                title: title.clone(),
+                char_start: 0,
+                char_end: 0,
+                snippet: snippet.clone(),
+            });
+        }
+    }
+    // 1-based ids in final rank order, matching the `[[n]]` citation tokens.
+    for (i, c) in citations.iter_mut().enumerate() {
+        c.id = (i + 1) as u32;
+    }
+
+    // Empty retrieval: never call the model — the frontend renders the honest
+    // "not in your notes" message from the empty `request_id`.
+    if citations.is_empty() {
+        return Ok(RagResponse {
+            request_id: String::new(),
+            citations,
+        });
+    }
+
+    // Build the grounded prompt (pure) and stream the answer over the shared
+    // `ai-stream-*` events, exactly like `ai_run_action`.
+    let prompt = rag::build_rag_prompt(&question, &citations);
+    let ai_req = AiRequest {
+        kind: conn.kind,
+        base_url: conn.base_url,
+        model: conn.model,
+        api_key,
+        prompt,
+        agentic: false,
+        workdir: None,
+    };
+    let request_id = uuid::Uuid::new_v4().to_string();
+    let notify = registry.register(&request_id);
+    spawn_ai_stream(&app, request_id.clone(), notify, ai_req);
+
+    Ok(RagResponse {
+        request_id,
+        citations,
+    })
+}
+
+/// Embed a single question string with a resolved backend (builds the embedder,
+/// then runs one batch of one), returning its vector. Off the engine lock.
+async fn embed_question(
+    app: &AppHandle,
+    resolved: &ResolvedEmbedder,
+    question: &str,
+) -> CmdResult<Vec<f32>> {
+    let embedder = build_embedder(app, resolved).await?;
+    let inputs = [question.to_string()];
+    let mut vecs = embedder.embed_batch(resolved.model(), &inputs).await?;
+    vecs.pop().ok_or_else(|| {
+        CommandError::internal("the embedding backend returned no vector for the question")
+    })
+}
+
+/// Spawn the background task that streams `ai_req`'s answer to the frontend over
+/// the shared `ai-stream-*` events (keyed by `request_id`) and clears the
+/// cancellation-registry entry when done. Mirrors the tail of [`ai_run_action`].
+fn spawn_ai_stream(app: &AppHandle, request_id: String, notify: Arc<Notify>, ai_req: AiRequest) {
+    let app_task = app.clone();
+    let id_task = request_id;
+    tauri::async_runtime::spawn(async move {
+        let emit_app = app_task.clone();
+        let emit_id = id_task.clone();
+        let on_text = move |delta: &str| {
+            let _ = emit_app.emit(
+                "ai-stream-chunk",
+                AiStreamChunk {
+                    request_id: emit_id.clone(),
+                    delta: delta.to_string(),
+                },
+            );
+        };
+
+        let result = run_stream(ai_req, notify, on_text).await;
+        app_task.state::<AiRegistry>().remove(&id_task);
+
+        match result {
+            Ok(usage) => {
+                let _ = app_task.emit(
+                    "ai-stream-done",
+                    AiStreamDone {
+                        request_id: id_task,
+                        usage: Some(usage),
+                    },
+                );
+            }
+            Err(err) => {
+                let _ = app_task.emit(
+                    "ai-stream-error",
+                    AiStreamError {
+                        request_id: id_task,
+                        message: err.message,
+                    },
+                );
+            }
+        }
+    });
 }
 
 fn find_connection(app: &AppHandle, id: &str) -> CmdResult<AiConnectionConfig> {

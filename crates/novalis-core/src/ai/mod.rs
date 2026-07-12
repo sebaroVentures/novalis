@@ -7,9 +7,14 @@
 //! No provider, command, or UI code needs to change.
 
 pub mod action;
+pub mod rag;
 pub mod sse;
 
 pub use action::{action, action_views, actions, build_messages, AiActionSpec, BuiltPrompt};
+pub use rag::{
+    build_rag_prompt, format_citation, keywords, passage_slice, reciprocal_rank_fusion,
+    strip_fts_marks, FusedHit,
+};
 pub use sse::{
     merge_usage, parse_anthropic_event, parse_openai_chunk, SseLineBuffer, SseRecord, StreamDelta,
 };

@@ -257,6 +257,39 @@ pub struct RelatedNote {
     pub score: f64,
 }
 
+/// One retrieved passage backing a "chat with your vault" answer. The model
+/// cites it as `[[id]]` (see [`crate::ai::rag::format_citation`]); the frontend
+/// resolves that token back to this note + character span to make the citation
+/// clickable. `snippet` is the passage text — both shown as a preview and fed to
+/// the model as grounding.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct RagCitation {
+    /// 1-based passage number, matching the `[[id]]` token in the answer.
+    pub id: u32,
+    pub path: String,
+    pub title: String,
+    /// Character offsets of the passage into the note's embed text (title+body).
+    /// `0..0` for a keyword-only (FTS) hit that carries no precise chunk span.
+    pub char_start: u32,
+    pub char_end: u32,
+    /// The passage text (also the grounding sent to the model).
+    pub snippet: String,
+}
+
+/// Result of starting a RAG answer: the retrieved citations (returned up front
+/// so the panel can render them immediately) plus the streaming `request_id`
+/// whose answer text arrives over the shared `ai-stream-*` events and is
+/// cancellable via `ai_cancel`. `request_id` is **empty** when retrieval found
+/// nothing — the backend never calls the model, and the frontend shows the
+/// honest "not in your notes" message instead of a hallucinated answer.
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct RagResponse {
+    pub request_id: String,
+    pub citations: Vec<RagCitation>,
+}
+
 /// Token usage reported by a provider when available.
 #[derive(Debug, Clone, Copy, Default, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]

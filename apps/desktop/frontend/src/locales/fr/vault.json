@@ -4,6 +4,7 @@
   "cloudHint": "Ce Vault se trouve dans un dossier {{provider}}. Les notes conservées <b>en ligne uniquement</b> sont téléchargées à la première ouverture, ce qui peut entraîner un bref délai. Pour un accès instantané, faire un clic droit sur le dossier dans le Finder et choisir <b>« Toujours conserver sur cet appareil ».</b>",
   "cmdCore": "Intégré",
   "cmdEmpty": "Aucune commande correspondante.",
+  "cmdChatVault": "Discuter avec votre coffre",
   "cmdExtractTasks": "Extraire les tâches de la note",
   "cmdInsertDigest": "Insérer le récapitulatif hebdomadaire",
   "cmdInsertTemplate": "Insérer le modèle : {{name}}",

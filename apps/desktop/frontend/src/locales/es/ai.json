@@ -17,6 +17,20 @@
     "links": "Enlaces",
     "title": "Sugerencias de IA"
   },
+  "chat": {
+    "cancel": "Cancelar",
+    "close": "Cerrar",
+    "emptyState": "Haz una pregunta y responderé a partir de tus notas, con enlaces a las fuentes.",
+    "error": "Algo salió mal.",
+    "noConnections": "No hay ninguna conexión de IA configurada. Añade una en Ajustes → IA.",
+    "noResults": "No he encontrado eso en tus notas.",
+    "placeholder": "Pregunta sobre tus notas…",
+    "retrieving": "Buscando en tus notas…",
+    "send": "Preguntar",
+    "sources": "Fuentes",
+    "thinking": "Pensando…",
+    "title": "Chatea con tu bóveda"
+  },
   "extract": {
     "add_one": "Añadir {{count}} tarea",
     "add_other": "Añadir {{count}} tareas",

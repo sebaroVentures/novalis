@@ -13,6 +13,7 @@ import { useKeymap } from "../stores/keymapStore";
 import { usePlugins } from "../stores/pluginStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
+import { useVaultChat } from "../stores/vaultChatStore";
 import { Modal } from "./ui/Modal";
 
 interface Command {
@@ -119,6 +120,9 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
         });
       }
     }),
+    // Chat with your vault — opens the right-docked RAG panel (which surfaces
+    // "no connection configured" itself when there's none).
+    builtin("chat-vault", t("cmdChatVault"), null, () => useVaultChat.getState().openPanel()),
     // Phase 1 deterministic digest — no AI required.
     builtin("insert-weekly-digest", t("cmdInsertDigest"), null, insertWeeklyDigest),
     // Phase 2 AI narrative + carry-overs — opens the review card (which needs a

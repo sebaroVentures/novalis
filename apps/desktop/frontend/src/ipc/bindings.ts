@@ -399,6 +399,21 @@ export const commands = {
 	 *  user to build the index instead of silently serving neighbors of old text.
 	 */
 	aiFindRelated: (path: string, limit: number) => typedError<RelatedNote[], CommandError>(__TAURI_INVOKE("ai_find_related", { path, limit })),
+	/**
+	 *  Answer a question from the vault. Runs hybrid retrieval (FTS keyword hits ∪
+	 *  vector chunk hits, reciprocal-rank-fused — reusing [`index_search::search`]
+	 *  and [`vectors::retrieve_related`]), returns the top-K passages as `citations`
+	 *  up front, then streams a grounded answer over the shared `ai-stream-*` events
+	 *  (keyed by the returned `request_id`, cancellable via [`ai_cancel`]). The
+	 *  answer cites each claim as `[[n]]`, which the frontend resolves back to
+	 *  `citations[n-1]`.
+	 * 
+	 *  Graceful degrade: with no embedding backend configured (or an index not yet
+	 *  built), retrieval falls back to FTS-only. When retrieval finds nothing, the
+	 *  model is **not** called — `request_id` is empty and the frontend shows the
+	 *  honest "not in your notes" message rather than a hallucinated answer.
+	 */
+	aiRagAnswer: (connectionId: string, question: string) => typedError<RagResponse, CommandError>(__TAURI_INVOKE("ai_rag_answer", { connectionId, question })),
 };
 
 /** Events */
@@ -1218,6 +1233,41 @@ export type Preferences = {
  *  failure. The read mapper never produces `None`.
  */
 export type PropertyValue = { kind: "text"; value: string } | { kind: "number"; value: number | null } | { kind: "checkbox"; value: boolean } | { kind: "list"; value: string[] };
+
+/**
+ *  One retrieved passage backing a "chat with your vault" answer. The model
+ *  cites it as `[[id]]` (see [`crate::ai::rag::format_citation`]); the frontend
+ *  resolves that token back to this note + character span to make the citation
+ *  clickable. `snippet` is the passage text — both shown as a preview and fed to
+ *  the model as grounding.
+ */
+export type RagCitation = {
+	/**  1-based passage number, matching the `[[id]]` token in the answer. */
+	id: number,
+	path: string,
+	title: string,
+	/**
+	 *  Character offsets of the passage into the note's embed text (title+body).
+	 *  `0..0` for a keyword-only (FTS) hit that carries no precise chunk span.
+	 */
+	charStart: number,
+	charEnd: number,
+	/**  The passage text (also the grounding sent to the model). */
+	snippet: string,
+};
+
+/**
+ *  Result of starting a RAG answer: the retrieved citations (returned up front
+ *  so the panel can render them immediately) plus the streaming `request_id`
+ *  whose answer text arrives over the shared `ai-stream-*` events and is
+ *  cancellable via `ai_cancel`. `request_id` is **empty** when retrieval found
+ *  nothing — the backend never calls the model, and the frontend shows the
+ *  honest "not in your notes" message instead of a hallucinated answer.
+ */
+export type RagResponse = {
+	requestId: string,
+	citations: RagCitation[],
+};
 
 /**  An entry in the recent-vaults list (most-recent first in the stored list). */
 export type RecentVault = {
