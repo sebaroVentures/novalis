@@ -329,13 +329,27 @@ mod tests {
     fn remove_note_clears_index() {
         let (_tmp, db) = mem_db();
         index_note(&db, &summary("a.md", "A"), "hello world").unwrap();
-        // A stored semantic vector must be cleared alongside the other indexes.
-        crate::index::vectors::upsert_vector(&db, "a.md", "h", "m", &[1.0, 2.0]).unwrap();
+        // Stored semantic chunks must be cleared alongside the other indexes.
+        let chunk = crate::index::vectors::Chunk {
+            ord: 0,
+            char_start: 0,
+            char_end: 0,
+            text: String::new(),
+        };
+        crate::index::vectors::upsert_note_chunks(
+            &db,
+            "a.md",
+            "m",
+            "h",
+            &[(chunk, vec![1.0, 2.0])],
+        )
+        .unwrap();
         remove_note(&db, "a.md").unwrap();
         assert!(search(&db, "hello", None, None).unwrap().is_empty());
-        assert!(crate::index::vectors::get_vector(&db, "a.md")
-            .unwrap()
-            .is_none());
+        assert_eq!(
+            crate::index::vectors::count_notes_for_model(&db, "m").unwrap(),
+            0
+        );
     }
 
     #[test]

@@ -47,8 +47,9 @@ pub fn open_db(path: &Path) -> CoreResult<Connection> {
     // Semantic vectors are deliberately NOT part of the disposable cache above:
     // they cost network round-trips + provider tokens to recompute, so a
     // `SCHEMA_VERSION` bump (which drops the free FTS/meta caches) must leave
-    // them intact. They live in `note_vectors`, are absent from `drop_tables`,
-    // and carry their own layout version — see `index::vectors`.
+    // them intact. They live in `note_chunks` (one row per note chunk), are
+    // absent from `drop_tables`, and carry their own layout version — see
+    // `index::vectors`.
     crate::index::vectors::ensure_schema(&conn)?;
 
     Ok(conn)

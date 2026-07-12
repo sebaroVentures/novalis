@@ -480,7 +480,7 @@ pub fn ai_embed_status(app: AppHandle, state: State<AppEngine>) -> CmdResult<Emb
     let model = resolved.as_ref().map(|r| r.model().to_string());
     let total = state.with(|e| Ok(vectors::eligible_count(&e.db)? as u32))?;
     let embedded = match &model {
-        Some(m) => state.with(|e| Ok(vectors::count_for_model(&e.db, m)? as u32))?,
+        Some(m) => state.with(|e| Ok(vectors::count_notes_for_model(&e.db, m)? as u32))?,
         None => 0,
     };
     Ok(EmbedStatus {
@@ -508,7 +508,7 @@ pub async fn ai_build_embeddings(app: AppHandle) -> CmdResult<EmbedStatus> {
     let (eligible, index, vault) = app.state::<AppEngine>().with(|e| {
         Ok((
             vectors::eligible_notes(&e.db)?,
-            vectors::vector_index(&e.db, &model)?,
+            vectors::chunk_hashes_for_model(&e.db, &model)?,
             e.vault_path.clone(),
         ))
     })?;
@@ -517,34 +517,82 @@ pub async fn ai_build_embeddings(app: AppHandle) -> CmdResult<EmbedStatus> {
         Ok(())
     })?;
 
-    // Read bodies + hash OFF the engine lock — a cloud-synced vault can hydrate
-    // online-only files here, which must never happen while holding the mutex.
+    // Read bodies + hash + chunk OFF the engine lock — a cloud-synced vault can
+    // hydrate online-only files here, which must never happen while holding the
+    // mutex. Each job carries the note's chunks (one embed input each).
     let jobs = tauri::async_runtime::spawn_blocking(move || {
         vectors::collect_stale(&vault, &eligible, &index)
     })
     .await
     .map_err(|e| CommandError::internal(format!("embedding scan failed: {e}")))?;
 
+    // Progress is per NOTE (the panel's unit), but embedding batches across
+    // notes at the chunk level for throughput. Flatten every chunk in job order
+    // (job-major), remembering which job owns each input.
     let total = jobs.len() as u32;
     let _ = app.emit("ai-embed-progress", AiEmbedProgress { done: 0, total });
+
+    let mut flat_inputs: Vec<String> = Vec::new();
+    let mut flat_owner: Vec<usize> = Vec::new();
+    for (ji, job) in jobs.iter().enumerate() {
+        for chunk in &job.chunks {
+            flat_inputs.push(chunk.text.clone());
+            flat_owner.push(ji);
+        }
+    }
 
     // Build the embedder once (loading the local model can download weights on
     // first use); embedding then stays off the engine lock.
     let embedder = build_embedder(&app, &resolved).await?;
+
+    // Buffer each job's chunk vectors until the job is fully embedded, then swap
+    // its whole chunk set in one delete+insert (atomic per note). Because the
+    // flat order is job-major, jobs complete in index order — flush greedily.
+    let mut buffers: Vec<Vec<Vec<f32>>> = jobs
+        .iter()
+        .map(|j| Vec::with_capacity(j.chunks.len()))
+        .collect();
+    let mut filled: Vec<usize> = vec![0; jobs.len()];
+    let mut flushed = 0usize;
     let mut done = 0u32;
-    for batch in jobs.chunks(EMBED_BATCH) {
-        let inputs: Vec<String> = batch.iter().map(|j| j.text.clone()).collect();
-        let vecs = embedder.embed_batch(&model, &inputs).await?;
+    let mut fi = 0usize;
+    for batch in flat_inputs.chunks(EMBED_BATCH) {
+        let vecs = embedder.embed_batch(&model, batch).await?;
+        for vec in vecs {
+            let owner = flat_owner[fi];
+            buffers[owner].push(vec);
+            filled[owner] += 1;
+            fi += 1;
+        }
 
-        app.state::<AppEngine>().with(|e| {
-            for (job, vec) in batch.iter().zip(vecs.iter()) {
-                vectors::upsert_vector(&e.db, &job.path, &job.content_hash, &model, vec)?;
-            }
-            Ok(())
-        })?;
-
-        done += batch.len() as u32;
-        let _ = app.emit("ai-embed-progress", AiEmbedProgress { done, total });
+        // Flush every job now fully embedded (contiguous from `flushed`).
+        let mut ready: Vec<usize> = Vec::new();
+        while flushed < jobs.len() && filled[flushed] == jobs[flushed].chunks.len() {
+            ready.push(flushed);
+            flushed += 1;
+        }
+        if !ready.is_empty() {
+            app.state::<AppEngine>().with(|e| {
+                for &ji in &ready {
+                    let pairs: Vec<(vectors::Chunk, Vec<f32>)> = jobs[ji]
+                        .chunks
+                        .iter()
+                        .cloned()
+                        .zip(std::mem::take(&mut buffers[ji]))
+                        .collect();
+                    vectors::upsert_note_chunks(
+                        &e.db,
+                        &jobs[ji].path,
+                        &model,
+                        &jobs[ji].content_hash,
+                        &pairs,
+                    )?;
+                }
+                Ok(())
+            })?;
+            done += ready.len() as u32;
+            let _ = app.emit("ai-embed-progress", AiEmbedProgress { done, total });
+        }
     }
 
     ai_embed_status(app.clone(), app.state::<AppEngine>())
@@ -571,20 +619,21 @@ pub fn ai_find_related(
         }
     }
 
-    // Take the engine lock only to snapshot: the anchor row + its title, the
-    // raw candidate rows, and the vault path. The per-row f32 decoding, the
-    // cosine scan, and the freshness file read all happen off the lock.
-    let (stored, title, rows, vault) = state.with(|e| {
+    // Take the engine lock only to snapshot: the anchor's chunk vectors (+ their
+    // shared freshness hash), its title, the raw candidate chunk rows, and the
+    // vault path. The per-row f32 decoding, the ANN build + k-NN scan, and the
+    // freshness file read all happen off the lock.
+    let (anchor, title, rows, vault) = state.with(|e| {
         Ok((
-            vectors::get_vector(&e.db, &path)?,
+            vectors::anchor_chunks(&e.db, &path, &model)?,
             vectors::note_title(&e.db, &path)?,
-            vectors::candidate_rows_for_model(&e.db, &model)?,
+            vectors::chunk_rows_for_model(&e.db, &model)?,
             e.vault_path.clone(),
         ))
     })?;
 
-    let stored = match stored {
-        Some(s) if s.model == model => s,
+    let (stored_hash, query_vecs) = match anchor {
+        Some((hash, vecs)) if !vecs.is_empty() => (hash, vecs),
         _ => return Err(stale()),
     };
 
@@ -595,19 +644,23 @@ pub fn ai_find_related(
         .as_deref()
         .and_then(|t| vectors::read_embed_text(&vault, &path, t))
         .map(|full| vectors::content_hash(&full));
-    if current.as_deref() != Some(stored.content_hash.as_str()) {
+    if current.as_deref() != Some(stored_hash.as_str()) {
         return Err(stale());
     }
 
-    let cands = vectors::decode_candidates(rows);
-    Ok(vectors::nearest(&cands, &stored.vec, limit as usize, &path)
-        .into_iter()
-        .map(|h| RelatedNote {
-            path: h.path,
-            title: h.title,
-            score: h.score as f64,
-        })
-        .collect())
+    // Chunk-level ANN retrieval: the anchor is represented by all its chunks;
+    // hits aggregate to the best chunk per note, excluding the anchor itself.
+    let cands = vectors::decode_chunk_rows(rows);
+    Ok(
+        vectors::retrieve_related(&cands, &query_vecs, limit as usize, &path)
+            .into_iter()
+            .map(|h| RelatedNote {
+                path: h.path,
+                title: h.title,
+                score: h.score as f64,
+            })
+            .collect(),
+    )
 }
 
 fn find_connection(app: &AppHandle, id: &str) -> CmdResult<AiConnectionConfig> {

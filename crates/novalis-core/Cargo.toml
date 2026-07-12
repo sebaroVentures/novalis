@@ -27,6 +27,12 @@ rrule = "0.14"
 similar = "2"
 uuid = { workspace = true }
 git2 = { workspace = true }
+# Pure-Rust HNSW: the native ANN backing chunk-level semantic retrieval. Chosen
+# over the sqlite-vec vec0 extension so the multi-model/variable-dim vectors that
+# already coexist in one table stay supported, queries run off the engine
+# write-lock, and no process-global C extension has to be loaded — see
+# `index::vectors::VectorIndex`.
+hnsw_rs = "0.3"
 
 [dev-dependencies]
 tempfile = "3"
