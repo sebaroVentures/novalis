@@ -201,7 +201,6 @@
         "joinBtn": "Emparejar",
         "joinLabel": "¿Tienes un código de otro dispositivo?",
         "joinPlaceholder": "Pega un código de emparejamiento…",
-        "joined": "Emparejado. Usa «Sincronizar ahora» para intercambiar archivos.",
         "ticketLabel": "Código de emparejamiento — cópialo en tu otro dispositivo",
         "title": "Emparejar un dispositivo"
       },

@@ -201,7 +201,6 @@
         "joinBtn": "Koppeln",
         "joinLabel": "Hast du einen Code von einem anderen Gerät?",
         "joinPlaceholder": "Kopplungscode einfügen …",
-        "joined": "Gekoppelt. Nutze „Jetzt synchronisieren“, um Dateien auszutauschen.",
         "ticketLabel": "Kopplungscode – kopiere ihn auf dein anderes Gerät",
         "title": "Gerät koppeln"
       },

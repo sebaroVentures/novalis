@@ -13,6 +13,12 @@ import { Modal } from "./ui";
 // starter note so the vault isn't a blank canvas. Skippable via the button, the
 // X, or Escape — every exit path marks onboarding done.
 
+// i18next-parser only scans static t() literals; the feature card texts resolve
+// at runtime via t(`features.${key}.title`) etc., so list the keys to keep them.
+// t("onboarding:features.notes.title") t("onboarding:features.notes.desc")
+// t("onboarding:features.tasks.title") t("onboarding:features.tasks.desc")
+// t("onboarding:features.calendar.title") t("onboarding:features.calendar.desc")
+// t("onboarding:features.search.title") t("onboarding:features.search.desc")
 const FEATURES = [
   { key: "notes", Icon: FileText },
   { key: "tasks", Icon: CheckSquare },

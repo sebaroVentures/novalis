@@ -201,7 +201,6 @@
         "joinBtn": "Jumeler",
         "joinLabel": "Vous avez un code d’un autre appareil ?",
         "joinPlaceholder": "Collez un code de jumelage…",
-        "joined": "Jumelé. Utilisez « Synchroniser maintenant » pour échanger les fichiers.",
         "ticketLabel": "Code de jumelage — copiez-le sur votre autre appareil",
         "title": "Jumeler un appareil"
       },

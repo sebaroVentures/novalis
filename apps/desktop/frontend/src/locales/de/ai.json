@@ -38,7 +38,6 @@
     "error": "Entitäten konnten nicht geladen werden.",
     "everythingAbout": "Alles über {{name}}",
     "extract": "Aus dieser Notiz extrahieren",
-    "extractError": "Entitäten konnten nicht extrahiert werden.",
     "extracting": "Entitäten werden extrahiert…",
     "hide": "Entitäten ausblenden",
     "kind": {
@@ -212,9 +211,6 @@
     "cancel": "Abbrechen",
     "transcribing": "Transkription auf dem Gerät…",
     "tooltip": "Ein Meeting aufnehmen und Aufgaben extrahieren (auf dem Gerät)",
-    "noSpeech": "In der Aufnahme wurde keine Sprache erkannt.",
-    "error": "Aufnahme fehlgeschlagen.",
-    "unavailable": "Sprachaufnahme ist auf dieser Plattform nicht verfügbar.",
-    "saved": "Transkript gespeichert unter {{path}}"
+    "noSpeech": "In der Aufnahme wurde keine Sprache erkannt."
   }
 }

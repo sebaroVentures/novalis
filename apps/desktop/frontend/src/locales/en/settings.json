@@ -182,44 +182,6 @@
     "section": "Plugins"
   },
   "sync": {
-    "p2p": {
-      "desc": "Sync directly between your own devices with no server. File contents are end-to-end encrypted, so only your paired devices can read them. An opt-in alternative to Git sync.",
-      "error": "Sync failed: {{message}}",
-      "outcome": {
-        "conflicts": "{{n}} file(s) diverged and were left for you to resolve in the conflict view",
-        "noPeers": "Pair a device first",
-        "notConfigured": "Set up peer-to-peer sync first",
-        "synced": "Synced — received {{taken}}, sent {{sent}}",
-        "unreachable": "No paired device was reachable — try again when both are online",
-        "upToDate": "Up to date"
-      },
-      "pair": {
-        "copied": "Copied",
-        "copy": "Copy code",
-        "desc": "Create a code on one device, then paste it on the other. Anyone with the code can read this vault — share it privately.",
-        "generate": "Create pairing code",
-        "joinBtn": "Pair",
-        "joinLabel": "Have a code from another device?",
-        "joinPlaceholder": "Paste a pairing code…",
-        "joined": "Paired. Use Sync now to exchange files.",
-        "ticketLabel": "Pairing code — copy it to your other device",
-        "title": "Pair a device"
-      },
-      "peers": {
-        "lastSynced": "last synced {{when}}",
-        "never": "never synced",
-        "none": "No paired devices yet",
-        "title": "Paired devices"
-      },
-      "status": {
-        "notConfigured": "Not set up yet",
-        "offline": "Offline",
-        "online": "Online",
-        "thisDevice": "This device: {{id}}"
-      },
-      "syncNow": "Sync now",
-      "title": "Peer-to-peer sync (end-to-end encrypted)"
-    },
     "authorEmail": {
       "desc": "Recorded as the commit author email.",
       "label": "Author email"
@@ -266,6 +228,43 @@
       "pulled": "Pulled {{behind}} commit(s)",
       "pushed": "Pushed {{ahead}} commit(s)",
       "upToDate": "Up to date"
+    },
+    "p2p": {
+      "desc": "Sync directly between your own devices with no server. File contents are end-to-end encrypted, so only your paired devices can read them. An opt-in alternative to Git sync.",
+      "error": "Sync failed: {{message}}",
+      "outcome": {
+        "conflicts": "{{n}} file(s) diverged and were left for you to resolve in the conflict view",
+        "noPeers": "Pair a device first",
+        "notConfigured": "Set up peer-to-peer sync first",
+        "synced": "Synced — received {{taken}}, sent {{sent}}",
+        "unreachable": "No paired device was reachable — try again when both are online",
+        "upToDate": "Up to date"
+      },
+      "pair": {
+        "copied": "Copied",
+        "copy": "Copy code",
+        "desc": "Create a code on one device, then paste it on the other. Anyone with the code can read this vault — share it privately.",
+        "generate": "Create pairing code",
+        "joinBtn": "Pair",
+        "joinLabel": "Have a code from another device?",
+        "joinPlaceholder": "Paste a pairing code…",
+        "ticketLabel": "Pairing code — copy it to your other device",
+        "title": "Pair a device"
+      },
+      "peers": {
+        "lastSynced": "last synced {{when}}",
+        "never": "never synced",
+        "none": "No paired devices yet",
+        "title": "Paired devices"
+      },
+      "status": {
+        "notConfigured": "Not set up yet",
+        "offline": "Offline",
+        "online": "Online",
+        "thisDevice": "This device: {{id}}"
+      },
+      "syncNow": "Sync now",
+      "title": "Peer-to-peer sync (end-to-end encrypted)"
     },
     "remote": {
       "aheadBehind": "{{ahead}} to push · {{behind}} to pull",
