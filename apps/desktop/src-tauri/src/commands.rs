@@ -1295,48 +1295,55 @@ pub fn quick_capture(state: State<AppEngine>, req: CaptureRequest) -> CmdResult<
 
 /// Export a note to HTML or DOCX, prompting for a save location. Returns the
 /// saved path, or `None` if the user cancelled.
+///
+/// `async` + `spawn_blocking`: `blocking_save_file` on the main thread would
+/// deadlock — it asks the main thread's event loop to show the native panel
+/// while blocking that same thread (see [`pick_vault_folder`]).
 #[tauri::command]
 #[specta::specta]
-pub fn export_note(
+pub async fn export_note(
     app: AppHandle,
-    state: State<AppEngine>,
     path: String,
     format: String,
 ) -> CmdResult<Option<String>> {
     use tauri_plugin_dialog::DialogExt;
 
-    let (default_name, bytes) = state.with(|e| {
-        let note = vault_fs::read_note(&e.vault_path, &path)?;
-        let (_, body) = frontmatter::parse_frontmatter(&note.content);
-        let stem = note.path.rsplit('/').next().unwrap_or("note").to_string();
-        match format.as_str() {
-            "html" => Ok((
-                stem.replace(".md", ".html"),
-                export::note_html(&note.title, &body).into_bytes(),
-            )),
-            "docx" => Ok((
-                stem.replace(".md", ".docx"),
-                export::note_docx(&note.title, &body)?,
-            )),
-            other => Err(CoreError::BadRequest(format!(
-                "Unknown export format: {other}"
-            ))),
-        }
-    })?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let (default_name, bytes) = app.state::<AppEngine>().with(|e| {
+            let note = vault_fs::read_note(&e.vault_path, &path)?;
+            let (_, body) = frontmatter::parse_frontmatter(&note.content);
+            let stem = note.path.rsplit('/').next().unwrap_or("note").to_string();
+            match format.as_str() {
+                "html" => Ok((
+                    stem.replace(".md", ".html"),
+                    export::note_html(&note.title, &body).into_bytes(),
+                )),
+                "docx" => Ok((
+                    stem.replace(".md", ".docx"),
+                    export::note_docx(&note.title, &body)?,
+                )),
+                other => Err(CoreError::BadRequest(format!(
+                    "Unknown export format: {other}"
+                ))),
+            }
+        })?;
 
-    let target = app
-        .dialog()
-        .file()
-        .set_file_name(&default_name)
-        .blocking_save_file();
-    let Some(fp) = target else {
-        return Ok(None);
-    };
-    let out = fp
-        .into_path()
-        .map_err(|e| CommandError::internal(e.to_string()))?;
-    std::fs::write(&out, &bytes).map_err(|e| CommandError::from(CoreError::Io(e)))?;
-    Ok(Some(out.to_string_lossy().to_string()))
+        let target = app
+            .dialog()
+            .file()
+            .set_file_name(&default_name)
+            .blocking_save_file();
+        let Some(fp) = target else {
+            return Ok(None);
+        };
+        let out = fp
+            .into_path()
+            .map_err(|e| CommandError::internal(e.to_string()))?;
+        std::fs::write(&out, &bytes).map_err(|e| CommandError::from(CoreError::Io(e)))?;
+        Ok(Some(out.to_string_lossy().to_string()))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("export_note task panicked: {e}")))?
 }
 
 #[tauri::command]
@@ -1667,65 +1674,80 @@ pub fn oauth_disconnect(state: State<AppEngine>, provider: String) -> CmdResult<
 }
 
 /// Import an `.ics` file (native picker), creating own events. Returns the count.
+///
+/// `async` + `spawn_blocking`: `blocking_pick_file` on the main thread would
+/// deadlock — it asks the main thread's event loop to show the native panel
+/// while blocking that same thread (see [`pick_vault_folder`]).
 #[tauri::command]
 #[specta::specta]
-pub fn import_ics(app: AppHandle, state: State<AppEngine>) -> CmdResult<u32> {
+pub async fn import_ics(app: AppHandle) -> CmdResult<u32> {
     use tauri_plugin_dialog::DialogExt;
-    let Some(fp) = app
-        .dialog()
-        .file()
-        .add_filter("iCalendar", &["ics"])
-        .blocking_pick_file()
-    else {
-        return Ok(0);
-    };
-    let path = fp
-        .into_path()
-        .map_err(|e| CommandError::internal(e.to_string()))?;
-    let bytes = std::fs::read(&path).map_err(|e| CommandError::from(CoreError::Io(e)))?;
-    let events = calendar::source::import_ics(&bytes, "import")?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let Some(fp) = app
+            .dialog()
+            .file()
+            .add_filter("iCalendar", &["ics"])
+            .blocking_pick_file()
+        else {
+            return Ok(0);
+        };
+        let path = fp
+            .into_path()
+            .map_err(|e| CommandError::internal(e.to_string()))?;
+        let bytes = std::fs::read(&path).map_err(|e| CommandError::from(CoreError::Io(e)))?;
+        let events = calendar::source::import_ics(&bytes, "import")?;
 
-    state.with(|e| {
-        for ev in &events {
-            let created = calendar::create_event(&e.db, &e.vault_path, event_to_input(ev))?;
-            if let Some(p) = &created.note_path {
-                mark_self_write(p);
+        app.state::<AppEngine>().with(|e| {
+            for ev in &events {
+                let created = calendar::create_event(&e.db, &e.vault_path, event_to_input(ev))?;
+                if let Some(p) = &created.note_path {
+                    mark_self_write(p);
+                }
             }
-        }
-        Ok(events.len() as u32)
+            Ok(events.len() as u32)
+        })
     })
+    .await
+    .map_err(|e| CommandError::internal(format!("import_ics task panicked: {e}")))?
 }
 
 /// Export events in a range to an `.ics` file (save dialog). Returns saved path.
+///
+/// `async` + `spawn_blocking`: `blocking_save_file` on the main thread would
+/// deadlock — it asks the main thread's event loop to show the native panel
+/// while blocking that same thread (see [`pick_vault_folder`]).
 #[tauri::command]
 #[specta::specta]
-pub fn export_ics(
+pub async fn export_ics(
     app: AppHandle,
-    state: State<AppEngine>,
     range_start: String,
     range_end: String,
 ) -> CmdResult<Option<String>> {
     use tauri_plugin_dialog::DialogExt;
-    let ics = state.with(|e| {
-        Ok(calendar::source::export_ics(&calendar::list_events(
-            &e.db,
-            &range_start,
-            &range_end,
-        )?))
-    })?;
-    let Some(fp) = app
-        .dialog()
-        .file()
-        .set_file_name("novalis-calendar.ics")
-        .blocking_save_file()
-    else {
-        return Ok(None);
-    };
-    let out = fp
-        .into_path()
-        .map_err(|e| CommandError::internal(e.to_string()))?;
-    std::fs::write(&out, ics.as_bytes()).map_err(|e| CommandError::from(CoreError::Io(e)))?;
-    Ok(Some(out.to_string_lossy().to_string()))
+    tauri::async_runtime::spawn_blocking(move || {
+        let ics = app.state::<AppEngine>().with(|e| {
+            Ok(calendar::source::export_ics(&calendar::list_events(
+                &e.db,
+                &range_start,
+                &range_end,
+            )?))
+        })?;
+        let Some(fp) = app
+            .dialog()
+            .file()
+            .set_file_name("novalis-calendar.ics")
+            .blocking_save_file()
+        else {
+            return Ok(None);
+        };
+        let out = fp
+            .into_path()
+            .map_err(|e| CommandError::internal(e.to_string()))?;
+        std::fs::write(&out, ics.as_bytes()).map_err(|e| CommandError::from(CoreError::Io(e)))?;
+        Ok(Some(out.to_string_lossy().to_string()))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("export_ics task panicked: {e}")))?
 }
 
 fn event_to_input(e: &CalendarEvent) -> EventInput {
