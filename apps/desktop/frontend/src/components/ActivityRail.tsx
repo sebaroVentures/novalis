@@ -3,6 +3,7 @@ import { useEffect } from "react";
 import {
   Calendar,
   FileText,
+  Mic,
   PanelLeftClose,
   PanelLeftOpen,
   Search,
@@ -20,6 +21,7 @@ import { useTranslation } from "react-i18next";
 import { formatChord, type ActionId, type Chord } from "../lib/keybindings";
 import { useRailConfig } from "../lib/railPrefs";
 import { useKeymap } from "../stores/keymapStore";
+import { useVoice } from "../stores/voiceStore";
 import type { MainView } from "./Sidebar";
 
 const railBtn =
@@ -61,9 +63,15 @@ export function ActivityRail({
   sidebarCollapsed: boolean;
   onToggleSidebar: () => void;
 }) {
-  const { t } = useTranslation(["common", "sidebar", "trash"]);
+  const { t } = useTranslation(["common", "sidebar", "trash", "ai"]);
   const keymap = useKeymap((s) => s.keymap);
   const railConfig = useRailConfig((s) => s.config);
+  // Native meeting capture (W4.3): a dezent tool that only appears where capture
+  // is supported (desktop). Recording state shows as a corner ping-badge so the
+  // running capture stays visible even when the docked status strip is scrolled
+  // out of view; clicking it while recording stops the take.
+  const voiceAvailable = useVoice((s) => s.available);
+  const voiceStatus = useVoice((s) => s.status);
   const withChord = (label: string, chord?: Chord) =>
     chord ? `${label} (${formatChord(chord)})` : label;
 
@@ -111,6 +119,31 @@ export function ActivityRail({
         })}
 
       <div className="mt-auto flex flex-col items-center gap-1">
+        {voiceAvailable && (
+          <div className="relative">
+            <button
+              aria-label={voiceStatus === "recording" ? t("ai:voice.stop") : t("ai:voice.tooltip")}
+              title={voiceStatus === "recording" ? t("ai:voice.stop") : t("ai:voice.tooltip")}
+              disabled={voiceStatus === "transcribing"}
+              onClick={() => {
+                const v = useVoice.getState();
+                if (voiceStatus === "recording") void v.stopAndProcess();
+                else void v.start();
+              }}
+              className={`${railBtn} ${
+                voiceStatus === "recording" ? "text-danger hover:bg-hover" : railBtnIdle
+              } disabled:cursor-not-allowed disabled:opacity-50`}
+            >
+              <Mic size={18} />
+            </button>
+            {voiceStatus === "recording" && (
+              <span className="pointer-events-none absolute -right-0.5 -top-0.5 flex h-2 w-2">
+                <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-red-400 opacity-75" />
+                <span className="relative inline-flex h-2 w-2 rounded-full bg-red-500" />
+              </span>
+            )}
+          </div>
+        )}
         <button
           aria-label={t("sidebar:search")}
           title={withChord(t("sidebar:search"), keymap.search)}

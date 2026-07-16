@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import { ChevronLeft, ChevronRight, Mic } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, type CalendarEvent, type EventDraft } from "../ipc/api";
@@ -13,6 +13,7 @@ import {
 } from "../lib/datetime";
 import { type CalMode, gridFor, isoDate, useCalendar } from "../stores/calendarStore";
 import { useSettings } from "../stores/settingsStore";
+import { useVoice } from "../stores/voiceStore";
 import { Modal } from "./ui/Modal";
 
 /** Add minutes to a `HH:MM` string, wrapping within a 24h day. */
@@ -298,10 +299,12 @@ function EventModal({
   onClose: () => void;
   onSaved: () => void;
 }) {
-  const { t } = useTranslation(["calendar", "common"]);
+  const { t } = useTranslation(["calendar", "common", "ai"]);
   const [d, setD] = useState<EventDraft>(draft);
   const [freq, setFreq] = useState(rruleToFreq(draft.rrule));
   const editing = Boolean(draft.notePath);
+  const voiceAvailable = useVoice((s) => s.available);
+  const voiceStatus = useVoice((s) => s.status);
   const titleRef = useRef<HTMLInputElement>(null);
 
   const save = async () => {
@@ -416,6 +419,20 @@ function EventModal({
             <button onClick={() => void addMeeting()} className="text-xs text-fg-muted hover:text-fg">
               {t("addMeetingNote")}
             </button>
+            {voiceAvailable && (
+              <button
+                onClick={() => {
+                  void useVoice.getState().start();
+                  onClose();
+                }}
+                disabled={voiceStatus !== "idle"}
+                title={t("ai:voice.tooltip")}
+                className="flex items-center gap-1 text-xs text-fg-muted transition-colors hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Mic size={12} />
+                {t("ai:voice.record")}
+              </button>
+            )}
             <button onClick={() => void remove()} className="text-xs text-danger hover:text-danger">
               {t("common:delete")}
             </button>

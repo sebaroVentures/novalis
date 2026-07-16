@@ -8,7 +8,7 @@ import { ActivityRail } from "./components/ActivityRail";
 import { AiActionPanel } from "./components/ai/AiActionPanel";
 import { TaskExtractReview } from "./components/ai/TaskExtractReview";
 import { WeeklyReviewCard } from "./components/ai/WeeklyReviewCard";
-import { VoiceCaptureButton } from "./components/voice/VoiceCaptureButton";
+import { RecordingDock } from "./components/voice/RecordingDock";
 import { CalendarView } from "./components/CalendarView";
 import { Cheatsheet } from "./components/Cheatsheet";
 import { CloudHint } from "./components/CloudHint";
@@ -362,6 +362,10 @@ export default function App() {
             <span className="shrink-0 font-medium text-accent">{t("conflict:review")}</span>
           </button>
         )}
+        {/* Meeting-capture status strip (W4.3): a docked, view-reflowing sibling
+            of CloudHint / the conflict banner. Renders only while a capture is
+            active; the idle start trigger lives in the rail + palette. */}
+        <RecordingDock />
         <div className="flex min-h-0 flex-1 flex-col">
           {view === "notes" ? (
             <WorkspaceLayout />
@@ -428,11 +432,6 @@ export default function App() {
       {/* AI weekly review — narrative + carry-over proposals over the current
           week's deterministic digest, opened from the command palette. */}
       <WeeklyReviewCard />
-      {/* Native voice/meeting capture (W4.3) — records the mic, transcribes
-          on-device, writes a transcript note, and routes proposed tasks through
-          the TaskExtractReview above. Renders nothing where capture is
-          unavailable (mobile). */}
-      <VoiceCaptureButton />
       {notice && (
         <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-xl border border-border-strong/80 bg-surface/90 px-4 py-2.5 text-sm text-fg shadow-xl backdrop-blur">
           {notice}

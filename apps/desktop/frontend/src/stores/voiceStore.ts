@@ -30,6 +30,9 @@ interface VoiceState {
   error: string | null;
   /** Path of the note the last successful run produced (for a gentle notice). */
   lastNotePath: string | null;
+  /** `Date.now()` when the current take started recording, else null — the
+   *  RecordingDock's live mm:ss timer reads this. */
+  recordingStartedAt: number | null;
 
   checkAvailability: () => Promise<void>;
   start: () => Promise<void>;
@@ -99,6 +102,7 @@ export const useVoice = create<VoiceState>((set, get) => ({
   status: "idle",
   error: null,
   lastNotePath: null,
+  recordingStartedAt: null,
 
   checkAvailability: async () => {
     try {
@@ -111,11 +115,11 @@ export const useVoice = create<VoiceState>((set, get) => ({
 
   start: async () => {
     if (get().status === "recording" || get().status === "transcribing") return;
-    set({ error: null, status: "recording", lastNotePath: null });
+    set({ error: null, status: "recording", lastNotePath: null, recordingStartedAt: Date.now() });
     try {
       await api.voiceStartRecording();
     } catch (e) {
-      set({ status: "error", error: displayError(e) });
+      set({ status: "error", error: displayError(e), recordingStartedAt: null });
     }
   },
 
@@ -127,12 +131,12 @@ export const useVoice = create<VoiceState>((set, get) => ({
     } catch {
       // Ignore — cancelling is best-effort.
     }
-    set({ status: "idle", error: null });
+    set({ status: "idle", error: null, recordingStartedAt: null });
   },
 
   stopAndProcess: async () => {
     if (get().status !== "recording") return;
-    set({ status: "transcribing", error: null });
+    set({ status: "transcribing", error: null, recordingStartedAt: null });
     try {
       const rec = await api.voiceStopRecording();
       const transcript = (await api.voiceTranscribe(rec.path)).trim();
@@ -170,7 +174,7 @@ export const useVoice = create<VoiceState>((set, get) => ({
     }
   },
 
-  clearError: () => set({ error: null, status: "idle" }),
+  clearError: () => set({ error: null, status: "idle", recordingStartedAt: null }),
 }));
 
 /** Create the transcript note, retrying the filename on a rare collision. */

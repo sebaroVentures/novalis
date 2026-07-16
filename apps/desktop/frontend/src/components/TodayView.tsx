@@ -1,6 +1,6 @@
 import { useEffect, type ReactNode } from "react";
 
-import { CalendarDays, ChevronLeft, ChevronRight } from "lucide-react";
+import { CalendarDays, ChevronLeft, ChevronRight, Mic } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, type AgendaItem } from "../ipc/api";
@@ -10,6 +10,7 @@ import { addDays, isoDay, useAgenda } from "../stores/agendaStore";
 import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
+import { useVoice } from "../stores/voiceStore";
 
 /** Extract a `HH:MM` time from a `YYYY-MM-DDTHH:MM` agenda start, or null. */
 function timeOf(start: string): string | null {
@@ -21,7 +22,7 @@ function timeOf(start: string): string | null {
  *  plus an Overdue section when viewing the actual today. Data comes from the
  *  backend get_agenda (tasks placed on their @start, else @due). */
 export function TodayView() {
-  const { t } = useTranslation("today");
+  const { t } = useTranslation(["today", "ai"]);
   const focus = useAgenda((s) => s.focus);
   const items = useAgenda((s) => s.items);
   const overdue = useAgenda((s) => s.overdue);
@@ -29,6 +30,8 @@ export function TodayView() {
   const timeFormatPref = useSettings((s) => s.prefs?.calendar?.timeFormat);
   const timeFormat: "12h" | "24h" = timeFormatPref === "12h" ? "12h" : "24h";
   const openNoteFrom = useUi((s) => s.openNoteFrom);
+  const voiceAvailable = useVoice((s) => s.available);
+  const voiceStatus = useVoice((s) => s.status);
 
   useEffect(() => {
     void load(focus);
@@ -97,12 +100,25 @@ export function TodayView() {
 
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         <div className="mx-auto flex max-w-2xl flex-col gap-5">
-          <button
-            onClick={() => void openTodaysNote()}
-            className="self-start rounded-md border border-border px-3 py-1.5 text-xs text-fg-muted transition-colors hover:bg-active hover:text-fg"
-          >
-            {t("openTodaysNote")}
-          </button>
+          <div className="flex items-center gap-2 self-start">
+            <button
+              onClick={() => void openTodaysNote()}
+              className="rounded-md border border-border px-3 py-1.5 text-xs text-fg-muted transition-colors hover:bg-active hover:text-fg"
+            >
+              {t("openTodaysNote")}
+            </button>
+            {voiceAvailable && (
+              <button
+                onClick={() => void useVoice.getState().start()}
+                disabled={voiceStatus !== "idle"}
+                title={t("ai:voice.tooltip")}
+                className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs text-fg-muted transition-colors hover:bg-active hover:text-fg disabled:cursor-not-allowed disabled:opacity-50"
+              >
+                <Mic size={13} />
+                {t("ai:voice.record")}
+              </button>
+            )}
+          </div>
 
           {empty && <p className="text-sm text-fg-faint">{t("empty")}</p>}
 
