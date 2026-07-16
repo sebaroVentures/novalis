@@ -26,6 +26,13 @@
     "zoomReset": "Ajuster au contenu"
   },
   "delete": "Supprimer",
+  "errorBoundary": {
+    "copied": "Copié",
+    "copy": "Copier le diagnostic",
+    "reload": "Recharger l’application",
+    "retry": "Réessayer",
+    "title": "Une erreur est survenue"
+  },
   "errorPrefix": "Erreur : ",
   "graph": {
     "empty": "Pas encore de notes pour le graphe",
