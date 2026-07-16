@@ -38,7 +38,6 @@
     "error": "Couldn't load entities.",
     "everythingAbout": "Everything about {{name}}",
     "extract": "Extract from this note",
-    "extractError": "Couldn't extract entities.",
     "extracting": "Extracting entities…",
     "hide": "Hide entities",
     "kind": {
@@ -206,15 +205,12 @@
     "title": "AI connections"
   },
   "voice": {
+    "cancel": "Cancel",
+    "noSpeech": "No speech was detected in the recording.",
     "record": "Record meeting",
     "recording": "Recording…",
     "stop": "Stop & transcribe",
-    "cancel": "Cancel",
-    "transcribing": "Transcribing on-device…",
     "tooltip": "Record a meeting and extract tasks (on-device)",
-    "noSpeech": "No speech was detected in the recording.",
-    "error": "Recording failed.",
-    "unavailable": "Voice capture isn't available on this platform.",
-    "saved": "Transcript saved to {{path}}"
+    "transcribing": "Transcribing on-device…"
   }
 }

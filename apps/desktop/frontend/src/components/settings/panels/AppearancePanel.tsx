@@ -127,6 +127,12 @@ function AppearancePanelBody({ a }: { a: Partial<AppearancePrefs> }) {
   );
 }
 
+// i18next-parser only scans static t() literals; the preset name resolves at
+// runtime via t(`appearance.preset.options.${p}`), so list the keys to keep them.
+// t("settings:appearance.preset.options.default")
+// t("settings:appearance.preset.options.sepia")
+// t("settings:appearance.preset.options.nord")
+// t("settings:appearance.preset.options.high-contrast")
 // Illustrative preview swatches (app / surface / representative color) — just to
 // convey each preset's character in the picker; the live tokens live in styles.css.
 const PRESET_PREVIEW: Record<ThemePreset, [string, string, string]> = {

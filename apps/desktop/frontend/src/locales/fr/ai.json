@@ -38,7 +38,6 @@
     "error": "Impossible de charger les entités.",
     "everythingAbout": "Tout sur {{name}}",
     "extract": "Extraire de cette note",
-    "extractError": "Impossible d'extraire les entités.",
     "extracting": "Extraction des entités…",
     "hide": "Masquer les entités",
     "kind": {
@@ -212,9 +211,6 @@
     "cancel": "Annuler",
     "transcribing": "Transcription sur l'appareil…",
     "tooltip": "Enregistrer une réunion et extraire les tâches (sur l'appareil)",
-    "noSpeech": "Aucune parole détectée dans l'enregistrement.",
-    "error": "Échec de l'enregistrement.",
-    "unavailable": "La capture vocale n'est pas disponible sur cette plateforme.",
-    "saved": "Transcription enregistrée dans {{path}}"
+    "noSpeech": "Aucune parole détectée dans l'enregistrement."
   }
 }

@@ -4,133 +4,50 @@
 // block additionally proves every non-English locale mirrors English exactly:
 // same keys (nothing left untranslated, no orphans), same interpolation
 // variables, and the same rich-text markup tags.
+//
+// Catalogs are discovered from the filesystem via import.meta.glob so a new
+// namespace or locale can never be silently omitted from these checks. The
+// discovery block below cross-checks the found set against the app's
+// registration (NAMESPACES / SUPPORTED_LANGUAGES) so a vacuous empty-glob
+// pass is impossible.
 import { describe, expect, it } from "vitest";
 
-import deCalendar from "../de/calendar.json";
-import deCommon from "../de/common.json";
-import deConflict from "../de/conflict.json";
-import deEditor from "../de/editor.json";
-import deLinks from "../de/links.json";
-import deOnboarding from "../de/onboarding.json";
-import dePdf from "../de/pdf.json";
-import deSettings from "../de/settings.json";
-import deSidebar from "../de/sidebar.json";
-import deTasks from "../de/tasks.json";
-import deToday from "../de/today.json";
-import deTrash from "../de/trash.json";
-import deVault from "../de/vault.json";
-import deVersions from "../de/versions.json";
-import esCalendar from "../es/calendar.json";
-import esCommon from "../es/common.json";
-import esConflict from "../es/conflict.json";
-import esEditor from "../es/editor.json";
-import esLinks from "../es/links.json";
-import esOnboarding from "../es/onboarding.json";
-import esPdf from "../es/pdf.json";
-import esSettings from "../es/settings.json";
-import esSidebar from "../es/sidebar.json";
-import esTasks from "../es/tasks.json";
-import esToday from "../es/today.json";
-import esTrash from "../es/trash.json";
-import esVault from "../es/vault.json";
-import esVersions from "../es/versions.json";
-import frCalendar from "../fr/calendar.json";
-import frCommon from "../fr/common.json";
-import frConflict from "../fr/conflict.json";
-import frEditor from "../fr/editor.json";
-import frLinks from "../fr/links.json";
-import frOnboarding from "../fr/onboarding.json";
-import frPdf from "../fr/pdf.json";
-import frSettings from "../fr/settings.json";
-import frSidebar from "../fr/sidebar.json";
-import frTasks from "../fr/tasks.json";
-import frToday from "../fr/today.json";
-import frTrash from "../fr/trash.json";
-import frVault from "../fr/vault.json";
-import frVersions from "../fr/versions.json";
-import calendar from "../en/calendar.json";
-import common from "../en/common.json";
-import conflict from "../en/conflict.json";
-import editor from "../en/editor.json";
-import links from "../en/links.json";
-import onboarding from "../en/onboarding.json";
-import pdf from "../en/pdf.json";
-import settings from "../en/settings.json";
-import sidebar from "../en/sidebar.json";
-import tasks from "../en/tasks.json";
-import today from "../en/today.json";
-import trash from "../en/trash.json";
-import vault from "../en/vault.json";
-import versions from "../en/versions.json";
+import { NAMESPACES } from "../../lib/i18n";
+import { SUPPORTED_LANGUAGES } from "../../lib/language";
 
-const CATALOGS: Record<string, unknown> = {
-  common,
-  settings,
-  onboarding,
-  sidebar,
-  calendar,
-  tasks,
-  today,
-  editor,
-  vault,
-  trash,
-  conflict,
-  versions,
-  links,
-  pdf,
-};
+// Every catalog under src/locales/<locale>/<namespace>.json, eagerly imported.
+const modules = import.meta.glob("../*/*.json", { eager: true, import: "default" }) as Record<
+  string,
+  unknown
+>;
+
+const byLocale: Record<string, Record<string, unknown>> = {};
+for (const [file, catalog] of Object.entries(modules)) {
+  const m = /^\.\.\/([^/]+)\/([^/]+)\.json$/.exec(file);
+  if (!m) throw new Error(`unexpected catalog path: ${file}`);
+  const [, locale, ns] = m;
+  (byLocale[locale] ??= {})[ns] = catalog;
+}
+
+const CATALOGS: Record<string, unknown> = byLocale.en ?? {};
 
 /** Non-English locales, keyed by namespace, checked for parity against English. */
-const LOCALES: Record<string, Record<string, unknown>> = {
-  de: {
-    common: deCommon,
-    settings: deSettings,
-    onboarding: deOnboarding,
-    sidebar: deSidebar,
-    calendar: deCalendar,
-    tasks: deTasks,
-    today: deToday,
-    editor: deEditor,
-    vault: deVault,
-    trash: deTrash,
-    conflict: deConflict,
-    versions: deVersions,
-    links: deLinks,
-    pdf: dePdf,
-  },
-  fr: {
-    common: frCommon,
-    settings: frSettings,
-    onboarding: frOnboarding,
-    sidebar: frSidebar,
-    calendar: frCalendar,
-    tasks: frTasks,
-    today: frToday,
-    editor: frEditor,
-    vault: frVault,
-    trash: frTrash,
-    conflict: frConflict,
-    versions: frVersions,
-    links: frLinks,
-    pdf: frPdf,
-  },
-  es: {
-    common: esCommon,
-    settings: esSettings,
-    onboarding: esOnboarding,
-    sidebar: esSidebar,
-    calendar: esCalendar,
-    tasks: esTasks,
-    today: esToday,
-    editor: esEditor,
-    vault: esVault,
-    trash: esTrash,
-    conflict: esConflict,
-    versions: esVersions,
-    links: esLinks,
-    pdf: esPdf,
-  },
-};
+const { en: _en, ...LOCALES } = byLocale;
+
+describe("catalog discovery", () => {
+  // The dev-only pseudo-locale (en-XA) is generated at runtime and ships no files.
+  const realLocales = SUPPORTED_LANGUAGES.filter((l) => l !== "en-XA");
+
+  it("finds every supported locale on disk", () => {
+    expect(Object.keys(byLocale).sort()).toEqual([...realLocales].sort());
+  });
+
+  for (const locale of realLocales) {
+    it(`${locale}: ships exactly the registered namespaces`, () => {
+      expect(Object.keys(byLocale[locale] ?? {}).sort()).toEqual([...NAMESPACES].sort());
+    });
+  }
+});
 
 /** Every leaf string value with its dotted key path. */
 function leaves(node: unknown, prefix = ""): { path: string; value: string }[] {

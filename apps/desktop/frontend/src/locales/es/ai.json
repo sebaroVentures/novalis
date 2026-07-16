@@ -38,7 +38,6 @@
     "error": "No se pudieron cargar las entidades.",
     "everythingAbout": "Todo sobre {{name}}",
     "extract": "Extraer de esta nota",
-    "extractError": "No se pudieron extraer las entidades.",
     "extracting": "Extrayendo entidades…",
     "hide": "Ocultar entidades",
     "kind": {
@@ -212,9 +211,6 @@
     "cancel": "Cancelar",
     "transcribing": "Transcribiendo en el dispositivo…",
     "tooltip": "Graba una reunión y extrae tareas (en el dispositivo)",
-    "noSpeech": "No se detectó voz en la grabación.",
-    "error": "La grabación falló.",
-    "unavailable": "La captura de voz no está disponible en esta plataforma.",
-    "saved": "Transcripción guardada en {{path}}"
+    "noSpeech": "No se detectó voz en la grabación."
   }
 }

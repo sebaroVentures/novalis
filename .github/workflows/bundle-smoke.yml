@@ -23,7 +23,8 @@ jobs:
     steps:
       - uses: actions/checkout@v6
 
-      # WebKitGTK stack required for Tauri's Linux build (matches release.yml).
+      # WebKitGTK stack required for Tauri's Linux build (matches release.yml);
+      # libasound2-dev provides the ALSA headers cpal (native voice capture) links against.
       - name: Install Linux system dependencies
         run: |
           sudo apt-get update
@@ -33,6 +34,7 @@ jobs:
             librsvg2-dev \
             libayatana-appindicator3-dev \
             libxdo-dev \
+            libasound2-dev \
             patchelf \
             build-essential
 

@@ -1,38 +1,38 @@
 {
   "openPdf": "Open PDF…",
-  "picker": {
-    "title": "Open PDF",
-    "placeholder": "Search PDFs…",
-    "empty": "No PDFs in this vault",
-    "count_one": "{{count}} highlight",
-    "count_other": "{{count}} highlights"
-  },
-  "viewer": {
-    "loading": "Loading PDF…",
-    "error": "Could not open this PDF.",
-    "close": "Close",
-    "zoomIn": "Zoom in",
-    "zoomOut": "Zoom out",
-    "pageOf": "{{page}} / {{total}}",
-    "togglePanel": "Highlights",
-    "highlight": "Highlight"
-  },
   "panel": {
-    "title": "Highlights",
-    "empty": "Select text in the PDF, then click Highlight to annotate it.",
-    "jump": "Jump to highlight",
+    "addNote": "Add note",
+    "addToNote": "Add to note",
+    "cancel": "Cancel",
+    "copied": "Copied to clipboard",
     "copyLink": "Copy link",
     "copyQuote": "Copy quote",
-    "addToNote": "Add to note",
-    "linkToNote": "Link to note…",
     "delete": "Delete",
-    "addNote": "Add note",
+    "empty": "Select text in the PDF, then click Highlight to annotate it.",
+    "jump": "Jump to highlight",
+    "linkedTo": "Linked to",
+    "linkedToast": "Added to {{note}}",
+    "linkPickerTitle": "Link highlight to note",
+    "linkToNote": "Link to note…",
     "notePlaceholder": "Your note…",
     "save": "Save",
-    "cancel": "Cancel",
-    "linkedTo": "Linked to",
-    "copied": "Copied to clipboard",
-    "linkedToast": "Added to {{note}}",
-    "linkPickerTitle": "Link highlight to note"
+    "title": "Highlights"
+  },
+  "picker": {
+    "count_one": "{{count}} highlight",
+    "count_other": "{{count}} highlights",
+    "empty": "No PDFs in this vault",
+    "placeholder": "Search PDFs…",
+    "title": "Open PDF"
+  },
+  "viewer": {
+    "close": "Close",
+    "error": "Could not open this PDF.",
+    "highlight": "Highlight",
+    "loading": "Loading PDF…",
+    "pageOf": "{{page}} / {{total}}",
+    "togglePanel": "Highlights",
+    "zoomIn": "Zoom in",
+    "zoomOut": "Zoom out"
   }
 }
