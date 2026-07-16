@@ -9,9 +9,9 @@
 //! `keyring` — is gated off mobile), with honest "desktop-only in this build"
 //! stubs elsewhere.
 
-#[cfg(desktop)]
-pub(crate) use imp::responder_ctx;
 pub(crate) use imp::{generate_ticket, join, status, sync_now};
+#[cfg(desktop)]
+pub(crate) use imp::{is_known_peer, register_peer, responder_ctx};
 
 #[cfg(desktop)]
 mod imp {
@@ -204,6 +204,7 @@ mod imp {
             sent: 0,
             conflicts: Vec::new(),
             unsynced_deletes: 0,
+            skipped_oversize: 0,
         };
 
         if store.vault_id.trim().is_empty() {
@@ -249,6 +250,7 @@ mod imp {
                     outcome.taken += out.taken;
                     outcome.sent += out.sent;
                     outcome.unsynced_deletes += out.unsynced_deletes;
+                    outcome.skipped_oversize += out.skipped_oversize;
                     outcome.conflicts.extend(out.conflicts);
                 }
                 Err(e) => log::warn!("sync: peer {} unreachable this cycle: {e}", peer.node_id),
@@ -293,6 +295,35 @@ mod imp {
             // The responder does not plan, so its base is irrelevant.
             base: Manifest::default(),
         })
+    }
+
+    /// Whether an inbound node id is already a paired peer — decides if the
+    /// responder demands the vault-key challenge before serving its manifest.
+    pub(crate) fn is_known_peer(app: &AppHandle, node_hex: &str) -> CoreResult<bool> {
+        let (_vault, data) =
+            vault_and_data(app).map_err(|e| CoreError::Internal(format!("sync: {}", e.message)))?;
+        let store = SyncStore::load(&sync_dir(&data));
+        Ok(store.peers.iter().any(|p| p.node_id == node_hex))
+    }
+
+    /// Persist a peer that just proved vault-key possession over the wire —
+    /// the responder-side half of pairing (`join` only records the ticket
+    /// generator on the joiner). Future syncs skip the challenge and this
+    /// device can dial the peer back.
+    pub(crate) fn register_peer(app: &AppHandle, node_hex: &str) -> CoreResult<()> {
+        let (_vault, data) =
+            vault_and_data(app).map_err(|e| CoreError::Internal(format!("sync: {}", e.message)))?;
+        let dir = sync_dir(&data);
+        let mut store = SyncStore::load(&dir);
+        store.upsert_peer(PeerRecord {
+            node_id: node_hex.to_string(),
+            label: node_hex.chars().take(8).collect(),
+            relay: None,
+            // No address hints: iroh's node-id discovery resolves the dial.
+            addrs: Vec::new(),
+            last_synced_ms: None,
+        });
+        store.save(&dir)
     }
 }
 

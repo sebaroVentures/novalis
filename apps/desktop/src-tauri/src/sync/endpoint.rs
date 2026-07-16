@@ -22,7 +22,7 @@ use novalis_core::{CoreError, CoreResult};
 use tauri::AppHandle;
 use tokio::sync::OnceCell;
 
-use super::session::{self, SessionCtx, SessionOutcome};
+use super::session::{self, PeerTrust, SessionCtx, SessionOutcome};
 
 /// Application-layer protocol negotiated on every connection.
 pub const ALPN: &[u8] = b"novalis/sync/1";
@@ -128,7 +128,24 @@ async fn serve_one(incoming: iroh::endpoint::Incoming, app: &AppHandle) -> CoreR
     // Resolve the responder context for whatever vault is currently open. If no
     // vault is open, or sync isn't set up for it, refuse cleanly.
     let ctx = super::service::responder_ctx(app)?;
-    let out = session::run_responder(&mut recv, &mut send, &ctx).await?;
+    // The QUIC handshake proved the peer *is* this node id; the session's
+    // vault-key challenge (for ids not yet in the peer store) proves it is
+    // *authorized* before it sees the manifest.
+    let remote_hex = hex(conn.remote_id().as_bytes());
+    let trust = if super::service::is_known_peer(app, &remote_hex)? {
+        PeerTrust::Known
+    } else {
+        PeerTrust::Unknown
+    };
+    let out = session::run_responder(&mut recv, &mut send, &ctx, trust).await?;
+    if out.peer_authenticated {
+        // The peer proved vault-key possession: persist the pairing. This is
+        // the responder-side half of pairing (join() only records the ticket
+        // generator on the joiner), so future syncs skip the challenge and
+        // this device can dial back.
+        super::service::register_peer(app, &remote_hex)?;
+        log::info!("sync: paired new peer {remote_hex} after vault-key proof");
+    }
     log::info!(
         "sync: served peer (received {}, sent {})",
         out.taken,
@@ -222,7 +239,8 @@ mod loopback_test {
         let server = loopback_endpoint([1u8; 32]).await;
         let client = loopback_endpoint([2u8; 32]).await;
 
-        // Server accepts and responds.
+        // Server accepts and responds. Trust is Unknown so the full vault-key
+        // challenge runs over real QUIC too.
         let server_ctx = SessionCtx {
             vault: vb.clone(),
             vault_id: "vault-x".to_string(),
@@ -234,9 +252,13 @@ mod loopback_test {
             let incoming = srv.accept().await.expect("incoming");
             let conn = incoming.await.expect("conn");
             let (mut send, mut recv) = conn.accept_bi().await.expect("accept_bi");
-            session::run_responder(&mut recv, &mut send, &server_ctx)
+            let out = session::run_responder(&mut recv, &mut send, &server_ctx, PeerTrust::Unknown)
                 .await
                 .expect("responder");
+            assert!(
+                out.peer_authenticated,
+                "unknown peer with the key must pass the challenge"
+            );
             let _ = send.finish();
             conn.close(0u8.into(), b"ok");
         });
@@ -266,5 +288,55 @@ mod loopback_test {
             std::fs::read_to_string(vb.join("a.md")).unwrap(),
             "alpha over quic"
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn p2p_loopback_refuses_unknown_peer_without_the_vault_key() {
+        let vault_key = VaultKey::generate();
+        let intruder_key = VaultKey::generate();
+        let (_ta, va) = vault_with(&[("a.md", "mine")]);
+        let (_tb, vb) = vault_with(&[("secret.md", "server data")]);
+
+        let server = loopback_endpoint([3u8; 32]).await;
+        let client = loopback_endpoint([4u8; 32]).await;
+
+        let server_ctx = SessionCtx {
+            vault: vb.clone(),
+            vault_id: "vault-x".to_string(),
+            key: vault_key,
+            base: Manifest::default(),
+        };
+        let srv = server.clone();
+        let server_task = tokio::spawn(async move {
+            let incoming = srv.accept().await.expect("incoming");
+            let conn = incoming.await.expect("conn");
+            let (mut send, mut recv) = conn.accept_bi().await.expect("accept_bi");
+            let res =
+                session::run_responder(&mut recv, &mut send, &server_ctx, PeerTrust::Unknown).await;
+            let _ = send.finish();
+            conn.close(0u8.into(), b"denied");
+            res
+        });
+
+        // The intruder knows the (non-secret) vault id but not the vault key.
+        let port = server.bound_sockets()[0].port();
+        let addr = EndpointAddr::new(server.id())
+            .with_ip_addr(format!("127.0.0.1:{port}").parse().unwrap());
+        let conn = client.connect(addr, ALPN).await.expect("connect");
+        let (mut send, mut recv) = conn.open_bi().await.expect("open_bi");
+        let client_ctx = SessionCtx {
+            vault: va,
+            vault_id: "vault-x".to_string(),
+            key: intruder_key,
+            base: Manifest::default(),
+        };
+        let init_res = session::run_initiator(&mut recv, &mut send, &client_ctx).await;
+        let _ = send.finish();
+        let resp_res = server_task.await.unwrap();
+
+        assert!(resp_res.is_err(), "responder must refuse the intruder");
+        assert!(init_res.is_err(), "intruder must not complete a sync");
+        // Nothing crossed: the intruder's file never landed on the server.
+        assert!(!vb.join("a.md").exists());
     }
 }
