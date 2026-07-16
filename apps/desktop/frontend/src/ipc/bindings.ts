@@ -329,6 +329,10 @@ export const commands = {
 	/**
 	 *  Export a note to HTML or DOCX, prompting for a save location. Returns the
 	 *  saved path, or `None` if the user cancelled.
+	 * 
+	 *  `async` + `spawn_blocking`: `blocking_save_file` on the main thread would
+	 *  deadlock — it asks the main thread's event loop to show the native panel
+	 *  while blocking that same thread (see [`pick_vault_folder`]).
 	 */
 	exportNote: (path: string, format: string) => typedError<string | null, CommandError>(__TAURI_INVOKE("export_note", { path, format })),
 	listTemplates: () => typedError<NoteTemplate[], CommandError>(__TAURI_INVOKE("list_templates")),
@@ -391,9 +395,21 @@ export const commands = {
 	 *  main thread.
 	 */
 	refreshCalendarSource: (id: string) => typedError<number, CommandError>(__TAURI_INVOKE("refresh_calendar_source", { id })),
-	/**  Import an `.ics` file (native picker), creating own events. Returns the count. */
+	/**
+	 *  Import an `.ics` file (native picker), creating own events. Returns the count.
+	 * 
+	 *  `async` + `spawn_blocking`: `blocking_pick_file` on the main thread would
+	 *  deadlock — it asks the main thread's event loop to show the native panel
+	 *  while blocking that same thread (see [`pick_vault_folder`]).
+	 */
 	importIcs: () => typedError<number, CommandError>(__TAURI_INVOKE("import_ics")),
-	/**  Export events in a range to an `.ics` file (save dialog). Returns saved path. */
+	/**
+	 *  Export events in a range to an `.ics` file (save dialog). Returns saved path.
+	 * 
+	 *  `async` + `spawn_blocking`: `blocking_save_file` on the main thread would
+	 *  deadlock — it asks the main thread's event loop to show the native panel
+	 *  while blocking that same thread (see [`pick_vault_folder`]).
+	 */
 	exportIcs: (rangeStart: string, rangeEnd: string) => typedError<string | null, CommandError>(__TAURI_INVOKE("export_ics", { rangeStart, rangeEnd })),
 	/**
 	 *  Run the interactive OAuth flow for `provider` ("google" | "outlook") and
@@ -522,6 +538,14 @@ export const commands = {
 	voiceStartRecording: () => typedError<null, CommandError>(__TAURI_INVOKE("voice_start_recording")),
 	/**  Stop capturing and finalize the recording as a WAV under `app-data/voice/`. */
 	voiceStopRecording: () => typedError<VoiceRecording, CommandError>(__TAURI_INVOKE("voice_stop_recording")),
+	/**  Cancel the in-progress recording, discarding the audio without writing a WAV. */
+	voiceCancelRecording: () => typedError<null, CommandError>(__TAURI_INVOKE("voice_cancel_recording")),
+	/**
+	 *  Delete a finalized recording from `app-data/voice/`. Accepts ONLY a bare
+	 *  `recording-<uuid>.wav` file name (the exact artifact names `stop_impl`
+	 *  produces) so it can never reach outside the voice dir.
+	 */
+	voiceDeleteRecording: (fileName: string) => typedError<null, CommandError>(__TAURI_INVOKE("voice_delete_recording", { fileName })),
 	/**
 	 *  Transcribe a recorded WAV on-device. Downloads + caches the whisper model on
 	 *  first use; runs off the async runtime (whisper is CPU-bound and blocking).

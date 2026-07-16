@@ -279,6 +279,8 @@ export const api = {
   voiceCapabilities: () => commands.voiceCapabilities(),
   voiceStartRecording: () => unwrap(commands.voiceStartRecording()),
   voiceStopRecording: () => unwrap(commands.voiceStopRecording()),
+  voiceCancelRecording: () => unwrap(commands.voiceCancelRecording()),
+  voiceDeleteRecording: (fileName: string) => unwrap(commands.voiceDeleteRecording(fileName)),
   voiceTranscribe: (wavPath: string) => unwrap(commands.voiceTranscribe(wavPath)),
 };
 

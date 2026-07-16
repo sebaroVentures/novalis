@@ -126,8 +126,9 @@ export const useVoice = create<VoiceState>((set, get) => ({
   cancel: async () => {
     if (get().status !== "recording") return;
     try {
-      // Stop discards the take: we don't transcribe or create a note.
-      await api.voiceStopRecording();
+      // A true discard: the backend drops the captured audio without ever
+      // writing a WAV — we don't transcribe or create a note.
+      await api.voiceCancelRecording();
     } catch {
       // Ignore — cancelling is best-effort.
     }
@@ -141,6 +142,9 @@ export const useVoice = create<VoiceState>((set, get) => ({
       const rec = await api.voiceStopRecording();
       const transcript = (await api.voiceTranscribe(rec.path)).trim();
       if (!transcript) {
+        // The take is abandoned (no note will ever be made from it) — don't
+        // leave plaintext meeting audio behind.
+        await deleteRecording(rec.path);
         set({ status: "error", error: i18n.t("ai:voice.noSpeech") });
         return;
       }
@@ -149,6 +153,9 @@ export const useVoice = create<VoiceState>((set, get) => ({
       // heading from the filename stem when the content has no frontmatter).
       const stem = transcriptName(new Date());
       const notePath = await createTranscriptNote(stem, transcript);
+
+      // The transcript is safely in the vault — delete the plaintext WAV.
+      await deleteRecording(rec.path);
 
       // Open it in the workspace, then hand its live editor to the existing
       // task-extraction review so the model's proposed tasks get the usual
@@ -176,6 +183,20 @@ export const useVoice = create<VoiceState>((set, get) => ({
 
   clearError: () => set({ error: null, status: "idle", recordingStartedAt: null }),
 }));
+
+/** Best-effort delete of a finalized take's WAV (plaintext meeting audio must
+ *  not accumulate under app-data). The backend accepts only the bare
+ *  `recording-<uuid>.wav` name, so pass the path's basename. A failure is
+ *  logged, never fatal — the startup sweep removes any leftovers. */
+async function deleteRecording(wavPath: string): Promise<void> {
+  const name = wavPath.split(/[/\\]/).pop();
+  if (!name) return;
+  try {
+    await api.voiceDeleteRecording(name);
+  } catch (e) {
+    console.error("voice: could not delete the recording", name, e);
+  }
+}
 
 /** Create the transcript note, retrying the filename on a rare collision. */
 async function createTranscriptNote(stem: string, transcript: string): Promise<string> {

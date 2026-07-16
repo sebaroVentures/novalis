@@ -76,6 +76,22 @@ pub fn voice_stop_recording(app: AppHandle) -> CmdResult<VoiceRecording> {
     stop_impl(&app)
 }
 
+/// Cancel the in-progress recording, discarding the audio without writing a WAV.
+#[tauri::command]
+#[specta::specta]
+pub fn voice_cancel_recording() -> CmdResult<()> {
+    cancel_impl()
+}
+
+/// Delete a finalized recording from `app-data/voice/`. Accepts ONLY a bare
+/// `recording-<uuid>.wav` file name (the exact artifact names `stop_impl`
+/// produces) so it can never reach outside the voice dir.
+#[tauri::command]
+#[specta::specta]
+pub fn voice_delete_recording(app: AppHandle, file_name: String) -> CmdResult<()> {
+    delete_impl(&app, &file_name)
+}
+
 /// Transcribe a recorded WAV on-device. Downloads + caches the whisper model on
 /// first use; runs off the async runtime (whisper is CPU-bound and blocking).
 #[tauri::command]
@@ -100,6 +116,75 @@ fn stop_impl(app: &AppHandle) -> CmdResult<VoiceRecording> {
         path: rec.path.to_string_lossy().to_string(),
         duration_secs: rec.duration_secs,
     })
+}
+
+#[cfg(not(target_os = "android"))]
+fn cancel_impl() -> CmdResult<()> {
+    crate::voice::capture::cancel()
+}
+
+#[cfg(not(target_os = "android"))]
+fn delete_impl(app: &AppHandle, file_name: &str) -> CmdResult<()> {
+    if !is_recording_file_name(file_name) {
+        return Err(CommandError {
+            kind: "voiceDelete".to_string(),
+            message: format!("not a recording file name: {file_name}"),
+        });
+    }
+    let path = voice_dir(app)?.join(file_name);
+    match std::fs::remove_file(&path) {
+        Ok(()) => Ok(()),
+        // Already gone (e.g. the startup sweep beat us) — deletion is idempotent.
+        Err(e) if e.kind() == std::io::ErrorKind::NotFound => Ok(()),
+        Err(e) => Err(CommandError::internal(format!(
+            "cannot delete the recording: {e}"
+        ))),
+    }
+}
+
+/// Whether `name` is exactly a `recording-<uuid>.wav` file name as produced by
+/// `stop_impl`. The strict shape (prefix + parseable UUID + suffix) rejects any
+/// path separator, `..`, or absolute path, so [`voice_delete_recording`] and the
+/// startup sweep can only ever touch our own artifacts inside the voice dir.
+#[cfg(not(target_os = "android"))]
+fn is_recording_file_name(name: &str) -> bool {
+    name.strip_prefix("recording-")
+        .and_then(|rest| rest.strip_suffix(".wav"))
+        .is_some_and(|id| uuid::Uuid::try_parse(id).is_ok())
+}
+
+/// Remove stale `recording-<uuid>.wav` takes left in `app-data/voice/` (crashed
+/// runs, pre-cleanup versions). Called once from app setup, BEFORE the webview
+/// can invoke any command, so it cannot race an active take — and it re-checks
+/// the recorder state anyway. Best-effort: failures are logged, never fatal.
+#[cfg(not(target_os = "android"))]
+pub fn sweep_stale_recordings(app: &AppHandle) {
+    if crate::voice::capture::is_recording() {
+        return;
+    }
+    let dir = match voice_dir(app) {
+        Ok(d) => d,
+        Err(e) => {
+            log::warn!("voice sweep: cannot resolve the voice dir: {}", e.message);
+            return;
+        }
+    };
+    let entries = match std::fs::read_dir(&dir) {
+        Ok(e) => e,
+        Err(e) => {
+            log::warn!("voice sweep: cannot read the voice dir: {e}");
+            return;
+        }
+    };
+    for entry in entries.flatten() {
+        let name = entry.file_name();
+        let Some(name) = name.to_str() else { continue };
+        if is_recording_file_name(name) {
+            if let Err(e) = std::fs::remove_file(entry.path()) {
+                log::warn!("voice sweep: cannot delete stale recording {name}: {e}");
+            }
+        }
+    }
 }
 
 #[cfg(not(target_os = "android"))]
@@ -163,6 +248,58 @@ fn stop_impl(_app: &AppHandle) -> CmdResult<VoiceRecording> {
 }
 
 #[cfg(target_os = "android")]
+fn cancel_impl() -> CmdResult<()> {
+    Err(unavailable())
+}
+
+#[cfg(target_os = "android")]
+fn delete_impl(_app: &AppHandle, _file_name: &str) -> CmdResult<()> {
+    Err(unavailable())
+}
+
+#[cfg(target_os = "android")]
 async fn transcribe_impl(_app: AppHandle, _wav_path: String) -> CmdResult<String> {
     Err(unavailable())
+}
+
+#[cfg(all(test, not(target_os = "android")))]
+mod tests {
+    use super::is_recording_file_name;
+
+    #[test]
+    fn accepts_exactly_the_names_stop_impl_produces() {
+        let name = format!("recording-{}.wav", uuid::Uuid::new_v4());
+        assert!(is_recording_file_name(&name));
+    }
+
+    #[test]
+    fn rejects_traversal_and_separators() {
+        let uuid = uuid::Uuid::new_v4();
+        for name in [
+            format!("../recording-{uuid}.wav"),
+            format!("..\\recording-{uuid}.wav"),
+            format!("sub/recording-{uuid}.wav"),
+            format!("/etc/recording-{uuid}.wav"),
+            format!("recording-{uuid}.wav/.."),
+            "recording-../../secret.wav".to_string(),
+            "..".to_string(),
+        ] {
+            assert!(!is_recording_file_name(&name), "accepted: {name}");
+        }
+    }
+
+    #[test]
+    fn rejects_non_recording_names() {
+        let uuid = uuid::Uuid::new_v4();
+        for name in [
+            "ggml-base.en.bin".to_string(),
+            "recording-notauuid.wav".to_string(),
+            format!("recording-{uuid}.wav.bak"),
+            format!("recording-{uuid}.mp3"),
+            format!("take-{uuid}.wav"),
+            String::new(),
+        ] {
+            assert!(!is_recording_file_name(&name), "accepted: {name}");
+        }
+    }
 }

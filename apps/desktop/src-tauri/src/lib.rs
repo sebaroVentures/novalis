@@ -239,6 +239,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
             voice::commands::voice_capabilities,
             voice::commands::voice_start_recording,
             voice::commands::voice_stop_recording,
+            voice::commands::voice_cancel_recording,
+            voice::commands::voice_delete_recording,
             voice::commands::voice_transcribe,
         ])
         .events(collect_events![
@@ -327,6 +329,13 @@ pub fn run() {
                     });
                 }
             }
+
+            // Sweep stale voice takes (crashed runs, pre-cleanup versions) out
+            // of app-data/voice. Runs synchronously in setup — before the
+            // webview can invoke any command — so it cannot race an active
+            // recording; plaintext meeting audio must not accumulate on disk.
+            #[cfg(desktop)]
+            voice::commands::sweep_stale_recordings(app.handle());
 
             // Reopen the last vault in the background so the window appears fast.
             let handle = app.handle().clone();

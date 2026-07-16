@@ -110,6 +110,28 @@ pub fn start() -> Result<(), CommandError> {
     }
 }
 
+/// Whether a capture is currently in progress (the startup sweep's guard).
+pub fn is_recording() -> bool {
+    RECORDER.lock().unwrap_or_else(|e| e.into_inner()).is_some()
+}
+
+/// Cancel the in-progress recording, discarding the captured samples without
+/// ever writing them to disk (a true discard — no WAV artifact is left behind).
+/// Fails loud when nothing is recording.
+pub fn cancel() -> Result<(), CommandError> {
+    let recorder = {
+        let mut guard = RECORDER.lock().unwrap_or_else(|e| e.into_inner());
+        guard
+            .take()
+            .ok_or_else(|| err("voiceNotRecording", "no recording is in progress"))?
+    };
+
+    // Stop the thread and drop whatever it captured.
+    let _ = recorder.stop_tx.send(());
+    let _ = recorder.join.join();
+    Ok(())
+}
+
 /// Stop the in-progress recording, normalize it to 16 kHz mono, and write a
 /// 16-bit PCM WAV to `out_path`. Fails loud when nothing is recording or no
 /// audio was captured (muted mic / denied permission).
@@ -358,6 +380,14 @@ pub fn read_wav_as_16k_mono(path: &Path) -> Result<Vec<f32>, String> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn cancel_without_recording_fails_loud() {
+        // No test in this suite ever starts a capture (no mic in CI), so the
+        // global RECORDER is reliably empty here.
+        let e = cancel().unwrap_err();
+        assert_eq!(e.kind, "voiceNotRecording");
+    }
 
     #[test]
     fn downmix_averages_stereo_to_mono() {
