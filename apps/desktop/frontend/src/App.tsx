@@ -24,6 +24,7 @@ import { Sidebar, type MainView } from "./components/Sidebar";
 import { TasksView } from "./components/TasksView";
 import { TodayView } from "./components/TodayView";
 import { TrashModal } from "./components/TrashModal";
+import { ErrorBoundary } from "./components/ui/ErrorBoundary";
 import { VaultChatPanel } from "./components/VaultChatPanel";
 import { VaultGate } from "./components/VaultGate";
 import { WorkspaceLayout } from "./components/WorkspaceLayout";
@@ -376,25 +377,29 @@ export default function App() {
           ) : view === "query" ? (
             <QueryView />
           ) : view === "graph" ? (
-            <Suspense
-              fallback={
-                <div className="flex flex-1 items-center justify-center text-sm text-fg-faint">
-                  {t("loading")}
-                </div>
-              }
-            >
-              <GraphView />
-            </Suspense>
+            <ErrorBoundary resetKeys={[view]} className="flex-1">
+              <Suspense
+                fallback={
+                  <div className="flex flex-1 items-center justify-center text-sm text-fg-faint">
+                    {t("loading")}
+                  </div>
+                }
+              >
+                <GraphView />
+              </Suspense>
+            </ErrorBoundary>
           ) : view === "canvas" ? (
-            <Suspense
-              fallback={
-                <div className="flex flex-1 items-center justify-center text-sm text-fg-faint">
-                  {t("loading")}
-                </div>
-              }
-            >
-              <CanvasView />
-            </Suspense>
+            <ErrorBoundary resetKeys={[view]} className="flex-1">
+              <Suspense
+                fallback={
+                  <div className="flex flex-1 items-center justify-center text-sm text-fg-faint">
+                    {t("loading")}
+                  </div>
+                }
+              >
+                <CanvasView />
+              </Suspense>
+            </ErrorBoundary>
           ) : (
             <CalendarView />
           )}
@@ -425,9 +430,11 @@ export default function App() {
           lazy full-screen viewer overlay (pdfjs-dist loads only on open). */}
       <PdfPicker />
       {pdfPath && (
-        <Suspense fallback={null}>
-          <PdfViewer />
-        </Suspense>
+        <ErrorBoundary resetKeys={[pdfPath]} className="fixed inset-0 z-50 bg-app">
+          <Suspense fallback={null}>
+            <PdfViewer />
+          </Suspense>
+        </ErrorBoundary>
       )}
       {/* AI weekly review — narrative + carry-over proposals over the current
           week's deterministic digest, opened from the command palette. */}

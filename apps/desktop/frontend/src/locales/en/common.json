@@ -26,6 +26,13 @@
     "zoomReset": "Fit to content"
   },
   "delete": "Delete",
+  "errorBoundary": {
+    "copied": "Copied",
+    "copy": "Copy diagnostics",
+    "reload": "Reload app",
+    "retry": "Try again",
+    "title": "Something went wrong"
+  },
   "errorPrefix": "Error: ",
   "graph": {
     "empty": "No notes to graph yet",

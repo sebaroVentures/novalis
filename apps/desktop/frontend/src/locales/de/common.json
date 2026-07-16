@@ -26,6 +26,13 @@
     "zoomReset": "An Inhalt anpassen"
   },
   "delete": "Löschen",
+  "errorBoundary": {
+    "copied": "Kopiert",
+    "copy": "Diagnose kopieren",
+    "reload": "App neu laden",
+    "retry": "Erneut versuchen",
+    "title": "Etwas ist schiefgelaufen"
+  },
   "errorPrefix": "Fehlermeldung: ",
   "graph": {
     "empty": "Noch keine Notizen für den Graphen",

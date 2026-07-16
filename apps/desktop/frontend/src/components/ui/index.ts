@@ -8,3 +8,4 @@ export { SettingRow } from "./SettingRow";
 export { SettingsSection } from "./SettingsSection";
 export { ColorSwatchPicker } from "./ColorSwatchPicker";
 export { ChipInput } from "./ChipInput";
+export { ErrorBoundary } from "./ErrorBoundary";
