@@ -57,7 +57,7 @@ function Bomb() {
   return <p>recovered</p>;
 }
 
-function ChunkBomb() {
+function ChunkBomb(): ReactNode {
   throw new Error("Failed to fetch dynamically imported module: /assets/CanvasView.js");
 }
 
