@@ -51,6 +51,10 @@ pub struct SyncOutcome {
     /// Deletions detected but deliberately NOT propagated in this foundation
     /// (see `FileAction::DeletePending`). Surfaced so the boundary is visible.
     pub unsynced_deletes: u32,
+    /// Files skipped this cycle because they exceed the per-file transfer cap
+    /// (the 64 MiB frame limit). Counted and logged, never fatal; they retry
+    /// (and are skipped again) until they shrink or a chunked transfer lands.
+    pub skipped_oversize: u32,
 }
 
 /// Externally tagged like `GitSyncKind`: unit variants cross IPC as plain

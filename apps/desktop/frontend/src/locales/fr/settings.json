@@ -189,6 +189,7 @@
         "conflicts": "{{n}} fichier(s) ont divergé et ont été laissés pour résolution dans la vue des conflits",
         "noPeers": "Jumelez d’abord un appareil",
         "notConfigured": "Configurez d’abord la synchronisation pair-à-pair",
+        "skippedOversize": "{{n}} fichier(s) ignoré(s) — plus volumineux que la limite de synchronisation de 64 Mio",
         "synced": "Synchronisé — {{taken}} reçu(s), {{sent}} envoyé(s)",
         "unreachable": "Aucun appareil jumelé n’était joignable — réessayez lorsque les deux sont en ligne",
         "upToDate": "À jour"

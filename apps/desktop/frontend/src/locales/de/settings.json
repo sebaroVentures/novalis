@@ -189,6 +189,7 @@
         "conflicts": "{{n}} Datei(en) sind auseinandergelaufen und wurden zur Auflösung in der Konfliktansicht belassen",
         "noPeers": "Zuerst ein Gerät koppeln",
         "notConfigured": "Zuerst Peer-to-Peer-Synchronisierung einrichten",
+        "skippedOversize": "{{n}} Datei(en) übersprungen – größer als das 64-MiB-Sync-Limit",
         "synced": "Synchronisiert – {{taken}} empfangen, {{sent}} gesendet",
         "unreachable": "Kein gekoppeltes Gerät war erreichbar – versuche es erneut, wenn beide online sind",
         "upToDate": "Auf dem neuesten Stand"

@@ -1679,6 +1679,12 @@ export type SyncOutcome = {
 	 *  (see `FileAction::DeletePending`). Surfaced so the boundary is visible.
 	 */
 	unsyncedDeletes: number,
+	/**
+	 *  Files skipped this cycle because they exceed the per-file transfer cap
+	 *  (the 64 MiB frame limit). Counted and logged, never fatal; they retry
+	 *  (and are skipped again) until they shrink or a chunked transfer lands.
+	 */
+	skippedOversize: number,
 };
 
 /**

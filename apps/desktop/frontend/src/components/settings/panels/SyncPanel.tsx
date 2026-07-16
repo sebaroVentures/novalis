@@ -556,6 +556,11 @@ function P2PSyncSection() {
       )}
 
       {outcomeText && <p className="pt-2 text-xs text-fg-muted">{outcomeText}</p>}
+      {outcome && outcome.skippedOversize > 0 && (
+        <p className="pt-1 text-xs text-fg-muted">
+          {t("sync.p2p.outcome.skippedOversize", { n: outcome.skippedOversize })}
+        </p>
+      )}
       {outcome && outcome.conflicts.length > 0 && (
         <p className="pt-1 text-xs text-danger">
           {t("sync.p2p.outcome.conflicts", { n: outcome.conflicts.length })}

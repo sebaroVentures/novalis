@@ -189,6 +189,7 @@
         "conflicts": "{{n}} archivo(s) divergieron y se dejaron para que los resuelvas en la vista de conflictos",
         "noPeers": "Empareja primero un dispositivo",
         "notConfigured": "Configura primero la sincronización entre pares",
+        "skippedOversize": "{{n}} archivo(s) omitido(s) — superan el límite de sincronización de 64 MiB",
         "synced": "Sincronizado — {{taken}} recibido(s), {{sent}} enviado(s)",
         "unreachable": "Ningún dispositivo emparejado estaba accesible — inténtalo de nuevo cuando ambos estén en línea",
         "upToDate": "Al día"

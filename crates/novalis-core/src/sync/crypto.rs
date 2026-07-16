@@ -24,6 +24,18 @@ use crate::error::{CoreError, CoreResult};
 const NONCE_LEN: usize = 24;
 /// Length of the symmetric vault key.
 pub const KEY_LEN: usize = 32;
+/// Length of a pairing challenge nonce (see [`challenge_nonce`]).
+pub const CHALLENGE_LEN: usize = 32;
+
+/// A fresh random nonce for the proof-of-vault-key challenge an unknown peer
+/// must answer before it sees a manifest. This is *application payload* the
+/// peer seals — distinct from (and never reused as) the AEAD nonce that
+/// [`VaultKey::seal`] generates internally per call.
+pub fn challenge_nonce() -> [u8; CHALLENGE_LEN] {
+    let mut n = [0u8; CHALLENGE_LEN];
+    OsRng.fill_bytes(&mut n);
+    n
+}
 
 /// The symmetric key that seals a vault's file contents. Shared only between
 /// paired devices. `Clone` is intentional (the transport hands copies to the
@@ -157,5 +169,10 @@ mod tests {
     fn too_short_blob_is_a_bad_request_not_a_panic() {
         let key = VaultKey::generate();
         assert!(key.open(&[0u8; 8]).is_err());
+    }
+
+    #[test]
+    fn challenge_nonces_are_random_per_call() {
+        assert_ne!(challenge_nonce(), challenge_nonce());
     }
 }

@@ -189,6 +189,7 @@
         "conflicts": "{{n}} file(s) diverged and were left for you to resolve in the conflict view",
         "noPeers": "Pair a device first",
         "notConfigured": "Set up peer-to-peer sync first",
+        "skippedOversize": "{{n}} file(s) skipped — larger than the 64 MiB sync limit",
         "synced": "Synced — received {{taken}}, sent {{sent}}",
         "unreachable": "No paired device was reachable — try again when both are online",
         "upToDate": "Up to date"

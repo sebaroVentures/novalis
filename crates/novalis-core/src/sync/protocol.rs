@@ -18,8 +18,10 @@ use crate::error::{CoreError, CoreResult};
 use crate::sync::manifest::Manifest;
 
 /// Protocol version, exchanged in [`Frame::Hello`]. A mismatch aborts the
-/// session cleanly rather than risking a misread stream.
-pub const PROTOCOL_VERSION: u8 = 1;
+/// session cleanly rather than risking a misread stream. v2 added the
+/// vault-key challenge ([`Frame::Challenge`]/[`Frame::ChallengeResponse`])
+/// that gates the manifest for unknown peers.
+pub const PROTOCOL_VERSION: u8 = 2;
 
 /// One message on the sync stream.
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -27,6 +29,13 @@ pub enum Frame {
     /// First message from each side: protocol version + which vault this is.
     /// A version or vault-id mismatch ends the session.
     Hello { version: u8, vault_id: String },
+    /// Responder → an *unknown* initiator, after `Hello`: prove possession of
+    /// the vault key by sealing this random nonce. Nothing else (in
+    /// particular no manifest) is sent until the proof verifies.
+    Challenge { nonce: Vec<u8> },
+    /// Initiator → responder: the challenge nonce, sealed with the vault key
+    /// (see `crypto`). Opening it and matching the nonce is the proof.
+    ChallengeResponse { sealed: Vec<u8> },
     /// A side's full content manifest of its vault.
     Manifest(Manifest),
     /// "Send me this file" — used by the plan-driving side to pull a file it
@@ -85,6 +94,16 @@ mod tests {
         round_trip(Frame::Hello {
             version: PROTOCOL_VERSION,
             vault_id: "vault-1".to_string(),
+        });
+    }
+
+    #[test]
+    fn challenge_frames_round_trip() {
+        round_trip(Frame::Challenge {
+            nonce: vec![7u8; 32],
+        });
+        round_trip(Frame::ChallengeResponse {
+            sealed: vec![0u8, 255, 42],
         });
     }
 

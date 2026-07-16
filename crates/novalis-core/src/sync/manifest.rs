@@ -51,11 +51,27 @@ pub struct Manifest {
     pub entries: BTreeMap<String, FileEntry>,
 }
 
+/// Whether a vault-relative path is part of the **syncable surface**. The one
+/// definition shared by [`Manifest::build`] and the session's file read/write
+/// paths, so what a peer can read or write is exactly what a manifest can
+/// advertise: no hidden components (`.novalis/`, `.git/`, dotfiles, atomic-
+/// write temps) and nothing that could step outside the vault (`..` also
+/// starts with a dot; empty components reject absolute/doubled slashes;
+/// backslashes are rejected so no separator sneaks past on any platform).
+/// Defense in depth on top of `vault_rel`'s escape check.
+pub fn is_syncable_rel(rel: &str) -> bool {
+    !rel.is_empty()
+        && rel
+            .split('/')
+            .all(|c| !c.is_empty() && !c.starts_with('.') && !c.contains('\\'))
+}
+
 impl Manifest {
-    /// Hash every non-hidden file under `vault` into a manifest. Skips dot
-    /// files/dirs (so `.novalis/`, `.git/`, and atomic-write temp files are
-    /// excluded — matching the vault walker elsewhere). Unreadable files are
-    /// skipped with a log line rather than failing the whole scan.
+    /// Hash every syncable file under `vault` into a manifest. Skips whatever
+    /// [`is_syncable_rel`] excludes (dot files/dirs, so `.novalis/`, `.git/`,
+    /// and atomic-write temp files — matching the vault walker elsewhere).
+    /// Unreadable files are skipped with a log line rather than failing the
+    /// whole scan.
     pub fn build(vault: &Path) -> CoreResult<Manifest> {
         let mut entries = BTreeMap::new();
         for entry in WalkDir::new(vault)
@@ -72,6 +88,10 @@ impl Manifest {
                 .unwrap_or(entry.path())
                 .to_string_lossy()
                 .replace('\\', "/");
+            // The walker's filter is an optimization; this is the contract.
+            if !is_syncable_rel(&rel) {
+                continue;
+            }
             let bytes = match std::fs::read(entry.path()) {
                 Ok(b) => b,
                 Err(e) => {
@@ -311,6 +331,28 @@ mod tests {
         let m = Manifest::build(&vault).unwrap();
         assert_eq!(m.entries.len(), 1, "only a.md is syncable");
         assert!(m.entries.contains_key("a.md"));
+    }
+
+    #[test]
+    fn is_syncable_rel_defines_the_surface() {
+        for ok in ["a.md", "notes/deep/b.md", "media/img.png"] {
+            assert!(is_syncable_rel(ok), "{ok} must be syncable");
+        }
+        for bad in [
+            "",
+            ".novalis/plugins-enabled.json",
+            ".novalis/plugins/evil/main.js",
+            "notes/.hidden.md",
+            ".git/config",
+            "../outside.md",
+            "notes/../../outside.md",
+            "/abs/path.md",
+            "notes//gap.md",
+            "notes\\win.md",
+            ".Note.md.123.sync-tmp",
+        ] {
+            assert!(!is_syncable_rel(bad), "{bad:?} must NOT be syncable");
+        }
     }
 
     #[test]
