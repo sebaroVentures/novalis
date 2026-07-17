@@ -64,6 +64,7 @@
     "rootFolder": "(Stamm)",
     "todo": "Zu erledigen"
   },
+  "loadError": "Die Aufgaben konnten nicht geladen werden.",
   "menu": {
     "cancel": "Abbrechen",
     "confirmDelete": "Bestätigen",

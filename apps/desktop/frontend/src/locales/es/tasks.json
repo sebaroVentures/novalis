@@ -64,6 +64,7 @@
     "rootFolder": "(Raíz)",
     "todo": "Por hacer"
   },
+  "loadError": "No se pudieron cargar las tareas.",
   "menu": {
     "cancel": "Cancelar",
     "confirmDelete": "Confirmar",

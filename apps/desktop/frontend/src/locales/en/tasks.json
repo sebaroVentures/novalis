@@ -64,6 +64,7 @@
     "rootFolder": "(Root)",
     "todo": "To Do"
   },
+  "loadError": "Couldn't load tasks.",
   "menu": {
     "cancel": "Cancel",
     "confirmDelete": "Confirm",

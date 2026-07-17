@@ -35,6 +35,7 @@ export function CalendarView() {
   const mode = useCalendar((s) => s.mode);
   const anchor = useCalendar((s) => s.anchor);
   const events = useCalendar((s) => s.events);
+  const error = useCalendar((s) => s.error);
   const calPrefs = useSettings((s) => s.prefs?.calendar);
   const { t } = useTranslation(["calendar", "common"]);
   const [editing, setEditing] = useState<EventDraft | null>(null);
@@ -135,6 +136,18 @@ export function CalendarView() {
           </button>
         </div>
       </header>
+
+      {error && (
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 text-sm text-danger">
+          <span>{t("loadError")}</span>
+          <button
+            onClick={() => void useCalendar.getState().load()}
+            className="shrink-0 rounded-md px-2 py-1 text-xs ring-1 ring-danger/50 transition-colors hover:bg-danger/10"
+          >
+            {t("common:retry")}
+          </button>
+        </div>
+      )}
 
       {mode === "day" ? (
         <div className="flex-1 overflow-y-auto">

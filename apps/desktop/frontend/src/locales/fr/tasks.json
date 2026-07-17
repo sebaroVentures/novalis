@@ -64,6 +64,7 @@
     "rootFolder": "(Racine)",
     "todo": "À faire"
   },
+  "loadError": "Impossible de charger les tâches.",
   "menu": {
     "cancel": "Annuler",
     "confirmDelete": "Confirmer",
