@@ -188,11 +188,17 @@ pub fn stamp_mtime(db: &Connection, path: &str, mtime_ms: i64) -> CoreResult<()>
 /// all in one transaction. Returns the number of notes reindexed.
 ///
 /// Conservative by contract (a missed change is a correctness bug): a note that
-/// is new, was never stamped (`mtime == 0`), or whose mtime can't be read is
-/// treated as changed and reindexed. A steady-state reopen of an unchanged vault
-/// therefore costs only a directory walk + stats — no body reads, no FTS
-/// re-tokenization, no cloud hydration — while a full rebuild ([`build_index`])
-/// is reserved for schema bumps and the explicit "rebuild index" path.
+/// is new, was never stamped (`mtime == 0`), whose mtime can't be read, or that
+/// is still indexed as a cloud-only placeholder is treated as changed and
+/// reindexed. The placeholder case matters because a cloud sync (OneDrive/iCloud)
+/// hydrates a file's contents WITHOUT bumping its mtime, so an mtime-only compare
+/// would keep the note's empty FTS body and `cloud_only` flag forever; forcing a
+/// reindex while `cloud_only` is set re-reads the now-materialized body (and, if
+/// still a placeholder, costs only an empty re-index). A steady-state reopen of a
+/// fully-materialized, unchanged vault therefore costs only a directory walk +
+/// stats — no body reads, no FTS re-tokenization, no cloud hydration — while a
+/// full rebuild ([`build_index`]) is reserved for schema bumps and the explicit
+/// "rebuild index" path.
 pub fn incremental_index(db: &Connection, vault: &Path) -> CoreResult<usize> {
     log::info!("incremental index scan for vault: {}", vault.display());
 
@@ -200,10 +206,15 @@ pub fn incremental_index(db: &Connection, vault: &Path) -> CoreResult<usize> {
     // half-updated index, and any `?` below rolls the whole scan back.
     let tx = db.unchecked_transaction()?;
 
-    // What the index already knows: path -> last-stamped mtime.
-    let indexed: std::collections::HashMap<String, i64> = {
-        let mut stmt = db.prepare("SELECT path, mtime FROM note_meta")?;
-        let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
+    // What the index already knows: path -> (last-stamped mtime, cloud_only).
+    let indexed: std::collections::HashMap<String, (i64, bool)> = {
+        let mut stmt = db.prepare("SELECT path, mtime, cloud_only FROM note_meta")?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                (r.get::<_, i64>(1)?, r.get::<_, bool>(2)?),
+            ))
+        })?;
         rows.filter_map(|r| crate::index::ok_row_or_warn("note_meta", r))
             .collect()
     };
@@ -216,9 +227,13 @@ pub fn incremental_index(db: &Connection, vault: &Path) -> CoreResult<usize> {
         seen.insert(rel.clone());
         let file_mtime = vault_fs::file_mtime_ms(&meta);
         // Unchanged only when the file has a readable mtime that exactly matches
-        // a previously-stamped (non-zero) value. Everything else reindexes.
+        // a previously-stamped (non-zero) value AND it is not still indexed as a
+        // cloud-only placeholder (whose body may have been hydrated in place with
+        // no mtime bump). Everything else reindexes.
         let unchanged = match (indexed.get(&rel), file_mtime) {
-            (Some(&stored), Some(cur)) => stored != 0 && stored == cur,
+            (Some(&(stored, was_cloud_only)), Some(cur)) => {
+                stored != 0 && stored == cur && !was_cloud_only
+            }
             _ => false,
         };
         if unchanged {
@@ -770,6 +785,56 @@ mod tests {
             "stale content must be gone from the FTS index"
         );
         assert_eq!(search(&db, "peregrine", None, None).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn incremental_scan_reindexes_a_hydrated_cloud_placeholder() {
+        // A cloud placeholder is indexed with an empty body + cloud_only=1; when
+        // the cloud sync later materializes the file it does NOT bump the mtime,
+        // so an mtime-only compare would keep the empty body forever. The scan
+        // must reindex any row still flagged cloud_only regardless of mtime.
+        let (_base, vault, db) = scan_ctx();
+        std::fs::write(
+            vault.join("cloud.md"),
+            "---\ntitle: Cloud\n---\nhydratedheron",
+        )
+        .unwrap();
+        build_index(&db, &vault).unwrap();
+
+        // Force the DB into the "was indexed as an online-only placeholder" state:
+        // empty FTS body, cloud_only set, size 0 — but the stamped mtime still
+        // matches the on-disk file (hydration preserved it).
+        db.execute("DELETE FROM notes_fts WHERE path = 'cloud.md'", [])
+            .unwrap();
+        db.execute(
+            "UPDATE note_meta SET cloud_only = 1, size = 0 WHERE path = 'cloud.md'",
+            [],
+        )
+        .unwrap();
+        assert!(
+            search(&db, "hydratedheron", None, None).unwrap().is_empty(),
+            "precondition: placeholder body is not yet in the FTS index"
+        );
+
+        let n = incremental_index(&db, &vault).unwrap();
+        assert_eq!(
+            n, 1,
+            "a still-placeholder row must reindex despite matching mtime"
+        );
+        assert_eq!(
+            search(&db, "hydratedheron", None, None).unwrap().len(),
+            1,
+            "the hydrated body must now be searchable"
+        );
+        assert!(
+            !crate::index::list_summaries(&db)
+                .unwrap()
+                .iter()
+                .find(|s| s.path == "cloud.md")
+                .unwrap()
+                .cloud_only,
+            "the cloud_only flag must be cleared after hydration"
+        );
     }
 
     #[test]

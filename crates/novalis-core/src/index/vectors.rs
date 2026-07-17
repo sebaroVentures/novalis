@@ -425,8 +425,15 @@ pub fn retrieve_related_brute(
     k: usize,
     exclude: &str,
 ) -> Vec<RelatedChunk> {
+    // All query vectors share the model's dimension; skip any candidate whose
+    // vector length differs, exactly as `nearest`/`VectorIndex::build` do, so a
+    // dimension-mismatched row can never leak in with a 0.0 cosine.
+    let dim = queries.first().map(|q| q.len());
     let mut hits: Vec<RelatedChunk> = Vec::with_capacity(candidates.len());
     for c in candidates {
+        if dim.is_some_and(|d| c.vec.len() != d) {
+            continue;
+        }
         let mut best = f32::NEG_INFINITY;
         for q in queries {
             let s = cosine(q, &c.vec);
