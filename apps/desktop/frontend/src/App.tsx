@@ -6,8 +6,6 @@ import { useTranslation } from "react-i18next";
 
 import { ActivityRail } from "./components/ActivityRail";
 import { AiActionPanel } from "./components/ai/AiActionPanel";
-import { TaskExtractReview } from "./components/ai/TaskExtractReview";
-import { WeeklyReviewCard } from "./components/ai/WeeklyReviewCard";
 import { RecordingDock } from "./components/voice/RecordingDock";
 import { CalendarView } from "./components/CalendarView";
 import { Cheatsheet } from "./components/Cheatsheet";
@@ -19,13 +17,11 @@ import { Onboarding } from "./components/Onboarding";
 import { PdfPicker } from "./components/PdfPicker";
 import { QueryView } from "./components/QueryView";
 import { SearchModal } from "./components/SearchModal";
-import { SettingsModal } from "./components/settings/SettingsModal";
 import { Sidebar, type MainView } from "./components/Sidebar";
 import { TasksView } from "./components/TasksView";
 import { TodayView } from "./components/TodayView";
 import { TrashModal } from "./components/TrashModal";
 import { ErrorBoundary } from "./components/ui/ErrorBoundary";
-import { VaultChatPanel } from "./components/VaultChatPanel";
 import { VaultGate } from "./components/VaultGate";
 import { WorkspaceLayout } from "./components/WorkspaceLayout";
 
@@ -39,6 +35,24 @@ const CanvasView = lazy(() => import("./components/CanvasView"));
 // Lazy: the PDF viewer pulls in pdfjs-dist (+ its worker), kept out of the main
 // bundle by the manualChunks `pdfjs` rule — loaded only when a PDF is opened.
 const PdfViewer = lazy(() => import("./components/PdfViewer"));
+// Lazy: the settings dialog (all ~13 panels) is modal-gated and never needed at
+// first paint — same on-demand split as GraphView/CanvasView above. Named
+// export, so map it onto `default` for React.lazy.
+const SettingsModal = lazy(() =>
+  import("./components/settings/SettingsModal").then((m) => ({ default: m.SettingsModal })),
+);
+// Lazy: the AI review/extract cards and the vault-chat panel are all store-gated
+// (rendered only once their trigger fires), so they ship as on-demand chunks
+// rather than loading with the initial bundle.
+const WeeklyReviewCard = lazy(() =>
+  import("./components/ai/WeeklyReviewCard").then((m) => ({ default: m.WeeklyReviewCard })),
+);
+const TaskExtractReview = lazy(() =>
+  import("./components/ai/TaskExtractReview").then((m) => ({ default: m.TaskExtractReview })),
+);
+const VaultChatPanel = lazy(() =>
+  import("./components/VaultChatPanel").then((m) => ({ default: m.VaultChatPanel })),
+);
 import { applyAppearance, watchSystemTheme } from "./lib/appearance";
 import { applyLanguage } from "./lib/i18n";
 import { actionForEvent } from "./lib/keybindings";
@@ -54,6 +68,7 @@ import {
 import { checkReminders, resetReminderBaseline } from "./lib/reminderScheduler";
 import { useAiEvents } from "./lib/useAiEvents";
 import { useNovalisEvents } from "./lib/useNovalisEvents";
+import { useAi } from "./stores/aiStore";
 import { useConflicts } from "./stores/conflictStore";
 import { useKeymap } from "./stores/keymapStore";
 import { usePdf } from "./stores/pdfStore";
@@ -61,6 +76,7 @@ import { usePlugins } from "./stores/pluginStore";
 import { useSettings } from "./stores/settingsStore";
 import { useUi } from "./stores/uiStore";
 import { useVault } from "./stores/vaultStore";
+import { useVaultChat } from "./stores/vaultChatStore";
 
 /** Cycle the focused pane's active tab by `dir` (wrapping). No-op below 2 tabs. */
 function cycleTab(dir: 1 | -1): void {
@@ -83,6 +99,9 @@ export default function App() {
   const setView = useUi((s) => s.setView);
   const [searchOpen, setSearchOpen] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
+  // Latch: keep the lazy SettingsModal mounted once first opened, so its exit
+  // animation still plays on close (it manages its own `open`-driven enter/exit).
+  const [settingsMounted, setSettingsMounted] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(loadSidebarCollapsed);
@@ -94,6 +113,11 @@ export default function App() {
   const [notice, setNotice] = useState<string | null>(null);
   const onboardingDone = useUi((s) => s.onboardingDone);
   const pdfPath = usePdf((s) => s.path);
+  // Store-gated lazy panels: subscribe to the same slice each panel already
+  // checks internally, so we only mount (and fetch) the chunk once it's needed.
+  const taskExtractTarget = useAi((s) => s.taskExtract);
+  const weeklyReviewTarget = useAi((s) => s.weeklyReview);
+  const chatOpen = useVaultChat((s) => s.open);
   const initialViewVault = useRef<string | null>(null);
   const { t } = useTranslation(["common", "conflict"]);
 
@@ -160,6 +184,12 @@ export default function App() {
   useEffect(() => {
     setNavOpen(false);
   }, [view, activePath]);
+
+  // Mount the lazy SettingsModal on first open and keep it mounted thereafter,
+  // so subsequent opens are instant and its close animation still runs.
+  useEffect(() => {
+    if (settingsOpen) setSettingsMounted(true);
+  }, [settingsOpen]);
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -408,7 +438,11 @@ export default function App() {
 
       <SearchModal open={searchOpen} onClose={() => setSearchOpen(false)} />
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
-      <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+      {settingsMounted && (
+        <Suspense fallback={null}>
+          <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+        </Suspense>
+      )}
       <ConflictModal open={conflictsOpen} onClose={() => setConflictsOpen(false)} />
       {/* Git merge conflicts (sync P3a) — store-driven open, sibling of the
           OneDrive ConflictModal above. Mounted after SettingsModal so it
@@ -421,11 +455,21 @@ export default function App() {
       {!onboardingDone && <Onboarding />}
       <AiActionPanel />
       {/* Chat with your vault — store-driven right-docked panel; opened from the
-          command palette / activity rail. Hybrid retrieval + cited streamed answer. */}
-      <VaultChatPanel />
+          command palette / activity rail. Hybrid retrieval + cited streamed answer.
+          Gated on the same `open` flag it checks internally so the lazy chunk
+          loads only when opened. */}
+      {chatOpen && (
+        <Suspense fallback={null}>
+          <VaultChatPanel />
+        </Suspense>
+      )}
       {/* Meeting-note → task extraction review — store-driven open (sibling of
           MergeConflictModal above), opened from the editor AI menu / palette. */}
-      <TaskExtractReview />
+      {taskExtractTarget && (
+        <Suspense fallback={null}>
+          <TaskExtractReview />
+        </Suspense>
+      )}
       {/* Native PDF viewing + annotate + link (W4.2): store-driven picker + a
           lazy full-screen viewer overlay (pdfjs-dist loads only on open). */}
       <PdfPicker />
@@ -442,7 +486,11 @@ export default function App() {
       )}
       {/* AI weekly review — narrative + carry-over proposals over the current
           week's deterministic digest, opened from the command palette. */}
-      <WeeklyReviewCard />
+      {weeklyReviewTarget && (
+        <Suspense fallback={null}>
+          <WeeklyReviewCard />
+        </Suspense>
+      )}
       {notice && (
         <div className="fixed bottom-4 left-4 z-50 max-w-sm rounded-xl border border-border-strong/80 bg-surface/90 px-4 py-2.5 text-sm text-fg shadow-xl backdrop-blur">
           {notice}

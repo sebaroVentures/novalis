@@ -37,6 +37,15 @@ export default defineConfig({
           if (/\/node_modules\/d3-(force|quadtree|timer|dispatch)\//.test(id)) {
             return "d3-force";
           }
+          // React runtime is large, stable vendor code. It's an eager entry
+          // dependency either way, so this doesn't defer it from first paint —
+          // but splitting it out lets it cache independently of the frequently
+          // -changing app code and downloads in parallel with the entry chunk.
+          // Anchored on the final `/node_modules/<pkg>/` so react-i18next etc.
+          // stay in the app chunk.
+          if (/\/node_modules\/(react|react-dom|scheduler)\//.test(id)) {
+            return "react-vendor";
+          }
         },
       },
     },
