@@ -43,6 +43,15 @@ fn system_time_rfc3339(t: std::io::Result<std::time::SystemTime>) -> String {
         .unwrap_or_default()
 }
 
+/// Filesystem modification time as milliseconds since the Unix epoch, or `None`
+/// when unavailable. Same representation the sync manifest uses; consumed by the
+/// incremental index scan to decide whether a note changed since it was indexed.
+pub fn file_mtime_ms(meta: &std::fs::Metadata) -> Option<i64> {
+    meta.modified()
+        .ok()
+        .map(|t| chrono::DateTime::<Utc>::from(t).timestamp_millis())
+}
+
 /// Join a caller-supplied relative path under `base` (the vault root or one of
 /// its data dirs), rejecting anything that could escape it: absolute paths
 /// (`PathBuf::join` REPLACES the base when the operand is absolute) and any
@@ -138,6 +147,44 @@ pub fn list_notes(vault: &Path) -> Vec<NoteSummary> {
     }
 
     notes
+}
+
+/// Walk the vault yielding every note's vault-relative path paired with its
+/// filesystem metadata — a stat-only enumeration that never reads bodies and
+/// never hydrates cloud-only files. Used by the incremental index scan to
+/// compare on-disk mtimes without [`list_notes`]' per-file body reads.
+pub fn walk_note_metadata(vault: &Path) -> Vec<(String, std::fs::Metadata)> {
+    let mut out = Vec::new();
+    for entry in WalkDir::new(vault)
+        .into_iter()
+        .filter_entry(|e| {
+            let name = e.file_name().to_string_lossy();
+            // Skip hidden files/folders and the media directory at vault root.
+            if is_hidden(&name) {
+                return false;
+            }
+            if e.depth() == 1 && name.as_ref() == "media" {
+                return false;
+            }
+            true
+        })
+        .filter_map(|e| e.ok())
+    {
+        if !entry.file_type().is_file() {
+            continue;
+        }
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("md") {
+            continue;
+        }
+        // `entry.metadata()` reuses walkdir's already-fetched stat — no body read,
+        // no cloud hydration.
+        let Ok(meta) = entry.metadata() else {
+            continue;
+        };
+        out.push((to_relative(vault, path), meta));
+    }
+    out
 }
 
 /// Build a [`NoteSummary`] for a single note.

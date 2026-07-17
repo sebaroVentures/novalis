@@ -14,9 +14,10 @@ use crate::error::CoreResult;
 /// Bump this whenever the table layout below changes — or when a column that
 /// already exists starts being populated (v7: `note_meta.aliases` is now written
 /// and queried; v8: typed `note_properties` + `note_relations` are indexed;
-/// v9: `block_index` + `block_refs` for first-class block references), so
-/// existing caches rebuild and backfill it.
-pub const SCHEMA_VERSION: i64 = 9;
+/// v9: `block_index` + `block_refs` for first-class block references;
+/// v10: `note_meta.mtime` records each note's on-disk mtime so the startup scan
+/// can reindex incrementally), so existing caches rebuild and backfill it.
+pub const SCHEMA_VERSION: i64 = 10;
 
 /// Open (or create) the index database at `path`, ensuring the schema matches
 /// [`SCHEMA_VERSION`]. On mismatch the tables are dropped and recreated.
@@ -91,7 +92,8 @@ fn create_tables(conn: &Connection) -> CoreResult<()> {
             pinned INTEGER DEFAULT 0,
             task_total INTEGER DEFAULT 0,
             task_completed INTEGER DEFAULT 0,
-            cloud_only INTEGER DEFAULT 0
+            cloud_only INTEGER DEFAULT 0,
+            mtime INTEGER NOT NULL DEFAULT 0
         );
 
         CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(

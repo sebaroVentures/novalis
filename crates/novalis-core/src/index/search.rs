@@ -51,8 +51,9 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
         // from metadata alone — reading them would block on a network download.
         // Their body/tasks/links get indexed on the next reindex after the file
         // is materialized locally.
-        let content = match std::fs::metadata(&abs) {
-            Ok(meta) if vault_fs::is_cloud_placeholder(&meta) => String::new(),
+        let meta = std::fs::metadata(&abs);
+        let content = match &meta {
+            Ok(m) if vault_fs::is_cloud_placeholder(m) => String::new(),
             _ => match std::fs::read_to_string(&abs) {
                 Ok(c) => c,
                 Err(e) => {
@@ -63,6 +64,15 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
         };
         if let Err(e) = index_note(db, summary, &content) {
             log::warn!("failed to index {}: {e}", summary.path);
+            continue;
+        }
+        // Record the on-disk mtime so a later incremental scan can skip this
+        // note when it hasn't changed.
+        if let Some(ms) = meta.ok().as_ref().and_then(vault_fs::file_mtime_ms) {
+            let _ = db.execute(
+                "UPDATE note_meta SET mtime = ?1 WHERE path = ?2",
+                params![ms, summary.path],
+            );
         }
     }
 
@@ -159,6 +169,115 @@ pub fn remove_note(db: &Connection, path: &str) -> CoreResult<()> {
     // "related notes" with a dangling path.
     crate::index::vectors::remove_vector(db, path)?;
     Ok(())
+}
+
+/// Record a note's on-disk modification time (milliseconds since the Unix
+/// epoch) after it has been indexed, so the incremental startup scan can skip
+/// it when unchanged. A no-op if the note isn't in `note_meta`.
+pub fn stamp_mtime(db: &Connection, path: &str, mtime_ms: i64) -> CoreResult<()> {
+    db.execute(
+        "UPDATE note_meta SET mtime = ?1 WHERE path = ?2",
+        params![mtime_ms, path],
+    )?;
+    Ok(())
+}
+
+/// Incrementally reconcile the index with the vault: stat every note (never
+/// reading a body up front) and reindex only those that are new or whose on-disk
+/// mtime differs from the last indexed value, then drop notes that vanished —
+/// all in one transaction. Returns the number of notes reindexed.
+///
+/// Conservative by contract (a missed change is a correctness bug): a note that
+/// is new, was never stamped (`mtime == 0`), or whose mtime can't be read is
+/// treated as changed and reindexed. A steady-state reopen of an unchanged vault
+/// therefore costs only a directory walk + stats — no body reads, no FTS
+/// re-tokenization, no cloud hydration — while a full rebuild ([`build_index`])
+/// is reserved for schema bumps and the explicit "rebuild index" path.
+pub fn incremental_index(db: &Connection, vault: &Path) -> CoreResult<usize> {
+    log::info!("incremental index scan for vault: {}", vault.display());
+
+    // One transaction like `build_index`: a concurrent search never sees a
+    // half-updated index, and any `?` below rolls the whole scan back.
+    let tx = db.unchecked_transaction()?;
+
+    // What the index already knows: path -> last-stamped mtime.
+    let indexed: std::collections::HashMap<String, i64> = {
+        let mut stmt = db.prepare("SELECT path, mtime FROM note_meta")?;
+        let rows = stmt.query_map([], |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))?;
+        rows.filter_map(|r| crate::index::ok_row_or_warn("note_meta", r))
+            .collect()
+    };
+
+    let mut seen = std::collections::HashSet::new();
+    let mut reindexed = 0usize;
+    let mut dirty = false;
+
+    for (rel, meta) in vault_fs::walk_note_metadata(vault) {
+        seen.insert(rel.clone());
+        let file_mtime = vault_fs::file_mtime_ms(&meta);
+        // Unchanged only when the file has a readable mtime that exactly matches
+        // a previously-stamped (non-zero) value. Everything else reindexes.
+        let unchanged = match (indexed.get(&rel), file_mtime) {
+            (Some(&stored), Some(cur)) => stored != 0 && stored == cur,
+            _ => false,
+        };
+        if unchanged {
+            continue;
+        }
+
+        let summary = match vault_fs::build_summary(vault, &rel) {
+            Ok(s) => s,
+            Err(e) => {
+                log::warn!("skipping {rel}: {e}");
+                continue;
+            }
+        };
+        // Mirror `build_index`: a cloud-only placeholder is indexed from its
+        // metadata with an empty body (never hydrated over the network).
+        let content = if vault_fs::is_cloud_placeholder(&meta) {
+            String::new()
+        } else {
+            match std::fs::read_to_string(vault.join(&rel)) {
+                Ok(c) => c,
+                Err(e) => {
+                    log::warn!("could not read {rel}: {e}");
+                    continue;
+                }
+            }
+        };
+        if let Err(e) = index_note(db, &summary, &content) {
+            log::warn!("failed to index {rel}: {e}");
+            continue;
+        }
+        if let Some(ms) = file_mtime {
+            let _ = db.execute(
+                "UPDATE note_meta SET mtime = ?1 WHERE path = ?2",
+                params![ms, rel],
+            );
+        }
+        reindexed += 1;
+        dirty = true;
+    }
+
+    // Notes that vanished from disk while unobserved (offline delete/move): drop
+    // them and their derived rows, same cleanup `build_index` guarantees.
+    for path in indexed.keys() {
+        if !seen.contains(path) {
+            remove_note(db, path)?;
+            dirty = true;
+        }
+    }
+
+    // Relations resolve to a target's PATH, so a newly-added note may be the
+    // target of an older one. Re-resolve the whole table (DB-only) — but only if
+    // anything actually changed, keeping an unchanged reopen free of extra work.
+    if dirty {
+        crate::index::properties::resolve_all_relations(db)?;
+    }
+
+    tx.commit()?;
+    log::info!("incremental scan reindexed {reindexed} notes");
+    Ok(reindexed)
 }
 
 /// Escape SQL LIKE wildcards (`%`, `_`) and the escape character itself so a
@@ -522,5 +641,257 @@ mod tests {
         assert!(hits.iter().any(|h| h.path == "widget.md"));
         // And the alias column round-trips through the SELECT/row mapping.
         assert_eq!(hits[0].aliases, vec!["Globex".to_string()]);
+    }
+
+    // ── Incremental scan + list parity ───────────────────────────────────────
+
+    /// A fresh vault dir plus an index db. The vault is a `vault/` subdir of a
+    /// tempdir (NOT the tempdir itself: `tempfile` names it `.tmpXXXX`, and a
+    /// hidden WalkDir root would be pruned) and the db lives outside it.
+    fn scan_ctx() -> (tempfile::TempDir, std::path::PathBuf, Connection) {
+        let base = tempfile::tempdir().unwrap();
+        let vault = base.path().join("vault");
+        std::fs::create_dir_all(&vault).unwrap();
+        let db = schema::open_db(&base.path().join("notes.db")).unwrap();
+        (base, vault, db)
+    }
+
+    fn indexed_paths(db: &Connection) -> Vec<String> {
+        let mut p: Vec<String> = crate::index::list_summaries(db)
+            .unwrap()
+            .into_iter()
+            .map(|s| s.path)
+            .collect();
+        p.sort();
+        p
+    }
+
+    #[test]
+    fn list_summaries_matches_list_notes_after_build_index() {
+        // Parity guard for the `list_notes` command now served from the index:
+        // every `NoteSummary` field must equal what a from-disk walk produces.
+        let (_base, vault, db) = scan_ctx();
+        std::fs::create_dir_all(vault.join("sub")).unwrap();
+        std::fs::write(
+            vault.join("alpha.md"),
+            "---\ntitle: Alpha\ntags:\n  - work\naliases:\n  - A1\npinned: true\n---\n\n# Alpha\n\nbody with #urgent\n\n- [ ] one\n- [x] two\n",
+        )
+        .unwrap();
+        std::fs::write(
+            vault.join("sub/beta.md"),
+            "plain note, no frontmatter, several words here\n",
+        )
+        .unwrap();
+
+        build_index(&db, &vault).unwrap();
+
+        // NoteSummary has no PartialEq (wire type) — compare every field via a
+        // tuple, sorted by path so directory-walk vs SELECT ordering is moot.
+        let fields = |s: &NoteSummary| {
+            (
+                s.path.clone(),
+                s.title.clone(),
+                s.folder.clone(),
+                s.tags.clone(),
+                s.aliases.clone(),
+                s.created.clone(),
+                s.modified.clone(),
+                s.pinned,
+                s.word_count,
+                s.task_total,
+                s.task_completed,
+                s.cloud_only,
+            )
+        };
+        let mut from_index: Vec<_> = crate::index::list_summaries(&db)
+            .unwrap()
+            .iter()
+            .map(fields)
+            .collect();
+        let mut from_disk: Vec<_> = vault_fs::list_notes(&vault).iter().map(fields).collect();
+        from_index.sort();
+        from_disk.sort();
+        assert_eq!(
+            from_index, from_disk,
+            "index-served summaries must match a from-disk walk field-for-field"
+        );
+    }
+
+    #[test]
+    fn incremental_scan_skips_unchanged_notes() {
+        let (_base, vault, db) = scan_ctx();
+        std::fs::write(vault.join("a.md"), "---\ntitle: A\n---\nhello").unwrap();
+        std::fs::write(vault.join("b.md"), "---\ntitle: B\n---\nworld").unwrap();
+        build_index(&db, &vault).unwrap();
+
+        // Nothing touched on disk → nothing reindexed, index unchanged.
+        let n = incremental_index(&db, &vault).unwrap();
+        assert_eq!(n, 0, "unchanged vault must reindex nothing");
+        assert_eq!(indexed_paths(&db), ["a.md", "b.md"]);
+        assert_eq!(search(&db, "hello", None, None).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn incremental_scan_indexes_a_new_note() {
+        let (_base, vault, db) = scan_ctx();
+        std::fs::write(vault.join("a.md"), "---\ntitle: A\n---\nhello").unwrap();
+        build_index(&db, &vault).unwrap();
+
+        // A note that appeared while unobserved is picked up (only it is reindexed).
+        std::fs::write(vault.join("new.md"), "---\ntitle: New\n---\nkingfisher").unwrap();
+        let n = incremental_index(&db, &vault).unwrap();
+        assert_eq!(n, 1, "only the new note should reindex");
+        assert_eq!(indexed_paths(&db), ["a.md", "new.md"]);
+        assert_eq!(
+            search(&db, "kingfisher", None, None).unwrap()[0].path,
+            "new.md"
+        );
+    }
+
+    #[test]
+    fn incremental_scan_reindexes_a_changed_note() {
+        let (_base, vault, db) = scan_ctx();
+        std::fs::write(vault.join("a.md"), "---\ntitle: A\n---\nosprey").unwrap();
+        build_index(&db, &vault).unwrap();
+        assert_eq!(search(&db, "osprey", None, None).unwrap().len(), 1);
+
+        // Overwrite the body, then force the stamped mtime stale so the scan
+        // detects the change deterministically (filesystem mtime resolution can
+        // otherwise collapse a same-tick rewrite — the scan's `stored != current`
+        // rule is what we exercise here).
+        std::fs::write(vault.join("a.md"), "---\ntitle: A\n---\nperegrine").unwrap();
+        db.execute("UPDATE note_meta SET mtime = 1 WHERE path = 'a.md'", [])
+            .unwrap();
+
+        let n = incremental_index(&db, &vault).unwrap();
+        assert_eq!(n, 1, "the changed note should reindex");
+        assert!(
+            search(&db, "osprey", None, None).unwrap().is_empty(),
+            "stale content must be gone from the FTS index"
+        );
+        assert_eq!(search(&db, "peregrine", None, None).unwrap().len(), 1);
+    }
+
+    #[test]
+    fn incremental_scan_removes_a_deleted_note() {
+        let (_base, vault, db) = scan_ctx();
+        std::fs::write(vault.join("a.md"), "---\ntitle: A\n---\nhello").unwrap();
+        std::fs::write(vault.join("b.md"), "---\ntitle: B\n---\nworld").unwrap();
+        build_index(&db, &vault).unwrap();
+
+        // A file removed while unobserved must leave the index on the next scan.
+        std::fs::remove_file(vault.join("b.md")).unwrap();
+        let n = incremental_index(&db, &vault).unwrap();
+        assert_eq!(n, 0, "a pure deletion reindexes nothing");
+        assert_eq!(indexed_paths(&db), ["a.md"]);
+        assert!(search(&db, "world", None, None).unwrap().is_empty());
+    }
+
+    #[test]
+    fn incremental_scan_from_empty_index_indexes_everything() {
+        // After a SCHEMA_VERSION bump `open_db` drops the tables, so the first
+        // scan sees an empty index and must reindex every note (full rebuild via
+        // the incremental path).
+        let (_base, vault, db) = scan_ctx();
+        std::fs::write(vault.join("a.md"), "---\ntitle: A\n---\nhello").unwrap();
+        std::fs::write(vault.join("b.md"), "---\ntitle: B\n---\nworld").unwrap();
+
+        let n = incremental_index(&db, &vault).unwrap();
+        assert_eq!(n, 2, "an empty index reindexes all notes");
+        assert_eq!(indexed_paths(&db), ["a.md", "b.md"]);
+
+        // And a follow-up scan now skips both (mtime stamped on the first pass).
+        assert_eq!(incremental_index(&db, &vault).unwrap(), 0);
+    }
+
+    #[test]
+    fn incremental_scan_matches_full_rebuild_output() {
+        // The incremental path and a full rebuild must land the index in the same
+        // observable state for a given vault.
+        let build_vault = |vault: &std::path::Path| {
+            std::fs::create_dir_all(vault.join("sub")).unwrap();
+            std::fs::write(
+                vault.join("a.md"),
+                "---\ntitle: A\ntags:\n  - x\n---\n# A\n\nalpha [[B]]\n- [ ] t1\n",
+            )
+            .unwrap();
+            std::fs::write(vault.join("sub/b.md"), "---\ntitle: B\n---\nbeta body").unwrap();
+        };
+
+        // Non-hidden `vault/` subdirs (a `.tmpXXXX` WalkDir root would be pruned).
+        let full_base = tempfile::tempdir().unwrap();
+        let full_vault = full_base.path().join("vault");
+        std::fs::create_dir_all(&full_vault).unwrap();
+        build_vault(&full_vault);
+        let full_db = schema::open_db(&full_base.path().join("notes.db")).unwrap();
+        build_index(&full_db, &full_vault).unwrap();
+
+        let inc_base = tempfile::tempdir().unwrap();
+        let inc_vault = inc_base.path().join("vault");
+        std::fs::create_dir_all(&inc_vault).unwrap();
+        build_vault(&inc_vault);
+        let inc_db = schema::open_db(&inc_base.path().join("notes.db")).unwrap();
+        incremental_index(&inc_db, &inc_vault).unwrap();
+
+        // Same summaries (order-independent) and same FTS hits.
+        assert_eq!(indexed_paths(&full_db), indexed_paths(&inc_db));
+        for q in ["alpha", "beta", "A", "B"] {
+            let mut f: Vec<String> = search(&full_db, q, None, None)
+                .unwrap()
+                .into_iter()
+                .map(|r| r.path)
+                .collect();
+            let mut i: Vec<String> = search(&inc_db, q, None, None)
+                .unwrap()
+                .into_iter()
+                .map(|r| r.path)
+                .collect();
+            f.sort();
+            i.sort();
+            assert_eq!(f, i, "FTS results diverged for query {q:?}");
+        }
+    }
+
+    /// Timing harness for the second-open win. Ignored by default (allocation
+    /// heavy, timing-dependent); run with:
+    ///   cargo test -p novalis-core second_open_incremental_vs_full -- --ignored --nocapture
+    #[test]
+    #[ignore]
+    fn second_open_incremental_vs_full() {
+        use std::time::Instant;
+        const N: usize = 2000;
+
+        let base = tempfile::tempdir().unwrap();
+        let vault = base.path().join("vault");
+        std::fs::create_dir_all(&vault).unwrap();
+        for i in 0..N {
+            std::fs::write(
+                vault.join(format!("note-{i:04}.md")),
+                format!(
+                    "---\ntitle: Note {i}\ntags:\n  - t{}\n---\n# Note {i}\n\nThe quick brown fox number {i} jumps over [[Note {}]].\n\n- [ ] task {i}\n",
+                    i % 10,
+                    (i + 1) % N,
+                ),
+            )
+            .unwrap();
+        }
+        let db = schema::open_db(&base.path().join("notes.db")).unwrap();
+
+        // First open populates + stamps mtime.
+        build_index(&db, &vault).unwrap();
+
+        // "Second open" — nothing changed on disk.
+        let t0 = Instant::now();
+        build_index(&db, &vault).unwrap();
+        let full = t0.elapsed();
+
+        let t1 = Instant::now();
+        let reindexed = incremental_index(&db, &vault).unwrap();
+        let inc = t1.elapsed();
+
+        eprintln!(
+            "second open of {N} unchanged notes: full rebuild = {full:?}, incremental = {inc:?} (reindexed {reindexed})"
+        );
+        assert_eq!(reindexed, 0, "an unchanged reopen must reindex nothing");
     }
 }

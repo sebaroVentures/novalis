@@ -21,7 +21,18 @@ pub fn reindex_path(db: &Connection, vault: &Path, relative: &str) -> CoreResult
     }
     let summary = vault_fs::build_summary(vault, relative)?;
     let content = std::fs::read_to_string(&abs)?;
-    search::index_note(db, &summary, &content)
+    search::index_note(db, &summary, &content)?;
+    // Stamp the on-disk mtime so the incremental startup scan can skip this note
+    // next time (a watcher/rescan reindex otherwise leaves mtime unstamped,
+    // forcing a needless reindex at the following open).
+    if let Some(ms) = std::fs::metadata(&abs)
+        .ok()
+        .as_ref()
+        .and_then(vault_fs::file_mtime_ms)
+    {
+        search::stamp_mtime(db, relative, ms)?;
+    }
+    Ok(())
 }
 
 /// Remove a note from the index (used on delete/move-away).
