@@ -49,6 +49,13 @@
     "placeholder": "Search notes or folders…",
     "recent": "Recent"
   },
+  "notifications": {
+    "digestEvents_one": "{{count}} event",
+    "digestEvents_other": "{{count}} events",
+    "digestReminders_one": "{{count}} reminder",
+    "digestReminders_other": "{{count}} reminders",
+    "digestTitle": "While you were away"
+  },
   "query": {
     "columns": {
       "folder": "Folder",

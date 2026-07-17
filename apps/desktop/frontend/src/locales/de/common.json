@@ -49,6 +49,13 @@
     "placeholder": "Notizen oder Ordner durchsuchen…",
     "recent": "Zuletzt"
   },
+  "notifications": {
+    "digestEvents_one": "{{count}} Termin",
+    "digestEvents_other": "{{count}} Termine",
+    "digestReminders_one": "{{count}} Erinnerung",
+    "digestReminders_other": "{{count}} Erinnerungen",
+    "digestTitle": "Während deiner Abwesenheit"
+  },
   "query": {
     "columns": {
       "folder": "Ordner",

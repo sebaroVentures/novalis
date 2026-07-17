@@ -49,6 +49,13 @@
     "placeholder": "Rechercher des notes ou des dossiers…",
     "recent": "Récents"
   },
+  "notifications": {
+    "digestEvents_one": "{{count}} événement",
+    "digestEvents_other": "{{count}} événements",
+    "digestReminders_one": "{{count}} rappel",
+    "digestReminders_other": "{{count}} rappels",
+    "digestTitle": "Pendant votre absence"
+  },
   "query": {
     "columns": {
       "folder": "Dossier",

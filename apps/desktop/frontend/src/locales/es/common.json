@@ -49,6 +49,13 @@
     "placeholder": "Buscar notas o carpetas…",
     "recent": "Recientes"
   },
+  "notifications": {
+    "digestEvents_one": "{{count}} evento",
+    "digestEvents_other": "{{count}} eventos",
+    "digestReminders_one": "{{count}} recordatorio",
+    "digestReminders_other": "{{count}} recordatorios",
+    "digestTitle": "Mientras no estabas"
+  },
   "query": {
     "columns": {
       "folder": "Carpeta",

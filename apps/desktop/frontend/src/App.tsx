@@ -65,7 +65,7 @@ import {
   SIDEBAR_MAX_WIDTH,
   SIDEBAR_MIN_WIDTH,
 } from "./lib/uiPrefs";
-import { checkReminders, resetReminderBaseline } from "./lib/reminderScheduler";
+import { checkReminders, resetReminderBaseline, runLaunchDigest } from "./lib/reminderScheduler";
 import { useAiEvents } from "./lib/useAiEvents";
 import { useNovalisEvents } from "./lib/useNovalisEvents";
 import { useAi } from "./stores/aiStore";
@@ -172,13 +172,21 @@ export default function App() {
   // Re-apply theme when the OS color scheme changes (only matters for "system").
   useEffect(() => watchSystemTheme(() => useSettings.getState().prefs?.appearance), []);
 
-  // Poll for task reminders while a vault is open (in-app toast + best-effort OS
-  // notification). Past-due reminders aren't fired retroactively on open.
+  // Poll for task reminders + upcoming events while a vault is open (in-app
+  // toast + best-effort OS notification).
   useEffect(() => {
     if (!vaultPath) return;
-    resetReminderBaseline();
+    resetReminderBaseline(vaultPath);
     const id = window.setInterval(() => void checkReminders(), 30_000);
     return () => window.clearInterval(id);
+  }, [vaultPath]);
+
+  // Missed-reminder / missed-event digest: surface, once per vault open,
+  // anything whose @remind time or event start elapsed while the app was
+  // closed. Runs after the poll effect above (which seeds the baseline).
+  useEffect(() => {
+    if (!vaultPath) return;
+    void runLaunchDigest();
   }, [vaultPath]);
 
   // Close the mobile nav drawer after navigating.
