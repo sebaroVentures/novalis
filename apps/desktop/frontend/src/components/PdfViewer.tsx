@@ -42,6 +42,7 @@ import { usePdf } from "../stores/pdfStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 import { NotePickerModal } from "./NotePickerModal";
+import { Modal } from "./ui/Modal";
 
 pdfjs.GlobalWorkerOptions.workerSrc = workerUrl;
 
@@ -82,6 +83,7 @@ export default function PdfViewer() {
   const scrollRef = useRef<HTMLDivElement>(null);
   const pageRefs = useRef<Map<number, HTMLElement>>(new Map());
   const didFocus = useRef<string | null>(null);
+  const closeRef = useRef<HTMLButtonElement>(null);
 
   const flash = useCallback((msg: string) => {
     setToast(msg);
@@ -174,17 +176,14 @@ export default function PdfViewer() {
     }
   }, [focusHighlightId, pageDims.length, annotations.highlights, jumpTo]);
 
-  // Escape closes the viewer (unless a sub-modal is capturing it).
-  useEffect(() => {
-    const onKey = (e: KeyboardEvent) => {
-      if (e.key === "Escape" && !linkTarget) {
-        if (pending) setPending(null);
-        else close();
-      }
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [close, pending, linkTarget]);
+  // Escape (delivered by the Modal shell's trap) dismisses the pending-highlight
+  // popover first, then closes the viewer. The note picker is its own stacked
+  // Modal and stops Escape from reaching here while it's open, so no linkTarget
+  // guard is needed. The X button still closes directly, regardless of pending.
+  const handleClose = useCallback(() => {
+    if (pending) setPending(null);
+    else close();
+  }, [pending, close]);
 
   // ── Persist helper: write the sidecar (empty set deletes it). ──────────────
   const persist = useCallback(
@@ -339,7 +338,14 @@ export default function PdfViewer() {
   const name = path ? pdfBasename(path) : "";
 
   return (
-    <div className="fixed inset-0 z-50 flex bg-app text-fg">
+    <Modal
+      label={name}
+      onClose={handleClose}
+      closeOnOverlayClick={false}
+      initialFocusRef={closeRef}
+      overlayClassName="z-50"
+      panelClassName="fixed inset-0 flex bg-app text-fg"
+    >
       <div className="flex min-w-0 flex-1 flex-col">
         {/* Toolbar */}
         <header className="flex items-center gap-2 border-b border-border bg-surface px-3 py-2">
@@ -375,6 +381,7 @@ export default function PdfViewer() {
             {panelOpen ? <PanelRightClose size={16} /> : <PanelRightOpen size={16} />}
           </button>
           <button
+            ref={closeRef}
             onClick={close}
             title={t("viewer.close")}
             className="rounded p-1.5 text-fg-muted transition-colors hover:bg-hover"
@@ -485,7 +492,7 @@ export default function PdfViewer() {
           recentPaths={useVault.getState().recent}
         />
       )}
-    </div>
+    </Modal>
   );
 }
 
