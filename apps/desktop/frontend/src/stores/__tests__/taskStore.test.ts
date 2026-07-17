@@ -62,6 +62,7 @@ beforeEach(() => {
     modeInitialized: true, // seeding-from-prefs is not under test here
     columns: DEFAULT_COLUMNS,
     loading: false,
+    error: null,
     boardFilter: EMPTY_BOARD_FILTER,
     cardMenu: null,
   });
@@ -88,6 +89,24 @@ describe("taskStore.load staleness token", () => {
     await load1;
     expect(useTasks.getState().tasks.map((t) => t.id)).toEqual(["newer"]);
     expect(useTasks.getState().loading).toBe(false);
+  });
+
+  it("records an error when the load fails, and clears it on the next successful load", async () => {
+    mocks.listTasks.mockRejectedValueOnce(new Error("engine gone"));
+    mocks.getPreferences.mockResolvedValue({});
+
+    await useTasks.getState().load();
+
+    // An empty board must read as a failure, not a legitimately empty task list.
+    expect(useTasks.getState().tasks).toEqual([]);
+    expect(useTasks.getState().loading).toBe(false);
+    expect(useTasks.getState().error).toContain("engine gone");
+
+    mocks.listTasks.mockResolvedValue([task("back")]);
+    await useTasks.getState().load();
+
+    expect(useTasks.getState().tasks.map((t) => t.id)).toEqual(["back"]);
+    expect(useTasks.getState().error).toBeNull();
   });
 });
 

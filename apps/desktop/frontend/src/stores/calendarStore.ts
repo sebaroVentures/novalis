@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { displayError } from "../lib/errors";
 import { api, type CalendarEvent } from "../ipc/api";
 import { useSettings } from "./settingsStore";
 
@@ -53,6 +54,9 @@ interface CalState {
   anchor: Date;
   events: CalendarEvent[];
   loading: boolean;
+  /** Set when the last load() failed — so an empty grid renders as a failure
+   *  banner, not a legitimately event-free period. Cleared on the next success. */
+  error: string | null;
   load: () => Promise<void>;
   setMode: (m: CalMode) => void;
   prev: () => void;
@@ -79,6 +83,7 @@ export const useCalendar = create<CalState>((set, get) => ({
   anchor: new Date(),
   events: [],
   loading: false,
+  error: null,
 
   load: async () => {
     const seq = ++loadSeq;
@@ -89,9 +94,9 @@ export const useCalendar = create<CalState>((set, get) => ({
     try {
       const events = await api.listEvents(start, end);
       if (seq !== loadSeq) return; // superseded by a newer load
-      set({ events, loading: false });
-    } catch {
-      if (seq === loadSeq) set({ loading: false });
+      set({ events, loading: false, error: null });
+    } catch (e) {
+      if (seq === loadSeq) set({ loading: false, error: displayError(e) });
     }
   },
 
@@ -113,6 +118,6 @@ export const useCalendar = create<CalState>((set, get) => ({
   },
   reset: () => {
     loadSeq++; // drop any in-flight load from the previous vault
-    set({ events: [], anchor: new Date(), loading: false });
+    set({ events: [], anchor: new Date(), loading: false, error: null });
   },
 }));
