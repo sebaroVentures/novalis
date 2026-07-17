@@ -153,6 +153,11 @@ pub struct CalendarPrefs {
     /// `"24h"` | `"12h"`.
     #[serde(default = "default_time_format")]
     pub time_format: String,
+    /// Minutes before a timed event's start to fire an event-start notification
+    /// (`0` = at start). Applied by the frontend reminder poller; calendar
+    /// events themselves never carry reminders.
+    #[serde(default = "default_event_lead_minutes")]
+    pub event_notify_lead_minutes: u32,
 }
 
 /// General / startup behavior.
@@ -245,6 +250,10 @@ fn default_event_minutes() -> u32 {
 
 fn default_time_format() -> String {
     "24h".to_string()
+}
+
+fn default_event_lead_minutes() -> u32 {
+    10
 }
 
 fn default_app_view() -> String {
@@ -348,6 +357,7 @@ impl Default for CalendarPrefs {
             week_start: default_week_start(),
             default_event_minutes: default_event_minutes(),
             time_format: default_time_format(),
+            event_notify_lead_minutes: default_event_lead_minutes(),
         }
     }
 }
@@ -431,6 +441,7 @@ mod tests {
         assert_eq!(p.calendar.week_start, "monday");
         assert_eq!(p.calendar.default_event_minutes, 60);
         assert_eq!(p.calendar.time_format, "24h");
+        assert_eq!(p.calendar.event_notify_lead_minutes, 10);
         assert_eq!(p.general.default_app_view, "notes");
     }
 

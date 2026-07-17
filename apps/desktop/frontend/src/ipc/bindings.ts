@@ -879,6 +879,12 @@ export type CalendarPrefs = {
 	defaultEventMinutes?: number,
 	/**  `"24h"` | `"12h"`. */
 	timeFormat?: string,
+	/**
+	 *  Minutes before a timed event's start to fire an event-start notification
+	 *  (`0` = at start). Applied by the frontend reminder poller; calendar
+	 *  events themselves never carry reminders.
+	 */
+	eventNotifyLeadMinutes?: number,
 };
 
 /**
