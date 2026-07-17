@@ -107,6 +107,16 @@ jobs:
       - name: Test
         run: cargo test --workspace
 
+      # The P2P sync end-to-end test drives a real two-endpoint QUIC loopback
+      # (relays disabled) and is gated behind `p2p-loopback-test` so its
+      # network-touching setup never gates the default fmt/clippy/test. Run it
+      # explicitly on the Linux leg so CI actually exercises the encrypted
+      # multi-endpoint sync + unknown-peer-refusal path (needs libasound2-dev,
+      # installed above, for the desktop crate's cpal/ALSA link).
+      - name: P2P loopback E2E (gated)
+        if: matrix.os == 'ubuntu-latest'
+        run: cargo test -p novalis-desktop --features p2p-loopback-test
+
       # Guard against Rust/TS drift: regenerated bindings must match what's
       # committed. Linux-only: the generated file is OS-independent, and the
       # Windows runner's line-ending handling makes the diff a flake vector.
