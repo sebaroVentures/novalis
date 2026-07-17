@@ -57,7 +57,17 @@ export function VaultChatPanel() {
   };
 
   return (
-    <aside className="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-border bg-surface shadow-2xl">
+    <aside
+      role="complementary"
+      aria-label={t("chat.title")}
+      onKeyDown={(e) => {
+        if (e.key === "Escape") {
+          e.preventDefault();
+          useVaultChat.getState().closePanel();
+        }
+      }}
+      className="fixed inset-y-0 right-0 z-40 flex w-full max-w-md flex-col border-l border-border bg-surface shadow-2xl"
+    >
       <header className="flex items-center justify-between border-b border-border px-3.5 py-2.5">
         <span className="flex items-center gap-2 text-sm font-medium text-fg">
           <Sparkles size={15} className="text-accent" />
@@ -154,6 +164,7 @@ export function VaultChatPanel() {
             )}
             <div className="flex items-end gap-1.5">
               <textarea
+                autoFocus
                 value={input}
                 onChange={(e) => setInput(e.target.value)}
                 onKeyDown={(e) => {

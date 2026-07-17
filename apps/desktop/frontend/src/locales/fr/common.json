@@ -65,6 +65,7 @@
       "review": "Revue",
       "todo": "À faire"
     },
+    "namePlaceholder": "Nom de la requête",
     "namePrompt": "Nommer cette requête",
     "nextMonth": "Mois suivant",
     "noDates": "Aucune note datée à placer dans le calendrier.",
