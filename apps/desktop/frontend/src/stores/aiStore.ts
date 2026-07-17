@@ -14,6 +14,7 @@ import {
   type AiTemplate,
   type AiTemplateScope,
 } from "../ipc/api";
+import { useVault } from "./vaultStore";
 
 // The chosen connection is device-local UI state, remembered across sessions.
 const SELECTED_KEY = "nv:ai:selectedConnection";
@@ -205,8 +206,12 @@ export const useAi = create<AiState>((set, get) => ({
   },
 
   deleteTemplate: async (id, scope) => {
-    const templates = await api.aiDeleteTemplate(id, scope);
-    set({ templates });
+    try {
+      const templates = await api.aiDeleteTemplate(id, scope);
+      set({ templates });
+    } catch (e) {
+      useVault.getState().reportError(e);
+    }
   },
 
   setSelectedConnection: (id) => {

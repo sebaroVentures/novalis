@@ -29,7 +29,7 @@ function deferred<T>() {
 
 beforeEach(() => {
   mocks.getAgenda.mockReset();
-  useAgenda.setState({ focus: isoDay(new Date()), items: [], overdue: [], loading: false });
+  useAgenda.setState({ focus: isoDay(new Date()), items: [], overdue: [], loading: false, error: null });
 });
 
 describe("agendaStore.load", () => {
@@ -94,14 +94,24 @@ describe("agendaStore.load", () => {
     expect(useAgenda.getState().overdue).toEqual([]);
   });
 
-  it("clears items and stops loading when the fetch fails", async () => {
+  it("records an error (keeping the arrays empty) when the fetch fails, and clears it on the next successful load", async () => {
     useAgenda.setState({ items: [item("event", "old")], overdue: [item("task", "old")] });
-    mocks.getAgenda.mockRejectedValue(new Error("engine gone"));
+    mocks.getAgenda.mockRejectedValueOnce(new Error("engine gone"));
 
     await useAgenda.getState().load("2000-01-05");
 
+    // Empty arrays keep the layout stable, but `error` marks this as a failure
+    // (not a legitimately free day) so the view can show a retry banner.
     expect(useAgenda.getState().items).toEqual([]);
     expect(useAgenda.getState().overdue).toEqual([]);
     expect(useAgenda.getState().loading).toBe(false);
+    expect(useAgenda.getState().error).toContain("engine gone");
+
+    // A later successful load clears the error.
+    mocks.getAgenda.mockResolvedValue([item("event", "back")]);
+    await useAgenda.getState().load("2000-01-05");
+
+    expect(useAgenda.getState().items.map((i) => i.title)).toEqual(["back"]);
+    expect(useAgenda.getState().error).toBeNull();
   });
 });

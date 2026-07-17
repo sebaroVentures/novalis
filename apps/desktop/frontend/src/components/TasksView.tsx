@@ -41,6 +41,7 @@ export function TasksView() {
   const setMode = useTasks((s) => s.setMode);
   const filter = useTasks((s) => s.filter);
   const setFilter = useTasks((s) => s.setFilter);
+  const error = useTasks((s) => s.error);
 
   const modeLabels: Record<"kanban" | "list", string> = {
     kanban: t("common:taskModes.kanban"),
@@ -78,6 +79,17 @@ export function TasksView() {
       </header>
       <NewTaskBar />
       <FilterBar />
+      {error && (
+        <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2 text-sm text-danger">
+          <span>{t("loadError")}</span>
+          <button
+            onClick={() => void useTasks.getState().load()}
+            className="shrink-0 rounded-md px-2 py-1 text-xs ring-1 ring-danger/50 transition-colors hover:bg-danger/10"
+          >
+            {t("common:retry")}
+          </button>
+        </div>
+      )}
       <div className="min-h-0 flex-1 overflow-hidden">
         {mode === "kanban" ? <KanbanView /> : <ListView />}
       </div>

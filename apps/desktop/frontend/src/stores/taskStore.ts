@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { displayError } from "../lib/errors";
 import { api, type KanbanColumnDef, type Task } from "../ipc/api";
 import { topFolderFromPath } from "../lib/taskDisplay";
 import { useVault } from "./vaultStore";
@@ -167,6 +168,9 @@ interface TaskState {
   modeInitialized: boolean;
   columns: Column[];
   loading: boolean;
+  /** Set when the last load() failed — so an empty board renders as a failure
+   *  banner, not a legitimately empty task list. Cleared on the next success. */
+  error: string | null;
   /** In-memory board narrowing (text/priority/tag/due/folder). Never persisted. */
   boardFilter: BoardFilter;
   /** How the Kanban board groups cards into swimlanes. Never persisted. */
@@ -212,6 +216,7 @@ export const useTasks = create<TaskState>((set, get) => ({
   modeInitialized: false,
   columns: DEFAULT_COLUMNS,
   loading: false,
+  error: null,
   boardFilter: EMPTY_BOARD_FILTER,
   boardGroupBy: "none",
   pinnedNotePath: null,
@@ -231,6 +236,7 @@ export const useTasks = create<TaskState>((set, get) => ({
         tasks,
         columns: normalizeColumns(prefs.taskView?.kanbanColumns),
         loading: false,
+        error: null,
       };
       // Seed the view mode from the saved default exactly once per session. Read
       // the flag here (after the await) so a manual setMode during the in-flight
@@ -241,8 +247,8 @@ export const useTasks = create<TaskState>((set, get) => ({
         next.modeInitialized = true;
       }
       set(next);
-    } catch {
-      if (seq === loadSeq) set({ loading: false });
+    } catch (e) {
+      if (seq === loadSeq) set({ loading: false, error: displayError(e) });
     }
   },
 

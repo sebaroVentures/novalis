@@ -23,6 +23,7 @@ import {
   type TaskViewPrefs,
 } from "../ipc/api";
 import { applyAppearance } from "../lib/appearance";
+import { useVault } from "./vaultStore";
 
 interface SettingsState {
   prefs: Preferences | null;
@@ -37,6 +38,10 @@ interface SettingsState {
   setGit: (patch: Partial<GitPrefs>) => void;
   setSavedQueries: (queries: SavedQuery[]) => void;
   flush: () => Promise<void>;
+  /** Immediately write any pending debounced persist (and await it), so a quit
+   *  within PERSIST_DELAY doesn't drop the last settings / saved-query change.
+   *  A no-op when nothing is pending. Wired into App.tsx onCloseRequested. */
+  flushPending: () => Promise<void>;
 }
 
 // Mirrors the Rust-side serde defaults — the `git` block and each of its
@@ -71,8 +76,10 @@ async function persist(get: () => SettingsState): Promise<void> {
       git: p.git ?? fresh.git,
       savedQueries: p.savedQueries ?? fresh.savedQueries,
     });
-  } catch {
-    /* noVault / IO — in-memory state still drives the UI until next load */
+  } catch (e) {
+    // A dropped write (IO error, or a saved query / setting change that never
+    // reached disk) must not vanish silently — surface it on the global toast.
+    useVault.getState().reportError(e);
   }
 }
 
@@ -153,6 +160,13 @@ export const useSettings = create<SettingsState>((set, get) => ({
       clearTimeout(persistTimer);
       persistTimer = null;
     }
+    await persist(get);
+  },
+
+  flushPending: async () => {
+    if (!persistTimer) return; // nothing debounced — already on disk
+    clearTimeout(persistTimer);
+    persistTimer = null;
     await persist(get);
   },
 }));

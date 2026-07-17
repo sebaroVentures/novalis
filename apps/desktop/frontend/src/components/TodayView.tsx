@@ -22,10 +22,11 @@ function timeOf(start: string): string | null {
  *  plus an Overdue section when viewing the actual today. Data comes from the
  *  backend get_agenda (tasks placed on their @start, else @due). */
 export function TodayView() {
-  const { t } = useTranslation(["today", "ai"]);
+  const { t } = useTranslation(["today", "ai", "common"]);
   const focus = useAgenda((s) => s.focus);
   const items = useAgenda((s) => s.items);
   const overdue = useAgenda((s) => s.overdue);
+  const error = useAgenda((s) => s.error);
   const load = useAgenda((s) => s.load);
   const timeFormatPref = useSettings((s) => s.prefs?.calendar?.timeFormat);
   const timeFormat: "12h" | "24h" = timeFormatPref === "12h" ? "12h" : "24h";
@@ -98,6 +99,18 @@ export function TodayView() {
         </div>
       </header>
 
+      {error && (
+        <div className="flex items-center justify-between gap-3 border-b border-border px-5 py-2.5 text-sm text-danger">
+          <span>{t("loadError")}</span>
+          <button
+            onClick={() => void load(focus)}
+            className="shrink-0 rounded-md px-2 py-1 text-xs ring-1 ring-danger/50 transition-colors hover:bg-danger/10"
+          >
+            {t("common:retry")}
+          </button>
+        </div>
+      )}
+
       <div className="min-h-0 flex-1 overflow-y-auto px-5 py-4">
         <div className="mx-auto flex max-w-2xl flex-col gap-5">
           <div className="flex items-center gap-2 self-start">
@@ -120,7 +133,7 @@ export function TodayView() {
             )}
           </div>
 
-          {empty && <p className="text-sm text-fg-faint">{t("empty")}</p>}
+          {empty && !error && <p className="text-sm text-fg-faint">{t("empty")}</p>}
 
           {focus === today && overdue.length > 0 && (
             <Group label={t("overdue")} danger>

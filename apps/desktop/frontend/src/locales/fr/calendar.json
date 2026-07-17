@@ -14,6 +14,7 @@
     "yearly": "Annuel"
   },
   "importIcs": "Importer .ics",
+  "loadError": "Impossible de charger les évènements du calendrier.",
   "location": "Lieu",
   "month": "Mois",
   "newEvent": "Nouvel événement",

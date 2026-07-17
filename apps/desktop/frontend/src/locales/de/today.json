@@ -2,6 +2,7 @@
   "empty": "Für diesen Tag ist nichts geplant.",
   "events": "Termine",
   "jumpToday": "Heute",
+  "loadError": "Der Tagesplan konnte nicht geladen werden.",
   "nextDay": "Nächster Tag",
   "openTodaysNote": "Heutige Notiz öffnen",
   "overdue": "Überfällig",

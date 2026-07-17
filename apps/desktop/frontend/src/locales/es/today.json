@@ -2,6 +2,7 @@
   "empty": "No hay nada programado para este día.",
   "events": "Eventos",
   "jumpToday": "Hoy",
+  "loadError": "No se pudo cargar la agenda del día.",
   "nextDay": "Día siguiente",
   "openTodaysNote": "Abrir la nota de hoy",
   "overdue": "Atrasado",

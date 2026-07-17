@@ -39,6 +39,7 @@ beforeEach(() => {
     anchor: new Date(2026, 5, 15), // June 2026; the 1st is a Monday
     events: [],
     loading: false,
+    error: null,
   });
 });
 
@@ -82,5 +83,22 @@ describe("calendarStore.load", () => {
 
     expect(useCalendar.getState().events).toEqual([]);
     expect(useCalendar.getState().loading).toBe(false);
+  });
+
+  it("records an error when the fetch fails, and clears it on the next successful load", async () => {
+    mocks.listEvents.mockRejectedValueOnce(new Error("engine gone"));
+
+    await useCalendar.getState().load();
+
+    // The empty grid must read as a failure, not a legitimately event-free month.
+    expect(useCalendar.getState().events).toEqual([]);
+    expect(useCalendar.getState().loading).toBe(false);
+    expect(useCalendar.getState().error).toContain("engine gone");
+
+    mocks.listEvents.mockResolvedValue([event("back")]);
+    await useCalendar.getState().load();
+
+    expect(useCalendar.getState().events.map((e) => e.id)).toEqual(["back"]);
+    expect(useCalendar.getState().error).toBeNull();
   });
 });

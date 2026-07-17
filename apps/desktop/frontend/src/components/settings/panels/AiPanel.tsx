@@ -14,6 +14,7 @@ import {
 } from "../../../ipc/api";
 import { useAi } from "../../../stores/aiStore";
 import { useSettings } from "../../../stores/settingsStore";
+import { useVault } from "../../../stores/vaultStore";
 import { Select, SettingRow, SettingsSection, Switch, TextField } from "../../ui";
 
 // Kinds offered in the "add" dropdown.
@@ -341,6 +342,9 @@ function PromptTemplatesSection() {
       await useAi.getState().saveTemplate(name.trim(), body.trim(), scope);
       setName("");
       setBody("");
+    } catch (e) {
+      // Keep the typed draft on failure so it isn't lost; surface the reason.
+      useVault.getState().reportError(e);
     } finally {
       setBusy(false);
     }

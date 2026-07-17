@@ -1,5 +1,6 @@
 import { create } from "zustand";
 
+import { displayError } from "../lib/errors";
 import { api, type AgendaItem } from "../ipc/api";
 
 /** Local-date ISO (YYYY-MM-DD) — never UTC, so "today" matches the user's day. */
@@ -29,6 +30,9 @@ interface AgendaState {
   /** Open tasks dated before today — only populated when focus === today. */
   overdue: AgendaItem[];
   loading: boolean;
+  /** Set when the last load() failed — so the empty arrays render as a failure
+   *  banner, not a legitimately free day. Cleared on the next successful load. */
+  error: string | null;
   load: (focus: string) => Promise<void>;
   /** Drop the previous vault's agenda on a vault switch (refetched on next view). */
   reset: () => void;
@@ -39,6 +43,7 @@ export const useAgenda = create<AgendaState>((set) => ({
   items: [],
   overdue: [],
   loading: false,
+  error: null,
   load: async (focus) => {
     const seq = ++loadSeq;
     set({ loading: true, focus });
@@ -52,13 +57,13 @@ export const useAgenda = create<AgendaState>((set) => ({
         overdue = past.filter((i) => i.kind === "task");
       }
       if (seq !== loadSeq) return; // superseded by a newer load
-      set({ items, overdue, loading: false });
-    } catch {
-      if (seq === loadSeq) set({ items: [], overdue: [], loading: false });
+      set({ items, overdue, loading: false, error: null });
+    } catch (e) {
+      if (seq === loadSeq) set({ items: [], overdue: [], loading: false, error: displayError(e) });
     }
   },
   reset: () => {
     loadSeq++; // drop any in-flight load from the previous vault
-    set({ items: [], overdue: [], focus: isoDay(new Date()), loading: false });
+    set({ items: [], overdue: [], focus: isoDay(new Date()), loading: false, error: null });
   },
 }));

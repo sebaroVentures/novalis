@@ -2,6 +2,7 @@
   "empty": "Rien de prévu pour ce jour.",
   "events": "Événements",
   "jumpToday": "Aujourd'hui",
+  "loadError": "Impossible de charger l'agenda du jour.",
   "nextDay": "Jour suivant",
   "openTodaysNote": "Ouvrir la note du jour",
   "overdue": "En retard",
