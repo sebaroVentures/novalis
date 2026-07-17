@@ -291,6 +291,9 @@ interface VaultState {
   /** Sync UI state with whatever vault the backend currently has open. */
   sync: () => Promise<void>;
   pickAndOpen: () => Promise<void>;
+  /** Ask for a location, generate the bundled Novalis Tour demo vault there,
+   *  then open it. Returns whether a tour was created (false if cancelled). */
+  takeTour: () => Promise<boolean>;
   openVault: (path: string) => Promise<void>;
   /** Switch the active vault to `path`: flush pending edits, then open + reload. */
   switchVault: (path: string) => Promise<void>;
@@ -460,6 +463,22 @@ export const useVault = create<VaultState>((set, get) => ({
   pickAndOpen: async () => {
     const path = await api.pickVaultFolder();
     if (path) await get().switchVault(path);
+  },
+
+  takeTour: async () => {
+    const parent = await api.pickVaultFolder();
+    if (!parent) return false;
+    let vaultPath: string;
+    try {
+      vaultPath = await api.createTourVault(parent);
+    } catch (e) {
+      get().reportError(e);
+      return false;
+    }
+    await get().switchVault(vaultPath);
+    // Only report success once the vault actually opened (switchVault bails
+    // and surfaces its own error on failure, leaving vaultPath unchanged).
+    return get().vaultPath === vaultPath;
   },
 
   switchVault: async (path) => {

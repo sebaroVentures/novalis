@@ -25,6 +25,8 @@
     "body": "# Bienvenue dans Novalis 👋\n\nCeci est votre première note — un simple fichier Markdown dans votre coffre. Elle est à vous : modifiez-la, déplacez-la ou supprimez-la.\n\n## Quelques choses à essayer\n\n- Reliez une autre note avec des [[wiki-links]].\n- Ouvrez la recherche ou la palette de commandes pour aller partout.\n- Cochez votre première tâche :\n\n- [ ] Écrire ma première vraie note\n\nSupprimez cette note quand vous le souhaitez. Bonne écriture !\n",
     "filename": "Bienvenue dans Novalis"
   },
+  "startingTour": "Création de la visite…",
   "subtitle": "Des notes, des tâches et un calendrier local-first — le tout dans des fichiers simples qui vous appartiennent. Voici le tour rapide.",
+  "takeTour": "Faire la visite",
   "title": "Bienvenue dans Novalis"
 }

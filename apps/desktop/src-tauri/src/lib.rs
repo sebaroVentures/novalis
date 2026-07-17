@@ -101,6 +101,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::default_vault_path,
             commands::open_vault,
             commands::close_vault,
+            commands::create_tour_vault,
             commands::current_vault,
             commands::pick_vault_folder,
             commands::validate_vault,

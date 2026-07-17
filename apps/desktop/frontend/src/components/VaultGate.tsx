@@ -13,6 +13,7 @@ const vaultName = (path: string): string => path.split("/").filter(Boolean).pop(
 export function VaultGate() {
   const { t } = useTranslation(["vault", "common"]);
   const pickAndOpen = useVault((s) => s.pickAndOpen);
+  const takeTour = useVault((s) => s.takeTour);
   const switchVault = useVault((s) => s.switchVault);
   const error = useVault((s) => s.error);
   const [recent, setRecent] = useState<RecentVault[]>([]);
@@ -101,12 +102,22 @@ export function VaultGate() {
         <p className="mt-2 text-fg-subtle">{t("tagline")}</p>
       </div>
       {platform !== null && !mobile && (
-        <button
-          onClick={() => void pickAndOpen()}
-          className="rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg transition hover:bg-accent"
-        >
-          {t("openVault")}
-        </button>
+        <div className="flex flex-col items-center gap-2">
+          <button
+            onClick={() => void takeTour()}
+            disabled={busy}
+            className="rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg transition hover:bg-accent disabled:opacity-50"
+          >
+            {t("takeTour")}
+          </button>
+          <button
+            onClick={() => void pickAndOpen()}
+            disabled={busy}
+            className="rounded-lg px-4 py-1.5 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-50"
+          >
+            {t("openVault")}
+          </button>
+        </div>
       )}
 
       {mobile && (

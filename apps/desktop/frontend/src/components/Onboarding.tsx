@@ -30,12 +30,34 @@ export function Onboarding() {
   const { t } = useTranslation("onboarding");
   const dismiss = useUi((s) => s.dismissOnboarding);
   const [busy, setBusy] = useState(false);
+  // Which action is in flight, so only its button shows a loading label.
+  const [action, setAction] = useState<"tour" | "starter" | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const finish = () => dismiss();
 
+  const startTour = async () => {
+    setBusy(true);
+    setAction("tour");
+    setError(null);
+    try {
+      const created = await useVault.getState().takeTour();
+      // Cancelled the folder picker → stay on the welcome card.
+      if (created) dismiss();
+      else {
+        setBusy(false);
+        setAction(null);
+      }
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
+      setAction(null);
+    }
+  };
+
   const createStarter = async () => {
     setBusy(true);
+    setAction("starter");
     setError(null);
     const path = `${t("starter.filename")}.md`;
     try {
@@ -53,6 +75,7 @@ export function Onboarding() {
       // Fail loud: surface the problem in-card and let the user retry or skip.
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
+      setAction(null);
     }
   };
 
@@ -105,16 +128,23 @@ export function Onboarding() {
         <button
           onClick={finish}
           disabled={busy}
-          className="rounded-lg px-4 py-2 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-50"
+          className="rounded-lg px-4 py-2 text-sm text-fg-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-50 sm:mr-auto"
         >
           {t("skip")}
         </button>
         <button
           onClick={() => void createStarter()}
           disabled={busy}
+          className="rounded-lg px-4 py-2 text-sm font-medium text-fg-muted transition-colors hover:bg-hover hover:text-fg disabled:opacity-50"
+        >
+          {action === "starter" ? t("creating") : t("createNote")}
+        </button>
+        <button
+          onClick={() => void startTour()}
+          disabled={busy}
           className="rounded-lg bg-accent px-4 py-2 text-sm font-medium text-accent-fg shadow-sm transition-opacity hover:opacity-90 disabled:opacity-50"
         >
-          {busy ? t("creating") : t("createNote")}
+          {action === "tour" ? t("startingTour") : t("takeTour")}
         </button>
       </div>
     </Modal>

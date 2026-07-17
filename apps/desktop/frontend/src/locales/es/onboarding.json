@@ -25,6 +25,8 @@
     "body": "# Te damos la bienvenida a Novalis 👋\n\nEsta es tu primera nota: un archivo Markdown simple que vive en tu bóveda. Es tuyo para editar, mover o eliminar.\n\n## Algunas cosas para probar\n\n- Enlaza con otra nota usando [[wiki-links]].\n- Abre la búsqueda o la paleta de comandos para saltar a cualquier parte.\n- Marca tu primera tarea:\n\n- [ ] Escribir mi primera nota de verdad\n\nElimina esta nota cuando quieras. ¡Feliz escritura!\n",
     "filename": "Bienvenida a Novalis"
   },
+  "startingTour": "Creando el recorrido…",
   "subtitle": "Notas, tareas y calendario locales, todo en archivos simples que te pertenecen. Aquí tienes un recorrido rápido.",
+  "takeTour": "Hacer el recorrido",
   "title": "Te damos la bienvenida a Novalis"
 }

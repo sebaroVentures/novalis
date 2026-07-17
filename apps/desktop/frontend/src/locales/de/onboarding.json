@@ -25,6 +25,8 @@
     "body": "# Willkommen bei Novalis 👋\n\nDies ist deine erste Notiz – eine einfache Markdown-Datei in deinem Tresor. Du kannst sie bearbeiten, verschieben oder löschen.\n\n## Ein paar Dinge zum Ausprobieren\n\n- Verlinke eine andere Notiz mit [[wiki-links]].\n- Öffne die Suche oder die Befehlspalette, um überallhin zu springen.\n- Hake deine erste Aufgabe ab:\n\n- [ ] Meine erste echte Notiz schreiben\n\nLösche diese Notiz, wann immer du bereit bist. Viel Freude beim Schreiben!\n",
     "filename": "Willkommen bei Novalis"
   },
+  "startingTour": "Rundgang wird erstellt…",
   "subtitle": "Local-first Notizen, Aufgaben und Kalender – alles in einfachen Dateien, die dir gehören. Hier der kurze Rundgang.",
+  "takeTour": "Rundgang starten",
   "title": "Willkommen bei Novalis"
 }

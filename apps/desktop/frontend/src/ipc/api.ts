@@ -30,6 +30,7 @@ export const api = {
   defaultVaultPath: () => unwrap(commands.defaultVaultPath()),
   currentVault: () => unwrap(commands.currentVault()),
   pickVaultFolder: () => commands.pickVaultFolder(),
+  createTourVault: (parent: string) => unwrap(commands.createTourVault(parent)),
   openVault: (path: string) => unwrap(commands.openVault(path)),
   closeVault: () => unwrap(commands.closeVault()),
   validateVault: (path: string) => unwrap(commands.validateVault(path)),

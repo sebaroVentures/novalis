@@ -31,6 +31,17 @@ export const commands = {
 	openVault: (path: string) => typedError<VaultInfo, CommandError>(__TAURI_INVOKE("open_vault", { path })),
 	/**  Close the current vault (drops the index connection). */
 	closeVault: () => typedError<null, CommandError>(__TAURI_INVOKE("close_vault")),
+	/**
+	 *  Generate the bundled "Novalis Tour" demo vault under `parent` (a folder the
+	 *  user picked) and return the created vault's path, which the frontend then
+	 *  opens as the active vault.
+	 * 
+	 *  We never write into `parent` directly — we create a fresh, empty
+	 *  `Novalis Tour` subfolder (deduped to `Novalis Tour 2`, … if one is already
+	 *  there), so an existing folder's files are never touched. The generator
+	 *  itself also refuses a non-empty target.
+	 */
+	createTourVault: (parent: string) => typedError<string, CommandError>(__TAURI_INVOKE("create_tour_vault", { parent })),
 	/**  Path of the currently open vault, if any. */
 	currentVault: () => typedError<string | null, CommandError>(__TAURI_INVOKE("current_vault")),
 	/**

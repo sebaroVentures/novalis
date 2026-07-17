@@ -266,6 +266,33 @@ pub fn close_vault(state: State<AppEngine>) -> CmdResult<()> {
     Ok(())
 }
 
+/// Generate the bundled "Novalis Tour" demo vault under `parent` (a folder the
+/// user picked) and return the created vault's path, which the frontend then
+/// opens as the active vault.
+///
+/// We never write into `parent` directly — we create a fresh, empty
+/// `Novalis Tour` subfolder (deduped to `Novalis Tour 2`, … if one is already
+/// there), so an existing folder's files are never touched. The generator
+/// itself also refuses a non-empty target.
+#[tauri::command]
+#[specta::specta]
+pub fn create_tour_vault(parent: String) -> CmdResult<String> {
+    let base = PathBuf::from(&parent);
+    if !base.is_dir() {
+        return Err(CoreError::NotFound(format!("folder not found: {parent}")).into());
+    }
+    // Pick the first free `Novalis Tour[ N]` name so we always land on an empty
+    // directory the generator can own.
+    let mut target = base.join("Novalis Tour");
+    let mut n = 2;
+    while target.exists() {
+        target = base.join(format!("Novalis Tour {n}"));
+        n += 1;
+    }
+    novalis_core::tour::generate(&target)?;
+    Ok(target.to_string_lossy().to_string())
+}
+
 /// Path of the currently open vault, if any.
 #[tauri::command]
 #[specta::specta]
