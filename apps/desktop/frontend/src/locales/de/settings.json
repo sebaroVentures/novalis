@@ -123,6 +123,27 @@
       "title": "Aufgabenerstellung"
     }
   },
+  "import": {
+    "desc": "Bringen Sie Notizen aus einer anderen App in diesen Vault. Importe landen in einem eigenen Unterordner und überschreiben nie vorhandene Notizen.",
+    "enex": {
+      "button": "Evernote importieren…",
+      "desc": "Eine Evernote-Exportdatei (.enex) importieren.",
+      "label": "Evernote"
+    },
+    "notion": {
+      "button": "Notion importieren…",
+      "desc": "Einen Notion-Workspace-Export (.zip) importieren.",
+      "label": "Notion"
+    },
+    "result": {
+      "counts": "{{notes}} Notizen, {{rows}} Datenbankzeilen, {{assets}} Anhänge.",
+      "done": "Importiert nach {{folder}}.",
+      "skipped_one": "{{count}} Element übersprungen.",
+      "skipped_other": "{{count}} Elemente übersprungen."
+    },
+    "running": "Wird importiert…",
+    "section": "Import"
+  },
   "keybindings": {
     "cheatsheet": "Kürzelübersicht",
     "commandPalette": "Befehlspalette",
@@ -159,6 +180,7 @@
     "editor": "Editor",
     "general": "Allgemein",
     "heading": "Einstellungen",
+    "import": "Import",
     "keybindings": "Tastenkürzel",
     "language": "Sprache",
     "navigation": "Navigation",

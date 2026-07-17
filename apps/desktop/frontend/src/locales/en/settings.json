@@ -123,6 +123,27 @@
       "title": "Task creation"
     }
   },
+  "import": {
+    "desc": "Bring notes from another app into this vault. Imports land in their own subfolder and never overwrite existing notes.",
+    "enex": {
+      "button": "Import Evernote…",
+      "desc": "Import an Evernote .enex export file.",
+      "label": "Evernote"
+    },
+    "notion": {
+      "button": "Import Notion…",
+      "desc": "Import a Notion workspace export .zip.",
+      "label": "Notion"
+    },
+    "result": {
+      "counts": "{{notes}} notes, {{rows}} database rows, {{assets}} assets.",
+      "done": "Imported into {{folder}}.",
+      "skipped_one": "{{count}} item skipped.",
+      "skipped_other": "{{count}} items skipped."
+    },
+    "running": "Importing…",
+    "section": "Import"
+  },
   "keybindings": {
     "cheatsheet": "Shortcuts cheatsheet",
     "closeTab": "Close tab",
@@ -159,6 +180,7 @@
     "editor": "Editor",
     "general": "General",
     "heading": "Settings",
+    "import": "Import",
     "keybindings": "Keybindings",
     "language": "Language",
     "navigation": "Navigation",

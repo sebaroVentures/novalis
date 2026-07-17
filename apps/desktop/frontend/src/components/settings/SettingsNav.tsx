@@ -5,6 +5,7 @@ import {
   FileText,
   FolderOpen,
   GitBranch,
+  Import,
   Info,
   KanbanSquare,
   Keyboard,
@@ -30,6 +31,7 @@ export type CategoryId =
   | "calendar"
   | "keybindings"
   | "templates"
+  | "import"
   | "plugins"
   | "ai"
   | "about";
@@ -48,6 +50,7 @@ export const CATEGORIES: { id: CategoryId; icon: IconType }[] = [
   { id: "calendar", icon: CalendarDays },
   { id: "keybindings", icon: Keyboard },
   { id: "templates", icon: FileText },
+  { id: "import", icon: Import },
   { id: "plugins", icon: Puzzle },
   { id: "ai", icon: Sparkles },
   { id: "about", icon: Info },
@@ -69,6 +72,7 @@ export function useCategoryLabels(): Record<CategoryId, string> {
     calendar: t("nav.calendar"),
     keybindings: t("nav.keybindings"),
     templates: t("nav.templates"),
+    import: t("nav.import"),
     plugins: t("nav.plugins"),
     ai: t("nav.ai"),
     about: t("nav.about"),

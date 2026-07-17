@@ -123,6 +123,27 @@
       "title": "Création de tâches"
     }
   },
+  "import": {
+    "desc": "Importez des notes d'une autre application dans ce Vault. Les imports arrivent dans leur propre sous-dossier et n'écrasent jamais les notes existantes.",
+    "enex": {
+      "button": "Importer depuis Evernote…",
+      "desc": "Importer un fichier d'export Evernote (.enex).",
+      "label": "Evernote"
+    },
+    "notion": {
+      "button": "Importer depuis Notion…",
+      "desc": "Importer un export d'espace de travail Notion (.zip).",
+      "label": "Notion"
+    },
+    "result": {
+      "counts": "{{notes}} notes, {{rows}} lignes de base de données, {{assets}} pièces jointes.",
+      "done": "Importé dans {{folder}}.",
+      "skipped_one": "{{count}} élément ignoré.",
+      "skipped_other": "{{count}} éléments ignorés."
+    },
+    "running": "Importation…",
+    "section": "Importer"
+  },
   "keybindings": {
     "cheatsheet": "Aide-mémoire",
     "commandPalette": "Palette de commandes",
@@ -159,6 +180,7 @@
     "editor": "Éditeur",
     "general": "Général",
     "heading": "Paramètres",
+    "import": "Importer",
     "keybindings": "Raccourcis",
     "language": "Langue",
     "navigation": "Navigation",
