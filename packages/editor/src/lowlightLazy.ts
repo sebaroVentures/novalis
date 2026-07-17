@@ -34,10 +34,18 @@ export function highlightGrammarsLoaded(): boolean {
 export function ensureHighlightGrammars(): Promise<void> {
   if (loaded) return Promise.resolve();
   if (!loading) {
-    loading = import("lowlight").then(({ common }) => {
-      lowlight.register(common);
-      loaded = true;
-    });
+    loading = import("lowlight")
+      .then(({ common }) => {
+        lowlight.register(common);
+        loaded = true;
+      })
+      .catch((e: unknown) => {
+        // A failed grammar fetch (offline / stale chunk) must degrade to a plain
+        // code block, never reject to the app-level error toast — log and allow
+        // a later attempt to retry (reset so `loading` isn't a poisoned promise).
+        console.error("failed to load syntax-highlight grammars:", e);
+        loading = null;
+      });
   }
   return loading;
 }
