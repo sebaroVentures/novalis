@@ -44,6 +44,15 @@ export function VaultGate() {
     }
   };
 
+  const startTour = async () => {
+    setBusy(true);
+    try {
+      await takeTour();
+    } finally {
+      setBusy(false);
+    }
+  };
+
   const cloneRemote = async () => {
     setBusy(true);
     try {
@@ -104,7 +113,7 @@ export function VaultGate() {
       {platform !== null && !mobile && (
         <div className="flex flex-col items-center gap-2">
           <button
-            onClick={() => void takeTour()}
+            onClick={() => void startTour()}
             disabled={busy}
             className="rounded-lg bg-accent px-5 py-2.5 font-medium text-accent-fg transition hover:bg-accent disabled:opacity-50"
           >
