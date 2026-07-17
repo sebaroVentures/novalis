@@ -26,7 +26,7 @@ mod imp {
 
     use crate::engine::{AppEngine, CommandError};
     use crate::sync::endpoint;
-    use crate::sync::session::SessionCtx;
+    use crate::sync::session::{SessionCtx, SessionOutcome};
 
     /// Global keychain account for this device's identity seed (one node id per
     /// device, shared across vaults).
@@ -159,13 +159,7 @@ mod imp {
         let dir = sync_dir(&data);
 
         let mut store = SyncStore::load(&dir);
-        if store.vault_id.trim().is_empty() {
-            store.vault_id = ticket.vault_id.clone();
-        } else if store.vault_id != ticket.vault_id {
-            return Err(CommandError::internal(
-                "sync: this vault is already paired to a different sync identity",
-            ));
-        }
+        store.vault_id = reconcile_vault_id(&store.vault_id, &ticket.vault_id)?;
 
         // Store the shared vault key so we can decrypt this vault's files.
         crate::secrets::set(
@@ -227,35 +221,19 @@ mod imp {
 
         let now = now_ms();
         let peers = store.peers.clone();
-        let mut any_reached = false;
-        let mut any_transfer = false;
-
-        for peer in &peers {
-            let base = store::load_base_manifest(&dir, &peer.node_id);
-            let ctx = SessionCtx {
-                vault: vault.clone(),
-                vault_id: store.vault_id.clone(),
-                key: key.clone(),
-                base,
-            };
-            match endpoint::dial_and_sync(peer, &ctx).await {
-                Ok(out) => {
-                    any_reached = true;
-                    if out.taken > 0 || out.sent > 0 || !out.conflicts.is_empty() {
-                        any_transfer = true;
-                    }
-                    store::save_base_manifest(&dir, &peer.node_id, &out.new_base)
-                        .map_err(|e| CommandError::internal(e.to_string()))?;
-                    store.mark_synced(&peer.node_id, now);
-                    outcome.taken += out.taken;
-                    outcome.sent += out.sent;
-                    outcome.unsynced_deletes += out.unsynced_deletes;
-                    outcome.skipped_oversize += out.skipped_oversize;
-                    outcome.conflicts.extend(out.conflicts);
-                }
-                Err(e) => log::warn!("sync: peer {} unreachable this cycle: {e}", peer.node_id),
-            }
-        }
+        let vault_id = store.vault_id.clone();
+        let (any_reached, any_transfer) = sync_peers(
+            &dir,
+            &vault,
+            &vault_id,
+            &key,
+            &peers,
+            now,
+            &mut store,
+            &mut outcome,
+            |peer, ctx| async move { endpoint::dial_and_sync(&peer, &ctx).await },
+        )
+        .await?;
 
         store
             .save(&dir)
@@ -271,6 +249,79 @@ mod imp {
             SyncOutcomeKind::UpToDate
         };
         Ok(outcome)
+    }
+
+    /// Reconcile a joining ticket's vault id against the local store's: adopt it
+    /// when the local store has none yet, accept it when it already matches, and
+    /// reject it when it names a *different* sync identity (the vault is already
+    /// paired elsewhere). Extracted from [`join`] so the pairing guard is
+    /// unit-testable without a live endpoint or keychain.
+    fn reconcile_vault_id(existing: &str, incoming: &str) -> Result<String, CommandError> {
+        if existing.trim().is_empty() {
+            Ok(incoming.to_string())
+        } else if existing == incoming {
+            Ok(existing.to_string())
+        } else {
+            Err(CommandError::internal(
+                "sync: this vault is already paired to a different sync identity",
+            ))
+        }
+    }
+
+    /// The per-peer sync loop, factored out of [`sync_now`] so its outcome
+    /// aggregation and per-peer base-manifest persistence can be unit-tested with
+    /// a fake `dial` (no real QUIC). Given the resolved vault context, it walks
+    /// the peers, loads each peer's base manifest, runs one sync via `dial`, and —
+    /// for every peer reached — persists the returned base, marks the sync time,
+    /// and folds the per-peer counts into `outcome`. Unreachable peers are logged
+    /// and skipped. Returns `(any_reached, any_transfer)` for the caller's outcome
+    /// classification. Transport-agnostic: `dial` owns its `PeerRecord` +
+    /// `SessionCtx` so it can move them into a spawned future.
+    #[allow(clippy::too_many_arguments)]
+    async fn sync_peers<F, Fut>(
+        dir: &Path,
+        vault: &Path,
+        vault_id: &str,
+        key: &VaultKey,
+        peers: &[PeerRecord],
+        now: i64,
+        store: &mut SyncStore,
+        outcome: &mut SyncOutcome,
+        mut dial: F,
+    ) -> Result<(bool, bool), CommandError>
+    where
+        F: FnMut(PeerRecord, SessionCtx) -> Fut,
+        Fut: std::future::Future<Output = CoreResult<SessionOutcome>>,
+    {
+        let mut any_reached = false;
+        let mut any_transfer = false;
+        for peer in peers {
+            let base = store::load_base_manifest(dir, &peer.node_id);
+            let ctx = SessionCtx {
+                vault: vault.to_path_buf(),
+                vault_id: vault_id.to_string(),
+                key: key.clone(),
+                base,
+            };
+            match dial(peer.clone(), ctx).await {
+                Ok(out) => {
+                    any_reached = true;
+                    if out.taken > 0 || out.sent > 0 || !out.conflicts.is_empty() {
+                        any_transfer = true;
+                    }
+                    store::save_base_manifest(dir, &peer.node_id, &out.new_base)
+                        .map_err(|e| CommandError::internal(e.to_string()))?;
+                    store.mark_synced(&peer.node_id, now);
+                    outcome.taken += out.taken;
+                    outcome.sent += out.sent;
+                    outcome.unsynced_deletes += out.unsynced_deletes;
+                    outcome.skipped_oversize += out.skipped_oversize;
+                    outcome.conflicts.extend(out.conflicts);
+                }
+                Err(e) => log::warn!("sync: peer {} unreachable this cycle: {e}", peer.node_id),
+            }
+        }
+        Ok((any_reached, any_transfer))
     }
 
     /// The responder context for the accept loop: resolve the currently-open
@@ -324,6 +375,180 @@ mod imp {
             last_synced_ms: None,
         });
         store.save(&dir)
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use novalis_core::sync::manifest::FileEntry;
+
+        use super::*;
+
+        fn peer(node: &str) -> PeerRecord {
+            PeerRecord {
+                node_id: node.to_string(),
+                label: node.chars().take(8).collect(),
+                relay: None,
+                addrs: Vec::new(),
+                last_synced_ms: None,
+            }
+        }
+
+        fn manifest_with(path: &str, hash: &str) -> Manifest {
+            let mut m = Manifest::default();
+            m.entries.insert(
+                path.to_string(),
+                FileEntry {
+                    path: path.to_string(),
+                    hash: hash.to_string(),
+                    size: 1,
+                    mtime_ms: 0,
+                },
+            );
+            m
+        }
+
+        fn ok_outcome(taken: u32, sent: u32, new_base: Manifest) -> SessionOutcome {
+            SessionOutcome {
+                taken,
+                sent,
+                conflicts: Vec::new(),
+                unsynced_deletes: 0,
+                skipped_oversize: 0,
+                peer_authenticated: false,
+                new_base,
+            }
+        }
+
+        fn empty_outcome() -> SyncOutcome {
+            SyncOutcome {
+                kind: SyncOutcomeKind::UpToDate,
+                taken: 0,
+                sent: 0,
+                conflicts: Vec::new(),
+                unsynced_deletes: 0,
+                skipped_oversize: 0,
+            }
+        }
+
+        #[test]
+        fn reconcile_vault_id_adopts_when_unset() {
+            assert_eq!(reconcile_vault_id("", "vault-x").unwrap(), "vault-x");
+            assert_eq!(reconcile_vault_id("   ", "vault-x").unwrap(), "vault-x");
+        }
+
+        #[test]
+        fn reconcile_vault_id_accepts_matching() {
+            assert_eq!(reconcile_vault_id("vault-x", "vault-x").unwrap(), "vault-x");
+        }
+
+        #[test]
+        fn reconcile_vault_id_rejects_mismatch() {
+            let err = reconcile_vault_id("vault-x", "vault-y").unwrap_err();
+            assert!(
+                err.message.contains("already paired"),
+                "mismatch must be rejected, got: {}",
+                err.message
+            );
+        }
+
+        // Some peers reachable, one not: outcomes fold in, unreachable peers are
+        // skipped (no timestamp), and the reached/transfer flags classify right.
+        #[tokio::test]
+        async fn sync_peers_aggregates_reachable_and_skips_unreachable() {
+            let dir = tempfile::tempdir().unwrap();
+            let vault = dir.path().join("vault");
+            let key = VaultKey::generate();
+            let peers = vec![peer("aa"), peer("bb"), peer("cc")];
+            let mut store = SyncStore::default();
+            for p in &peers {
+                store.upsert_peer(p.clone());
+            }
+            let mut outcome = empty_outcome();
+
+            // aa moves files, bb is unreachable, cc is reached but up-to-date.
+            let (any_reached, any_transfer) = sync_peers(
+                dir.path(),
+                &vault,
+                "vault-x",
+                &key,
+                &peers,
+                42,
+                &mut store,
+                &mut outcome,
+                |peer, _ctx| async move {
+                    match peer.node_id.as_str() {
+                        "aa" => Ok(ok_outcome(2, 1, manifest_with("aa.md", "h-aa"))),
+                        "bb" => Err(CoreError::Internal("unreachable".to_string())),
+                        _ => Ok(ok_outcome(0, 0, manifest_with("cc.md", "h-cc"))),
+                    }
+                },
+            )
+            .await
+            .unwrap();
+
+            assert!(any_reached, "aa and cc were reached");
+            assert!(any_transfer, "aa moved files, so a transfer happened");
+            assert_eq!(outcome.taken, 2);
+            assert_eq!(outcome.sent, 1);
+
+            let ts = |n: &str| {
+                store
+                    .peers
+                    .iter()
+                    .find(|p| p.node_id == n)
+                    .unwrap()
+                    .last_synced_ms
+            };
+            assert_eq!(ts("aa"), Some(42), "reached peer marked synced");
+            assert_eq!(ts("bb"), None, "unreachable peer keeps no timestamp");
+            assert_eq!(ts("cc"), Some(42), "reached-but-up-to-date still marked");
+        }
+
+        // Every reached peer's returned base manifest is persisted under its own
+        // node id, so the next cycle plans from the right base per peer.
+        #[tokio::test]
+        async fn sync_peers_persists_base_manifest_per_peer() {
+            let dir = tempfile::tempdir().unwrap();
+            let vault = dir.path().join("vault");
+            let key = VaultKey::generate();
+            let peers = vec![peer("aa"), peer("bb")];
+            let mut store = SyncStore::default();
+            for p in &peers {
+                store.upsert_peer(p.clone());
+            }
+            let mut outcome = empty_outcome();
+
+            let base_aa = manifest_with("aa.md", "hash-aa");
+            let base_bb = manifest_with("bb.md", "hash-bb");
+            let ret_aa = base_aa.clone();
+            let ret_bb = base_bb.clone();
+
+            sync_peers(
+                dir.path(),
+                &vault,
+                "vault-x",
+                &key,
+                &peers,
+                7,
+                &mut store,
+                &mut outcome,
+                move |peer, ctx| {
+                    // First sync for each peer: base starts empty.
+                    assert_eq!(ctx.base, Manifest::default(), "first cycle base is empty");
+                    let next = if peer.node_id == "aa" {
+                        ret_aa.clone()
+                    } else {
+                        ret_bb.clone()
+                    };
+                    async move { Ok(ok_outcome(0, 1, next)) }
+                },
+            )
+            .await
+            .unwrap();
+
+            assert_eq!(store::load_base_manifest(dir.path(), "aa"), base_aa);
+            assert_eq!(store::load_base_manifest(dir.path(), "bb"), base_bb);
+        }
     }
 }
 
