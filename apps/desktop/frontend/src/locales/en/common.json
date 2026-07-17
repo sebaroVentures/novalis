@@ -65,6 +65,7 @@
       "review": "Review",
       "todo": "To Do"
     },
+    "namePlaceholder": "Query name",
     "namePrompt": "Name this query",
     "nextMonth": "Next month",
     "noDates": "No dated notes to place on the calendar.",

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 
 import { Bookmark, ChevronLeft, ChevronRight, Play, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,7 @@ import { displayText, noteTitleFromPath } from "../lib/taskDisplay";
 import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
 import { DueBadge, PriorityBadge, TagChip } from "./TaskBadges";
+import { Modal } from "./ui/Modal";
 
 /** The kanban columns query results are bucketed into (a task's `@status`, with
  *  a catch-all "" column for un-statused tasks). Deliberately static: the query
@@ -30,6 +31,17 @@ function propText(value: PropertyValue | undefined): string {
   }
 }
 
+/** Enter/Space activate a `role="button"` element — keyboard parity for the
+ *  result rows/cards that are plain `onClick` elements (not real buttons). */
+function onActivateKey(fn: () => void) {
+  return (e: React.KeyboardEvent) => {
+    if (e.key === "Enter" || e.key === " ") {
+      e.preventDefault();
+      fn();
+    }
+  };
+}
+
 export function QueryView() {
   const { t } = useTranslation("common");
   const [input, setInput] = useState("");
@@ -37,6 +49,7 @@ export function QueryView() {
   const [view, setView] = useState<QueryViewKind | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [running, setRunning] = useState(false);
+  const [naming, setNaming] = useState(false);
   const saved = useSettings((s) => s.prefs?.savedQueries ?? []);
   const setSavedQueries = useSettings((s) => s.setSavedQueries);
 
@@ -57,13 +70,18 @@ export function QueryView() {
   };
 
   const saveCurrent = () => {
+    if (!input.trim()) return;
+    setNaming(true);
+  };
+
+  const commitName = (rawName: string) => {
     const query = input.trim();
-    if (!query) return;
-    const name = window.prompt(t("query.namePrompt"))?.trim();
-    if (!name) return;
+    const name = rawName.trim();
+    if (!query || !name) return;
     const next: SavedQuery[] = [...saved.filter((s) => s.name !== name), { name, query }];
     next.sort((a, b) => a.name.localeCompare(b.name));
     setSavedQueries(next);
+    setNaming(false);
   };
 
   const loadSaved = (q: SavedQuery) => {
@@ -173,7 +191,66 @@ export function QueryView() {
           <TableResult result={result} />
         )}
       </div>
+
+      {naming && <SaveQueryModal onSubmit={commitName} onCancel={() => setNaming(false)} />}
     </section>
+  );
+}
+
+/** In-app "name this query" prompt. Replaces `window.prompt`, which returns null
+ *  immediately in the Tauri macOS WKWebView, silently no-op-ing Save. Reuses the
+ *  Modal shell (focus trap + Escape) with a text input; Enter submits. */
+function SaveQueryModal({
+  onSubmit,
+  onCancel,
+}: {
+  onSubmit: (name: string) => void;
+  onCancel: () => void;
+}) {
+  const { t } = useTranslation("common");
+  const [name, setName] = useState("");
+  const inputRef = useRef<HTMLInputElement>(null);
+  const submit = () => {
+    if (name.trim()) onSubmit(name);
+  };
+  return (
+    <Modal
+      label={t("query.namePrompt")}
+      onClose={onCancel}
+      initialFocusRef={inputRef}
+      overlayClassName="z-[60] items-center justify-center p-6"
+      panelClassName="w-full max-w-sm overflow-hidden rounded-xl border border-border-strong bg-surface p-5 shadow-2xl"
+    >
+      <h3 className="text-sm font-semibold text-fg">{t("query.namePrompt")}</h3>
+      <input
+        ref={inputRef}
+        value={name}
+        onChange={(e) => setName(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter") {
+            e.preventDefault();
+            submit();
+          }
+        }}
+        placeholder={t("query.namePlaceholder")}
+        className="mt-3 w-full rounded-lg bg-surface-2 px-2.5 py-1.5 text-sm text-fg outline-none ring-1 ring-transparent transition placeholder:text-fg-faint focus:ring-accent/50"
+      />
+      <div className="mt-5 flex justify-end gap-2">
+        <button
+          onClick={onCancel}
+          className="rounded-md px-3 py-1.5 text-xs text-fg-muted transition-colors hover:bg-hover hover:text-fg"
+        >
+          {t("cancel")}
+        </button>
+        <button
+          onClick={submit}
+          disabled={!name.trim()}
+          className="rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+        >
+          {t("query.save")}
+        </button>
+      </div>
+    </Modal>
   );
 }
 
@@ -227,8 +304,11 @@ function TableResult({ result }: { result: QueryResult }) {
           return (
             <tr
               key={n.path}
+              role="button"
+              tabIndex={0}
               onClick={() => openNoteFrom(n.path, "query")}
-              className="cursor-pointer border-b border-border/60 hover:bg-hover"
+              onKeyDown={onActivateKey(() => openNoteFrom(n.path, "query"))}
+              className="cursor-pointer border-b border-border/60 hover:bg-hover focus:bg-hover focus:outline-none focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/60"
             >
               <td className="max-w-xs truncate px-4 py-1.5 text-fg" title={n.path}>
                 {n.title}
@@ -285,9 +365,12 @@ function KanbanResult({ tasks }: { tasks: Task[] }) {
               {colTasks.map((task) => (
                 <div
                   key={task.id}
+                  role="button"
+                  tabIndex={0}
                   onClick={() => openNoteFrom(task.sourceNote, "query")}
+                  onKeyDown={onActivateKey(() => openNoteFrom(task.sourceNote, "query"))}
                   title={task.sourceNote}
-                  className="cursor-pointer rounded-md border border-border bg-surface p-2 text-sm text-fg transition-colors hover:border-border-strong"
+                  className="cursor-pointer rounded-md border border-border bg-surface p-2 text-sm text-fg transition-colors hover:border-border-strong focus:outline-none focus-visible:border-accent/60 focus-visible:ring-1 focus-visible:ring-accent/60"
                 >
                   <div className="mb-0.5 truncate text-xs text-fg-subtle">
                     {task.noteTitle || noteTitleFromPath(task.sourceNote)}

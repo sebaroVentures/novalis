@@ -65,6 +65,7 @@
       "review": "Prüfung",
       "todo": "Zu erledigen"
     },
+    "namePlaceholder": "Abfragename",
     "namePrompt": "Diese Abfrage benennen",
     "nextMonth": "Nächster Monat",
     "noDates": "Keine datierten Notizen für den Kalender.",

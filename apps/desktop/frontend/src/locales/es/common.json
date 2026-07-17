@@ -65,6 +65,7 @@
       "review": "Revisión",
       "todo": "Por hacer"
     },
+    "namePlaceholder": "Nombre de la consulta",
     "namePrompt": "Nombra esta consulta",
     "nextMonth": "Mes siguiente",
     "noDates": "No hay notas con fecha para el calendario.",
