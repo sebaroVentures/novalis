@@ -69,6 +69,7 @@ import { checkReminders, resetReminderBaseline } from "./lib/reminderScheduler";
 import { useAiEvents } from "./lib/useAiEvents";
 import { useNovalisEvents } from "./lib/useNovalisEvents";
 import { useAi } from "./stores/aiStore";
+import { useCanvas } from "./stores/canvasStore";
 import { useConflicts } from "./stores/conflictStore";
 import { useKeymap } from "./stores/keymapStore";
 import { usePdf } from "./stores/pdfStore";
@@ -261,7 +262,13 @@ export default function App() {
         event.preventDefault();
         try {
           await Promise.race([
-            useVault.getState().flushActive(),
+            // Drain every pending write before destroy: note editors, the open
+            // canvas's debounced write, and any debounced settings persist.
+            Promise.all([
+              useVault.getState().flushActive(),
+              useCanvas.getState().flushPending(),
+              useSettings.getState().flushPending(),
+            ]),
             new Promise((r) => window.setTimeout(r, 2000)),
           ]);
         } catch {
