@@ -166,7 +166,14 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
     }
 
     let db = schema::open_db(&config::db_path(&data_dir))?;
-    search::build_index(&db, &vault_path)?;
+    // Incremental startup scan: reindex only new/changed notes and drop vanished
+    // ones, comparing on-disk mtimes against the last-session index. A steady
+    // reopen of an unchanged vault costs only a directory walk + stats (no body
+    // reads / FTS re-tokenization / cloud hydration). A `SCHEMA_VERSION` bump has
+    // already dropped+recreated the tables in `open_db`, so the first scan after
+    // an upgrade reindexes everything (empty index ⇒ every note is "new"); the
+    // explicit rebuild path (`reindex_vault`) still does a full `build_index`.
+    search::incremental_index(&db, &vault_path)?;
 
     let info = stats::vault_info(&vault_path);
 
@@ -303,10 +310,15 @@ pub fn remove_recent_vault(app: AppHandle, path: String) -> CmdResult<()> {
 
 // ── Notes ───────────────────────────────────────────────────────────────────
 
+/// Served straight from the index (no disk reads), so it stays fast on a
+/// cloud-synced vault — [`novalis_core::index::list_summaries`] returns the same
+/// [`NoteSummary`] shape a from-disk walk would (parity is pinned by a test in
+/// `index::search`), and the file watcher / incremental scan keep the index in
+/// step with the vault.
 #[tauri::command]
 #[specta::specta]
 pub fn list_notes(state: State<AppEngine>) -> CmdResult<Vec<NoteSummary>> {
-    state.with(|e| Ok(novalis_core::notes::list(&e.vault_path)))
+    state.with(|e| novalis_core::index::list_summaries(&e.db))
 }
 
 /// `async` + `spawn_blocking`: reading a note on a OneDrive/iCloud vault may
@@ -316,9 +328,11 @@ pub fn list_notes(state: State<AppEngine>) -> CmdResult<Vec<NoteSummary>> {
 #[tauri::command]
 #[specta::specta]
 pub async fn get_note(app: AppHandle, path: String) -> CmdResult<Note> {
+    // Snapshot the vault path under a brief lock, then read the file OFF the
+    // lock: a cloud hydration must never freeze the whole command surface.
+    let vault = vault_path_snapshot(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
-        app.state::<AppEngine>()
-            .with(|e| novalis_core::notes::get(&e.vault_path, &path))
+        novalis_core::notes::get(&vault, &path).map_err(CommandError::from)
     })
     .await
     .map_err(|e| CommandError::internal(format!("get_note task panicked: {e}")))?
@@ -347,14 +361,39 @@ pub fn create_note(state: State<AppEngine>, req: CreateNoteRequest) -> CmdResult
     )
 }
 
+/// `async` + `spawn_blocking`: the save does a version snapshot + write +
+/// read-back (file IO that on a cloud-synced vault is slow), so it runs OFF the
+/// engine lock — the lock is re-acquired only for the pure-DB index upsert.
+/// Indexing from the just-written summary + content is identical to the old
+/// in-lock `notes::update` (the file exists, so `reindex_path`'s remove branch
+/// never applied).
 #[tauri::command]
 #[specta::specta]
-pub fn update_note(state: State<AppEngine>, path: String, content: String) -> CmdResult<Note> {
-    track_note_write(
+pub async fn update_note(app: AppHandle, path: String, content: String) -> CmdResult<Note> {
+    tauri::async_runtime::spawn_blocking(move || -> CmdResult<Note> {
+        let state = app.state::<AppEngine>();
+        // Brief lock: snapshot the paths the off-lock write needs.
+        let (vault, data_dir) = state.with(|e| Ok((e.vault_path.clone(), e.data_dir.clone())))?;
+        // File IO OFF the lock.
+        let (note, summary) =
+            novalis_core::notes::update_write(&vault, &data_dir, &path, &content)?;
+        // Re-acquire only for the index upsert + mtime stamp (pure DB).
         state.with(|e| {
-            novalis_core::notes::update(&e.db, &e.vault_path, &e.data_dir, &path, &content)
-        }),
-    )
+            search::index_note(&e.db, &summary, &note.content)?;
+            if let Some(ms) = std::fs::metadata(vault.join(&path))
+                .ok()
+                .as_ref()
+                .and_then(vault_fs::file_mtime_ms)
+            {
+                search::stamp_mtime(&e.db, &path, ms)?;
+            }
+            Ok(())
+        })?;
+        mark_self_write(&note.path);
+        Ok(note)
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("update_note task panicked: {e}")))?
 }
 
 #[tauri::command]
@@ -652,9 +691,17 @@ pub fn list_tags(state: State<AppEngine>) -> CmdResult<Vec<TagCount>> {
 #[tauri::command]
 #[specta::specta]
 pub async fn backlinks(app: AppHandle, title: String) -> CmdResult<Vec<LinkReference>> {
-    tauri::async_runtime::spawn_blocking(move || {
-        app.state::<AppEngine>()
-            .with(|e| links::backlinks(&e.db, &e.vault_path, &title))
+    tauri::async_runtime::spawn_blocking(move || -> CmdResult<Vec<LinkReference>> {
+        let state = app.state::<AppEngine>();
+        // Brief lock: vault path + candidate rows (pure DB). Bodies are read
+        // OFF the lock so a cloud hydration never blocks other commands.
+        let (vault, rows) = state.with(|e| {
+            Ok((
+                e.vault_path.clone(),
+                links::backlink_candidates(&e.db, &title)?,
+            ))
+        })?;
+        Ok(links::backlink_snippets(&vault, rows, &title))
     })
     .await
     .map_err(|e| CommandError::internal(format!("backlinks task panicked: {e}")))?
@@ -669,9 +716,15 @@ pub async fn unlinked_mentions(
     title: String,
     self_path: String,
 ) -> CmdResult<Vec<LinkReference>> {
-    tauri::async_runtime::spawn_blocking(move || {
-        app.state::<AppEngine>()
-            .with(|e| links::unlinked_mentions(&e.db, &e.vault_path, &title, &self_path))
+    tauri::async_runtime::spawn_blocking(move || -> CmdResult<Vec<LinkReference>> {
+        let state = app.state::<AppEngine>();
+        let (vault, rows) = state.with(|e| {
+            Ok((
+                e.vault_path.clone(),
+                links::unlinked_mention_candidates(&e.db, &title, &self_path)?,
+            ))
+        })?;
+        Ok(links::unlinked_mention_snippets(&vault, rows, &title))
     })
     .await
     .map_err(|e| CommandError::internal(format!("unlinked_mentions task panicked: {e}")))?
@@ -723,9 +776,15 @@ pub fn resolve_block(state: State<AppEngine>, block_id: String) -> CmdResult<Blo
 #[tauri::command]
 #[specta::specta]
 pub async fn block_backlinks(app: AppHandle, block_id: String) -> CmdResult<Vec<LinkReference>> {
-    tauri::async_runtime::spawn_blocking(move || {
-        app.state::<AppEngine>()
-            .with(|e| blocks::block_backlinks(&e.db, &e.vault_path, &block_id))
+    tauri::async_runtime::spawn_blocking(move || -> CmdResult<Vec<LinkReference>> {
+        let state = app.state::<AppEngine>();
+        let (vault, rows) = state.with(|e| {
+            Ok((
+                e.vault_path.clone(),
+                blocks::block_backlink_candidates(&e.db, &block_id)?,
+            ))
+        })?;
+        Ok(blocks::block_backlink_snippets(&vault, rows, &block_id))
     })
     .await
     .map_err(|e| CommandError::internal(format!("block_backlinks task panicked: {e}")))?

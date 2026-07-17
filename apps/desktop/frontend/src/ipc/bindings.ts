@@ -54,6 +54,13 @@ export const commands = {
 	listRecentVaults: () => typedError<RecentVault[], CommandError>(__TAURI_INVOKE("list_recent_vaults")),
 	/**  Drop a stale entry (moved/deleted folder) from the recent-vaults list. */
 	removeRecentVault: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("remove_recent_vault", { path })),
+	/**
+	 *  Served straight from the index (no disk reads), so it stays fast on a
+	 *  cloud-synced vault — [`novalis_core::index::list_summaries`] returns the same
+	 *  [`NoteSummary`] shape a from-disk walk would (parity is pinned by a test in
+	 *  `index::search`), and the file watcher / incremental scan keep the index in
+	 *  step with the vault.
+	 */
 	listNotes: () => typedError<NoteSummary[], CommandError>(__TAURI_INVOKE("list_notes")),
 	/**
 	 *  `async` + `spawn_blocking`: reading a note on a OneDrive/iCloud vault may
@@ -70,6 +77,14 @@ export const commands = {
 	 */
 	resolveEmbed: (target: string) => typedError<EmbedResolution, CommandError>(__TAURI_INVOKE("resolve_embed", { target })),
 	createNote: (req: CreateNoteRequest) => typedError<Note, CommandError>(__TAURI_INVOKE("create_note", { req })),
+	/**
+	 *  `async` + `spawn_blocking`: the save does a version snapshot + write +
+	 *  read-back (file IO that on a cloud-synced vault is slow), so it runs OFF the
+	 *  engine lock — the lock is re-acquired only for the pure-DB index upsert.
+	 *  Indexing from the just-written summary + content is identical to the old
+	 *  in-lock `notes::update` (the file exists, so `reindex_path`'s remove branch
+	 *  never applied).
+	 */
 	updateNote: (path: string, content: string) => typedError<Note, CommandError>(__TAURI_INVOKE("update_note", { path, content })),
 	updateNoteMeta: (req: UpdateMetaRequest) => typedError<Note, CommandError>(__TAURI_INVOKE("update_note_meta", { req })),
 	setProperty: (path: string, key: string, value: PropertyValue) => typedError<Note, CommandError>(__TAURI_INVOKE("set_property", { path, key, value })),
