@@ -4,8 +4,11 @@
 // trivial and there is no schema change for tiptap-markdown to learn.
 
 import { Extension } from "@tiptap/core";
+import type { Node as ProseMirrorNode } from "@tiptap/pm/model";
 import { Plugin, PluginKey } from "@tiptap/pm/state";
 import { Decoration, DecorationSet } from "@tiptap/pm/view";
+
+import { changedBlockRanges, patchDecorations } from "./incrementalDecorations";
 
 /** `[[Title]]` / `[[Title#Heading]]` / `[[Title|alias]]` — anything but
  *  brackets/newlines between the double brackets. Exported so MarkdownText's
@@ -24,11 +27,22 @@ export interface WikiLinkOptions {
   className?: string;
 }
 
-const wikiLinkKey = new PluginKey("wikiLink");
+/** Exported so the incremental-decoration test can read the live set (matches
+ *  Find's `findPluginKey`). Not part of the package's public surface. */
+export const wikiLinkKey = new PluginKey("wikiLink");
 
-function buildDecorations(doc: { descendants: Function }, className: string) {
+/** Scan `[from, to)` of the doc and return the wikilink decorations in it. Used
+ *  for both the initial full build (`0 … doc.content.size`) and the incremental
+ *  per-block patch, so the two paths can't disagree. A wikilink is matched
+ *  within a single text node, so it never crosses a block boundary. */
+function scanWikiLinks(
+  doc: ProseMirrorNode,
+  from: number,
+  to: number,
+  className: string,
+): Decoration[] {
   const decorations: Decoration[] = [];
-  doc.descendants((node: any, pos: number) => {
+  doc.nodesBetween(from, to, (node, pos) => {
     if (!node.isText) return;
     const text: string = node.text ?? "";
     WIKI_LINK_RE.lastIndex = 0;
@@ -53,7 +67,11 @@ function buildDecorations(doc: { descendants: Function }, className: string) {
       decorations.push(Decoration.inline(end - 2, end, { class: "nv-wikilink-bracket" }));
     }
   });
-  return DecorationSet.create(doc as any, decorations);
+  return decorations;
+}
+
+function buildDecorations(doc: ProseMirrorNode, className: string): DecorationSet {
+  return DecorationSet.create(doc, scanWikiLinks(doc, 0, doc.content.size, className));
 }
 
 export const WikiLink = Extension.create<WikiLinkOptions>({
@@ -80,8 +98,17 @@ export const WikiLink = Extension.create<WikiLinkOptions>({
         key: wikiLinkKey,
         state: {
           init: (_, { doc }) => buildDecorations(doc, className),
-          apply: (tr, old) =>
-            tr.docChanged ? buildDecorations(tr.doc, className) : old,
+          // Selection-only transactions do no work; a doc change maps the
+          // existing set forward and re-scans only the blocks that changed,
+          // which yields the same set as a full rebuild at a fraction of the
+          // cost on large notes.
+          apply: (tr, old) => {
+            if (!tr.docChanged) return old;
+            const mapped = old.map(tr.mapping, tr.doc);
+            return patchDecorations(mapped, tr.doc, changedBlockRanges(tr), (from, to) =>
+              scanWikiLinks(tr.doc, from, to, className),
+            );
+          },
         },
         props: {
           decorations(state) {
