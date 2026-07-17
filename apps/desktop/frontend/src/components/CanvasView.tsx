@@ -86,6 +86,8 @@ function CanvasGallery() {
     void (async () => {
       try {
         await api.deleteCanvas(file.path);
+      } catch (e) {
+        useVault.getState().reportError(e);
       } finally {
         setPendingDelete(null);
         refresh();
@@ -130,8 +132,18 @@ function CanvasGallery() {
           {files.map((f) => (
             <div
               key={f.path}
-              className="group relative flex h-32 cursor-pointer flex-col justify-end rounded-lg border border-border bg-surface p-3 transition-colors hover:border-border-strong hover:bg-hover"
+              role="button"
+              tabIndex={0}
               onClick={() => openCanvas(f.path)}
+              onKeyDown={(e) => {
+                // Ignore keys bubbling up from the nested delete button.
+                if (e.target !== e.currentTarget) return;
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  openCanvas(f.path);
+                }
+              }}
+              className="group relative flex h-32 cursor-pointer flex-col justify-end rounded-lg border border-border bg-surface p-3 outline-none transition-colors hover:border-border-strong hover:bg-hover focus-visible:border-border-strong focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/50"
             >
               <StickyNote size={18} className="absolute left-3 top-3 text-fg-subtle" />
               <button
@@ -140,7 +152,7 @@ function CanvasGallery() {
                   e.stopPropagation();
                   setPendingDelete(f);
                 }}
-                className="absolute right-2 top-2 hidden rounded p-1 text-fg-subtle hover:bg-active hover:text-danger group-hover:block"
+                className="absolute right-2 top-2 rounded p-1 text-fg-subtle opacity-0 transition-opacity hover:bg-active hover:text-danger group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
               >
                 <Trash2 size={14} />
               </button>
@@ -416,6 +428,7 @@ type Gesture =
 function CanvasEditor({ path }: { path: string }) {
   const { t } = useTranslation("common");
   const closeCanvas = useCanvas((s) => s.closeCanvas);
+  const setFlushHandler = useCanvas((s) => s.setFlushHandler);
   const openInWorkspace = useUi((s) => s.openInWorkspace);
 
   const [data, setData] = useState<CanvasData>(emptyCanvas());
@@ -432,6 +445,9 @@ function CanvasEditor({ path }: { path: string }) {
   camRef.current = cam;
   const gestureRef = useRef<Gesture | null>(null);
   const saveTimer = useRef<number | undefined>(undefined);
+  // The write currently hitting disk (if any), so a drain can await it even
+  // when there's no fresh edit left to schedule.
+  const inFlight = useRef<Promise<void> | null>(null);
   const latestData = useRef<CanvasData>(data);
   // True only while there is an unsaved edit — gates the unmount flush so a
   // canvas that was opened but never changed (or closed before it finished
@@ -441,14 +457,25 @@ function CanvasEditor({ path }: { path: string }) {
   // ── Persistence ────────────────────────────────────────────────────────────
   const flush = useCallback(async () => {
     window.clearTimeout(saveTimer.current);
-    unsaved.current = false;
-    try {
-      await api.writeCanvas(path, serializeCanvas(latestData.current));
-      setSaveState("saved");
-    } catch {
-      unsaved.current = true;
-      setSaveState("error");
+    // No fresh edit to persist — but still wait for any write already on its way
+    // to disk so a quit drain can be sure the file has settled.
+    if (!unsaved.current) {
+      await inFlight.current;
+      return;
     }
+    unsaved.current = false;
+    const write = (async () => {
+      try {
+        await api.writeCanvas(path, serializeCanvas(latestData.current));
+        setSaveState("saved");
+      } catch (e) {
+        unsaved.current = true;
+        setSaveState("error");
+        useVault.getState().reportError(e);
+      }
+    })();
+    inFlight.current = write;
+    await write;
   }, [path]);
 
   const scheduleSave = useCallback(
@@ -503,10 +530,20 @@ function CanvasEditor({ path }: { path: string }) {
     return () => {
       window.clearTimeout(saveTimer.current);
       if (unsaved.current) {
-        void api.writeCanvas(path, serializeCanvas(latestData.current)).catch(() => {});
+        void api
+          .writeCanvas(path, serializeCanvas(latestData.current))
+          .catch((e) => useVault.getState().reportError(e));
       }
     };
   }, [path]);
+
+  // Expose this editor's pending-save drain to the store so the app can flush a
+  // debounced write before it quits (App.tsx onCloseRequested). Cleared on
+  // unmount so the store never holds a stale handler.
+  useEffect(() => {
+    setFlushHandler(flush);
+    return () => setFlushHandler(null);
+  }, [flush, setFlushHandler]);
 
   // ── Camera helpers ───────────────────────────────────────────────────────
   const screenToWorld = useCallback((clientX: number, clientY: number): Point => {
