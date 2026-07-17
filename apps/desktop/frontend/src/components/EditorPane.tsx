@@ -277,11 +277,15 @@ export function EditorPane({ pane }: { pane: Pane }) {
   );
 
   // Rebuild the document outline (debounced) whenever the editor's doc changes.
+  // Gated on the outline panel being open: when it's closed the headings feed
+  // nothing on screen, so recomputing them (and the whole-pane re-render that
+  // `setHeadings` triggers) on every pause in typing is pure waste.
   useEffect(() => {
     if (!editor) {
       setHeadings([]);
       return;
     }
+    if (!panels.outline) return;
     let htimer = 0;
     const recompute = () => {
       window.clearTimeout(htimer);
@@ -293,7 +297,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
       window.clearTimeout(htimer);
       editor.off("update", recompute);
     };
-  }, [editor]);
+  }, [editor, panels.outline]);
 
   const split = useMemo(() => (note ? splitFrontmatter(note.content) : null), [note]);
 
