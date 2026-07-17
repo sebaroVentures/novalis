@@ -610,6 +610,17 @@ pub async fn ai_build_embeddings(app: AppHandle) -> CmdResult<EmbedStatus> {
     ai_embed_status(app.clone(), app.state::<AppEngine>())
 }
 
+/// Whether stored embeddings for a note are stale relative to its current
+/// content. `current_hash` is what a fresh build would hash right now (from the
+/// note's embed text) — `None` when the note is missing, empty, or an
+/// unhydrated cloud placeholder. Stale when that hash is absent or differs from
+/// `stored_hash`, which is exactly when a neighbor lookup would otherwise serve
+/// neighbors of old text. Pure: the caller does the file read + hashing; this is
+/// only the freshness compare, shared by [`ai_find_related`].
+fn embeddings_are_stale(current_hash: Option<&str>, stored_hash: &str) -> bool {
+    current_hash != Some(stored_hash)
+}
+
 /// Notes semantically nearest to `path`, from stored embeddings only (local, no
 /// network). Returns `aiEmbedStale` when the note isn't indexed for the current
 /// model yet — or was edited since it was embedded — so the panel can nudge the
@@ -660,7 +671,7 @@ pub async fn ai_find_related(
             .as_deref()
             .and_then(|t| vectors::read_embed_text(&vault, &path, t))
             .map(|full| vectors::content_hash(&full));
-        if current.as_deref() != Some(stored_hash.as_str()) {
+        if embeddings_are_stale(current.as_deref(), &stored_hash) {
             return Err(stale());
         }
 
@@ -1001,5 +1012,42 @@ fn to_view(c: AiConnectionConfig) -> AiConnectionView {
         // Agentic vault access is meaningful only for CLI kinds.
         agentic: c.agentic
             && matches!(c.kind, AiProviderKind::ClaudeCli | AiProviderKind::CodexCli),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn staleness_detects_changed_vs_unchanged() {
+        // Same hash → fresh; a different current hash → stale.
+        assert!(!embeddings_are_stale(Some("abc"), "abc"));
+        assert!(embeddings_are_stale(Some("def"), "abc"));
+    }
+
+    #[test]
+    fn staleness_treats_missing_current_as_stale() {
+        // Note vanished / emptied / unhydrated placeholder: no current hash.
+        assert!(embeddings_are_stale(None, "abc"));
+    }
+
+    #[test]
+    fn rrf_fusion_ranks_by_combined_reciprocal_rank_with_stable_ties() {
+        // The retrieval fusion `ai_rag_answer` relies on. `a` is #1 in list-0
+        // and #2 in list-1; `b` is the mirror, so their combined RRF scores are
+        // equal → the tie breaks by key ascending (a before b). `c` appears once,
+        // deeper, so it ranks strictly last.
+        let fused = rag::reciprocal_rank_fusion(&[
+            vec!["a".to_string(), "b".to_string(), "c".to_string()],
+            vec!["b".to_string(), "a".to_string()],
+        ]);
+        let order: Vec<&str> = fused.iter().map(|f| f.key.as_str()).collect();
+        assert_eq!(order, ["a", "b", "c"]);
+        assert!(
+            (fused[0].score - fused[1].score).abs() < 1e-12,
+            "mirror ranks tie on score"
+        );
+        assert!(fused[1].score > fused[2].score, "c ranks strictly last");
     }
 }
