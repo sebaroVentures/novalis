@@ -13,7 +13,6 @@ import TaskList from "@tiptap/extension-task-list";
 import { EditorContent, type Editor, useEditor, useEditorState } from "@tiptap/react";
 import type { EditorView } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
-import { common, createLowlight } from "lowlight";
 import { Markdown } from "tiptap-markdown";
 
 import { BlockRef, type BlockRefResult } from "./BlockRef";
@@ -21,6 +20,7 @@ import { BlockRefSuggestion, type BlockCandidate } from "./BlockRefSuggestion";
 import { Callout } from "./Callout";
 import { Embed, type EmbedResult } from "./Embed";
 import { Find } from "./Find";
+import { LazyHighlight, lowlight } from "./lowlightLazy";
 import { MarkdownText } from "./MarkdownText";
 import { MathExtension } from "./Math";
 import { MermaidCodeBlock } from "./MermaidCodeBlock";
@@ -29,10 +29,6 @@ import { SuggestRewrite } from "./SuggestRewrite";
 import { TagSuggestion } from "./TagSuggestion";
 import { WikiLink } from "./WikiLink";
 import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
-
-// Shared lowlight registry (highlight.js "common" set, ~37 languages), created
-// once at module scope so the language registry is stable across editor mounts.
-const lowlight = createLowlight(common);
 
 // `![[embed]]` transclusions render a nested read-only editor. Bound the
 // recursion so a cycle (`![[A]]` ⇄ `![[B]]`) can't blow the stack: past this
@@ -229,6 +225,10 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
       mermaidShowSource: lbl.mermaidShowSource,
       mermaidShowDiagram: lbl.mermaidShowDiagram,
     }),
+    // Loads the (empty-at-first) `lowlight` registry's grammars on demand the
+    // first time a code block appears, then repaints — keeps ~167 kB of
+    // highlight.js grammars out of the eager bundle. See lowlightLazy.ts.
+    LazyHighlight,
     Markdown.configure({
       html: false,
       linkify: true,
