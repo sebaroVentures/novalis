@@ -11,6 +11,7 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use novalis_core::change;
 use novalis_core::conflict;
+use novalis_core::import;
 use novalis_core::index::{blocks, links, properties, query as index_query, schema, search};
 use novalis_core::models::{
     AgendaItem, BlockHit, BlockResolution, CalendarEvent, CalendarSourceConfig, CaptureRequest,
@@ -919,6 +920,69 @@ pub async fn reindex_vault(app: AppHandle) -> CmdResult<u32> {
 #[specta::specta]
 pub async fn rescan_vault(app: AppHandle) -> CmdResult<u32> {
     reindex_vault(app).await
+}
+
+// ── Third-party import ──────────────────────────────────────────────────────
+
+/// Import a Notion "Export" `.zip` (native picker) into `Imported/Notion/`,
+/// then reindex. Returns the import summary, or `None` if the user cancelled.
+/// Never overwrites existing notes (collisions get a numeric suffix).
+///
+/// `async` + `spawn_blocking`: `blocking_pick_file` on the main thread would
+/// deadlock — it asks the main thread's event loop to show the native panel
+/// while blocking that same thread (see [`pick_vault_folder`]).
+#[tauri::command]
+#[specta::specta]
+pub async fn import_notion(app: AppHandle) -> CmdResult<Option<import::ImportSummary>> {
+    import_archive(app, "Notion export", &["zip"], import::notion::import).await
+}
+
+/// Import an Evernote `.enex` file (native picker) into `Imported/Evernote/`,
+/// then reindex. Returns the import summary, or `None` if the user cancelled.
+/// Never overwrites existing notes (collisions get a numeric suffix).
+///
+/// `async` + `spawn_blocking` for the same reason as [`import_notion`].
+#[tauri::command]
+#[specta::specta]
+pub async fn import_enex(app: AppHandle) -> CmdResult<Option<import::ImportSummary>> {
+    import_archive(app, "Evernote export", &["enex"], import::enex::import).await
+}
+
+/// Shared body for the third-party importers: pick a file, run `importer`
+/// against the open vault, reindex, and signal the UI to refresh.
+async fn import_archive(
+    app: AppHandle,
+    filter_label: &'static str,
+    extensions: &'static [&'static str],
+    importer: fn(&std::path::Path, &std::path::Path) -> Result<import::ImportSummary, CoreError>,
+) -> CmdResult<Option<import::ImportSummary>> {
+    use tauri_plugin_dialog::DialogExt;
+    let emit_app = app.clone();
+    let out = tauri::async_runtime::spawn_blocking(move || {
+        let Some(fp) = app
+            .dialog()
+            .file()
+            .add_filter(filter_label, extensions)
+            .blocking_pick_file()
+        else {
+            return Ok::<Option<import::ImportSummary>, CommandError>(None);
+        };
+        let src = fp
+            .into_path()
+            .map_err(|e| CommandError::internal(e.to_string()))?;
+        let summary = app.state::<AppEngine>().with(|e| {
+            let summary = importer(&src, &e.vault_path)?;
+            search::build_index(&e.db, &e.vault_path)?;
+            Ok(summary)
+        })?;
+        Ok(Some(summary))
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("import task panicked: {e}")))??;
+    if out.is_some() {
+        let _ = emit_app.emit("reindexed-event", ());
+    }
+    Ok(out)
 }
 
 // ── Conflicts ──────────────────────────────────────────────────────────────

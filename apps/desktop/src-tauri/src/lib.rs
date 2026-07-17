@@ -149,6 +149,8 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::get_vault_stats,
             commands::reindex_vault,
             commands::rescan_vault,
+            commands::import_notion,
+            commands::import_enex,
             commands::list_conflicts,
             commands::conflict_diff,
             commands::resolve_conflict,

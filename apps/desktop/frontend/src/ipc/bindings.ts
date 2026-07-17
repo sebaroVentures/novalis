@@ -219,6 +219,50 @@ export const commands = {
 	 *  For M1 this is a full rebuild; incremental mtime scanning comes later.
 	 */
 	rescanVault: () => typedError<number, CommandError>(__TAURI_INVOKE("rescan_vault")),
+	/**
+	 *  Import a Notion "Export" `.zip` (native picker) into `Imported/Notion/`,
+	 *  then reindex. Returns the import summary, or `None` if the user cancelled.
+	 *  Never overwrites existing notes (collisions get a numeric suffix).
+	 * 
+	 *  `async` + `spawn_blocking`: `blocking_pick_file` on the main thread would
+	 *  deadlock — it asks the main thread's event loop to show the native panel
+	 *  while blocking that same thread (see [`pick_vault_folder`]).
+	 */
+	importNotion: () => typedError<{
+	/**  Vault-relative folder the import landed in (e.g. `Imported/Notion`). */
+	folder: string,
+	/**  Markdown notes written. */
+	notesImported: number,
+	/**  Database rows expanded into their own note (Notion CSV → one note/row). */
+	databaseRows: number,
+	/**  Non-note assets (images, PDFs) copied alongside the notes. */
+	assetsCopied: number,
+	/**  Files skipped (unsupported/empty/unreadable) — count matches `warnings`. */
+	skipped: number,
+	/**  Human-readable warnings worth surfacing (one per skipped item). */
+	warnings: string[],
+} | null, CommandError>(__TAURI_INVOKE("import_notion")),
+	/**
+	 *  Import an Evernote `.enex` file (native picker) into `Imported/Evernote/`,
+	 *  then reindex. Returns the import summary, or `None` if the user cancelled.
+	 *  Never overwrites existing notes (collisions get a numeric suffix).
+	 * 
+	 *  `async` + `spawn_blocking` for the same reason as [`import_notion`].
+	 */
+	importEnex: () => typedError<{
+	/**  Vault-relative folder the import landed in (e.g. `Imported/Notion`). */
+	folder: string,
+	/**  Markdown notes written. */
+	notesImported: number,
+	/**  Database rows expanded into their own note (Notion CSV → one note/row). */
+	databaseRows: number,
+	/**  Non-note assets (images, PDFs) copied alongside the notes. */
+	assetsCopied: number,
+	/**  Files skipped (unsupported/empty/unreadable) — count matches `warnings`. */
+	skipped: number,
+	/**  Human-readable warnings worth surfacing (one per skipped item). */
+	warnings: string[],
+} | null, CommandError>(__TAURI_INVOKE("import_enex")),
 	listConflicts: () => typedError<ConflictFile[], CommandError>(__TAURI_INVOKE("list_conflicts")),
 	conflictDiff: (original: string, conflict: string) => typedError<ConflictDiff, CommandError>(__TAURI_INVOKE("conflict_diff", { original, conflict })),
 	resolveConflict: (req: ResolveConflictRequest) => typedError<string | null, CommandError>(__TAURI_INVOKE("resolve_conflict", { req })),
@@ -1284,6 +1328,22 @@ export type GraphEdge = {
 export type GraphNode = {
 	path: string,
 	title: string,
+};
+
+/**  Summary of a single import run, surfaced to the UI. */
+export type ImportSummary = {
+	/**  Vault-relative folder the import landed in (e.g. `Imported/Notion`). */
+	folder: string,
+	/**  Markdown notes written. */
+	notesImported: number,
+	/**  Database rows expanded into their own note (Notion CSV → one note/row). */
+	databaseRows: number,
+	/**  Non-note assets (images, PDFs) copied alongside the notes. */
+	assetsCopied: number,
+	/**  Files skipped (unsupported/empty/unreadable) — count matches `warnings`. */
+	skipped: number,
+	/**  Human-readable warnings worth surfacing (one per skipped item). */
+	warnings: string[],
 };
 
 export type KanbanColumnDef = {
