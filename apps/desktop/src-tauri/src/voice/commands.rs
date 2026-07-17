@@ -70,10 +70,12 @@ pub fn voice_start_recording() -> CmdResult<()> {
 }
 
 /// Stop capturing and finalize the recording as a WAV under `app-data/voice/`.
+/// Finalize (join + resample + WAV-encode) runs on a blocking thread so the main
+/// thread never freezes on Stop, even for long recordings.
 #[tauri::command]
 #[specta::specta]
-pub fn voice_stop_recording(app: AppHandle) -> CmdResult<VoiceRecording> {
-    stop_impl(&app)
+pub async fn voice_stop_recording(app: AppHandle) -> CmdResult<VoiceRecording> {
+    stop_impl(&app).await
 }
 
 /// Cancel the in-progress recording, discarding the audio without writing a WAV.
@@ -108,10 +110,14 @@ fn start_impl() -> CmdResult<()> {
 }
 
 #[cfg(not(target_os = "android"))]
-fn stop_impl(app: &AppHandle) -> CmdResult<VoiceRecording> {
+async fn stop_impl(app: &AppHandle) -> CmdResult<VoiceRecording> {
     let dir = voice_dir(app)?;
     let path = dir.join(format!("recording-{}.wav", uuid::Uuid::new_v4()));
-    let rec = crate::voice::capture::stop(&path)?;
+    // `capture::stop` is blocking (join + streaming resample + WAV-encode); run it
+    // off the async runtime so the UI thread never freezes on Stop.
+    let rec = tauri::async_runtime::spawn_blocking(move || crate::voice::capture::stop(&path))
+        .await
+        .map_err(|e| CommandError::internal(format!("finalize task failed: {e}")))??;
     Ok(VoiceRecording {
         path: rec.path.to_string_lossy().to_string(),
         duration_secs: rec.duration_secs,
@@ -243,7 +249,7 @@ fn start_impl() -> CmdResult<()> {
 }
 
 #[cfg(target_os = "android")]
-fn stop_impl(_app: &AppHandle) -> CmdResult<VoiceRecording> {
+async fn stop_impl(_app: &AppHandle) -> CmdResult<VoiceRecording> {
     Err(unavailable())
 }
 

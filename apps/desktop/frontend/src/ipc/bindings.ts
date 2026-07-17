@@ -551,7 +551,11 @@ export const commands = {
 	 *  available or the OS denies mic access.
 	 */
 	voiceStartRecording: () => typedError<null, CommandError>(__TAURI_INVOKE("voice_start_recording")),
-	/**  Stop capturing and finalize the recording as a WAV under `app-data/voice/`. */
+	/**
+	 *  Stop capturing and finalize the recording as a WAV under `app-data/voice/`.
+	 *  Finalize (join + resample + WAV-encode) runs on a blocking thread so the main
+	 *  thread never freezes on Stop, even for long recordings.
+	 */
 	voiceStopRecording: () => typedError<VoiceRecording, CommandError>(__TAURI_INVOKE("voice_stop_recording")),
 	/**  Cancel the in-progress recording, discarding the audio without writing a WAV. */
 	voiceCancelRecording: () => typedError<null, CommandError>(__TAURI_INVOKE("voice_cancel_recording")),
