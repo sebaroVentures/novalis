@@ -136,6 +136,15 @@ jobs:
     # warnings, not failures.)
     steps:
       - uses: actions/checkout@v6
-      - uses: rustsec/audit-check@v2
-        with:
-          token: ${{ secrets.GITHUB_TOKEN }}
+      # Build the audit *tool* with a recent stable toolchain, NOT the repo's
+      # pinned 1.93 (rust-toolchain.toml): cargo-audit's deps (e.g. kstring)
+      # now require a newer rustc than the project pins, and the tool only
+      # reads Cargo.lock so its build toolchain is irrelevant to the audit.
+      # `--locked` uses cargo-audit's own lockfile to avoid pulling newer,
+      # higher-MSRV transitive deps at install time.
+      - name: Install a recent stable Rust for the audit tool
+        run: rustup toolchain install stable --profile minimal
+      - name: Install cargo-audit
+        run: cargo +stable install cargo-audit --locked
+      - name: Run cargo audit
+        run: cargo audit

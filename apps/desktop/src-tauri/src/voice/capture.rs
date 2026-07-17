@@ -652,12 +652,11 @@ mod tests {
     /// The streaming finalize must be BIT-IDENTICAL to the old eager path
     /// (`to_16k_mono` + `write_wav_16k_mono`) — a behavior-preserving perf change.
     fn assert_stream_matches_reference(interleaved: &[f32], channels: u16, sample_rate: u32) {
-        let dir = std::env::temp_dir().join(format!(
-            "nv-voice-stream-{}-{:p}",
-            std::process::id(),
-            interleaved
-        ));
-        std::fs::create_dir_all(&dir).unwrap();
+        // A real unique temp dir (auto-removed on drop) — a hand-rolled name from
+        // a pointer address is not a valid path on every platform (fails on
+        // Windows) and never cleans up.
+        let tmp = tempfile::tempdir().unwrap();
+        let dir = tmp.path();
 
         // Reference: the eager path this change replaces.
         let mono16k = to_16k_mono(interleaved, channels, sample_rate);
@@ -666,7 +665,7 @@ mod tests {
         let reference = read_wav_i16(&ref_path);
 
         // Streamed: spill file → streaming resample/encode.
-        let spill = write_spill(&dir, "spill.f32", interleaved);
+        let spill = write_spill(dir, "spill.f32", interleaved);
         let streamed_path = dir.join("streamed.wav");
         let count =
             stream_spill_to_wav_16k_mono(&spill, channels, sample_rate, &streamed_path).unwrap();
@@ -681,7 +680,6 @@ mod tests {
             streamed, reference,
             "streamed WAV diverged from the eager reference (ch={channels}, rate={sample_rate})"
         );
-        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]
