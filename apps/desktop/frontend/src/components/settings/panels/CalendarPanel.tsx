@@ -95,6 +95,22 @@ export function CalendarPanel() {
             />
           }
         />
+        <SettingRow
+          label={t("calendar.eventLead.label")}
+          description={t("calendar.eventLead.desc")}
+          control={
+            <SegmentedControl
+              value={String(c.eventNotifyLeadMinutes ?? 10)}
+              onChange={(v) => settings.setCalendar({ eventNotifyLeadMinutes: Number(v) })}
+              options={[
+                { value: "0", label: t("calendar.eventLead.atStart") },
+                { value: "5", label: t("calendar.eventLead.min", { minutes: 5 }) },
+                { value: "10", label: t("calendar.eventLead.min", { minutes: 10 }) },
+                { value: "15", label: t("calendar.eventLead.min", { minutes: 15 }) },
+              ]}
+            />
+          }
+        />
       </SettingsSection>
 
       <SettingsSection

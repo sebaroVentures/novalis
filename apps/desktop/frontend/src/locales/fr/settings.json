@@ -49,6 +49,12 @@
       "label": "Durée d'événement par défaut"
     },
     "empty": "Aucun abonnement de calendrier.",
+    "eventLead": {
+      "atStart": "Au début",
+      "desc": "Combien de temps avant le début d'un événement notifier.",
+      "label": "Rappel d'événement",
+      "min": "{{minutes}} min"
+    },
     "namePlaceholder": "Nom du calendrier",
     "sectionCalendars": "Calendriers",
     "sectionDisplay": "Affichage",

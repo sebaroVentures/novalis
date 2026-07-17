@@ -49,6 +49,12 @@
       "label": "Duración predeterminada del evento"
     },
     "empty": "No hay suscripciones de calendario.",
+    "eventLead": {
+      "atStart": "Al inicio",
+      "desc": "Cuánto tiempo antes del inicio de un evento avisar.",
+      "label": "Recordatorio de evento",
+      "min": "{{minutes}} min"
+    },
     "namePlaceholder": "Nombre del calendario",
     "sectionCalendars": "Calendarios",
     "sectionDisplay": "Visualización",

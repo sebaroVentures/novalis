@@ -49,6 +49,12 @@
       "label": "Standarddauer von Terminen"
     },
     "empty": "Keine Kalender-Abonnements.",
+    "eventLead": {
+      "atStart": "Bei Beginn",
+      "desc": "Wie lange vor Beginn eines Termins benachrichtigt wird.",
+      "label": "Terminerinnerung",
+      "min": "{{minutes}} Min."
+    },
     "namePlaceholder": "Kalendername",
     "sectionCalendars": "Kalender",
     "sectionDisplay": "Anzeige",

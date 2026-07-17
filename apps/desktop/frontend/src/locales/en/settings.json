@@ -49,6 +49,12 @@
       "label": "Default event duration"
     },
     "empty": "No calendar subscriptions.",
+    "eventLead": {
+      "atStart": "At start",
+      "desc": "How long before a timed event starts to notify.",
+      "label": "Event reminder",
+      "min": "{{minutes}} min"
+    },
     "namePlaceholder": "Calendar name",
     "sectionCalendars": "Calendars",
     "sectionDisplay": "Display",
