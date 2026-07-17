@@ -10,7 +10,7 @@ import TableHeader from "@tiptap/extension-table-header";
 import TableRow from "@tiptap/extension-table-row";
 import TaskItem from "@tiptap/extension-task-item";
 import TaskList from "@tiptap/extension-task-list";
-import { EditorContent, type Editor, useEditor } from "@tiptap/react";
+import { EditorContent, type Editor, useEditor, useEditorState } from "@tiptap/react";
 import type { EditorView } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
 import { common, createLowlight } from "lowlight";
@@ -390,6 +390,11 @@ export function NovalisEditor({
 
   const editor = useEditor({
     editable,
+    // Don't re-render the whole shell (Toolbar included) on every transaction —
+    // selection-only moves and keystrokes would otherwise re-run every button's
+    // `isActive`. The Toolbar subscribes narrowly via useEditorState instead;
+    // the editor content is drawn by ProseMirror, not React.
+    shouldRerenderOnTransaction: false,
     extensions: buildEditorExtensions({
       labels: lbl,
       placeholder,
@@ -489,6 +494,26 @@ export function NovalisEditor({
 }
 
 function Toolbar({ editor, labels }: { editor: Editor; labels: NovalisEditorLabels }) {
+  // Narrow subscription: re-render the Toolbar only when one of the buttons'
+  // active states actually flips (deep-equal is the default comparator), not on
+  // every transaction. With `shouldRerenderOnTransaction: false` on the editor
+  // this is what keeps the button highlights live on selection changes.
+  const active = useEditorState({
+    editor,
+    selector: ({ editor: e }) => ({
+      bold: e.isActive("bold"),
+      italic: e.isActive("italic"),
+      strike: e.isActive("strike"),
+      h1: e.isActive("heading", { level: 1 }),
+      h2: e.isActive("heading", { level: 2 }),
+      h3: e.isActive("heading", { level: 3 }),
+      bulletList: e.isActive("bulletList"),
+      taskList: e.isActive("taskList"),
+      codeBlock: e.isActive("codeBlock"),
+      blockquote: e.isActive("blockquote"),
+    }),
+  });
+
   const Btn = ({
     glyph,
     title,
@@ -516,16 +541,16 @@ function Toolbar({ editor, labels }: { editor: Editor; labels: NovalisEditorLabe
 
   return (
     <div className="nv-toolbar">
-      <Btn glyph="B" title={labels.bold} onClick={() => editor.chain().focus().toggleBold().run()} active={editor.isActive("bold")} />
-      <Btn glyph="I" title={labels.italic} onClick={() => editor.chain().focus().toggleItalic().run()} active={editor.isActive("italic")} />
-      <Btn glyph={"S̶"} title={labels.strike} onClick={() => editor.chain().focus().toggleStrike().run()} active={editor.isActive("strike")} />
-      <Btn glyph="H1" title={labels.heading1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={editor.isActive("heading", { level: 1 })} />
-      <Btn glyph="H2" title={labels.heading2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={editor.isActive("heading", { level: 2 })} />
-      <Btn glyph="H3" title={labels.heading3} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={editor.isActive("heading", { level: 3 })} />
-      <Btn glyph={labels.bulletList} title={labels.bulletList} onClick={() => editor.chain().focus().toggleBulletList().run()} active={editor.isActive("bulletList")} />
-      <Btn glyph={labels.taskList} title={labels.taskList} onClick={() => editor.chain().focus().toggleTaskList().run()} active={editor.isActive("taskList")} />
-      <Btn glyph={labels.codeBlock} title={labels.codeBlock} onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={editor.isActive("codeBlock")} />
-      <Btn glyph={labels.blockquote} title={labels.blockquote} onClick={() => editor.chain().focus().toggleBlockquote().run()} active={editor.isActive("blockquote")} />
+      <Btn glyph="B" title={labels.bold} onClick={() => editor.chain().focus().toggleBold().run()} active={active?.bold} />
+      <Btn glyph="I" title={labels.italic} onClick={() => editor.chain().focus().toggleItalic().run()} active={active?.italic} />
+      <Btn glyph={"S̶"} title={labels.strike} onClick={() => editor.chain().focus().toggleStrike().run()} active={active?.strike} />
+      <Btn glyph="H1" title={labels.heading1} onClick={() => editor.chain().focus().toggleHeading({ level: 1 }).run()} active={active?.h1} />
+      <Btn glyph="H2" title={labels.heading2} onClick={() => editor.chain().focus().toggleHeading({ level: 2 }).run()} active={active?.h2} />
+      <Btn glyph="H3" title={labels.heading3} onClick={() => editor.chain().focus().toggleHeading({ level: 3 }).run()} active={active?.h3} />
+      <Btn glyph={labels.bulletList} title={labels.bulletList} onClick={() => editor.chain().focus().toggleBulletList().run()} active={active?.bulletList} />
+      <Btn glyph={labels.taskList} title={labels.taskList} onClick={() => editor.chain().focus().toggleTaskList().run()} active={active?.taskList} />
+      <Btn glyph={labels.codeBlock} title={labels.codeBlock} onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={active?.codeBlock} />
+      <Btn glyph={labels.blockquote} title={labels.blockquote} onClick={() => editor.chain().focus().toggleBlockquote().run()} active={active?.blockquote} />
       <Btn
         glyph={labels.callout}
         title={labels.callout}
