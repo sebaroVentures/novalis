@@ -376,13 +376,30 @@ impl VectorIndex {
     }
 }
 
+/// Above this many candidate chunks, [`retrieve_related`] switches from the
+/// exact brute-force cosine scan to the approximate HNSW index. Deliberately
+/// far above the measured crossover: this index is *not* cached, so every
+/// retrieval pays a full HNSW **rebuild** (serial inserts, `EF_CONSTRUCTION`
+/// = 200) — 4 s at 5k, 12 s at 10k, 33 s at 20k chunks in release — while an
+/// exact brute-force cosine scan of the same rows is 0.26–4 ms. Brute force
+/// therefore wins by four orders of magnitude across every realistic vault; the
+/// ANN path is retained only so a pathological, far-larger set where an
+/// `O(N·Q)` scan would finally dominate still has a route. (If this index ever
+/// becomes cached across queries, revisit the threshold — a *reused* graph
+/// changes the trade-off entirely.)
+pub const BRUTE_FORCE_MAX_CANDIDATES: usize = 50_000;
+
 /// Chunk-level retrieval, aggregated to notes — the reusable primitive behind
-/// "find related" and the future RAG wave. Builds a [`VectorIndex`] over
-/// `candidates`, searches it with every `query` vector (a note is represented by
-/// *all* its chunks), scores each hit with exact [`cosine`], then aggregates via
-/// [`best_chunk_per_note`]: the single best chunk per note, dropping `exclude`,
-/// top `k` best first. Pure — no DB, no IO. Selection is ANN-approximate; the
-/// aggregation + scoring are exact.
+/// "find related" and the RAG wave. Scores `candidates` against every `query`
+/// vector (a note is represented by *all* its chunks) with exact [`cosine`],
+/// then aggregates via [`best_chunk_per_note`]: the single best chunk per note,
+/// dropping `exclude`, top `k` best first. Pure — no DB, no IO.
+///
+/// At or below [`BRUTE_FORCE_MAX_CANDIDATES`] this is an **exact** brute-force
+/// scan; above it, an approximate HNSW selection (see
+/// [`retrieve_related_ann`]). The aggregation + scoring are exact either way —
+/// only which `(chunk, query)` pairs get considered differs, and the ANN's is a
+/// subset of brute force's.
 pub fn retrieve_related(
     candidates: &[ChunkRow],
     queries: &[Vec<f32>],
@@ -392,6 +409,47 @@ pub fn retrieve_related(
     if candidates.is_empty() || queries.is_empty() || k == 0 {
         return Vec::new();
     }
+    if candidates.len() <= BRUTE_FORCE_MAX_CANDIDATES {
+        retrieve_related_brute(candidates, queries, k, exclude)
+    } else {
+        retrieve_related_ann(candidates, queries, k, exclude)
+    }
+}
+
+/// Exact brute-force retrieval: score every candidate chunk by its best cosine
+/// over *all* query vectors, then aggregate to notes. `O(N·Q·dim)` — cheap for
+/// the vault sizes this app sees (a few ms at 5k chunks), and exact.
+pub fn retrieve_related_brute(
+    candidates: &[ChunkRow],
+    queries: &[Vec<f32>],
+    k: usize,
+    exclude: &str,
+) -> Vec<RelatedChunk> {
+    let mut hits: Vec<RelatedChunk> = Vec::with_capacity(candidates.len());
+    for c in candidates {
+        let mut best = f32::NEG_INFINITY;
+        for q in queries {
+            let s = cosine(q, &c.vec);
+            if s > best {
+                best = s;
+            }
+        }
+        hits.push(hit_from(c, best));
+    }
+    best_chunk_per_note(hits, k, exclude)
+}
+
+/// Approximate retrieval via a freshly built HNSW graph — the previous default,
+/// now used only past [`BRUTE_FORCE_MAX_CANDIDATES`]. Builds a [`VectorIndex`]
+/// over `candidates`, searches it with every query vector, re-scores hits with
+/// exact [`cosine`], then aggregates. Selection is ANN-approximate (recall
+/// < 100%); the scoring + aggregation are exact.
+pub fn retrieve_related_ann(
+    candidates: &[ChunkRow],
+    queries: &[Vec<f32>],
+    k: usize,
+    exclude: &str,
+) -> Vec<RelatedChunk> {
     let vectors: Vec<Vec<f32>> = candidates.iter().map(|c| c.vec.clone()).collect();
     let index = VectorIndex::build(&vectors);
     // Over-fetch per query so that self-chunks and duplicate-note hits don't
@@ -1154,6 +1212,103 @@ mod tests {
         let hits = retrieve_related(&cands, std::slice::from_ref(&q), 3, "");
         let brute = brute_top_paths(&cands, &q, 1, "");
         assert!(hits.iter().any(|h| h.path == brute[0]), "nearest recalled");
+    }
+
+    #[test]
+    fn retrieve_related_brute_is_exact_and_ann_recalls_it() {
+        // Load-bearing equivalence: the default (brute-force) path must return
+        // EXACTLY the exact-reference `nearest` top-k (ids + order), proving the
+        // perf swap preserves results. The retained ANN path is allowed to
+        // diverge (approximate selection) but must still recall the true
+        // nearest — the documented trade-off.
+        let cands: Vec<ChunkRow> = (0..30)
+            .map(|i| {
+                let a = i as f32 * 0.21;
+                chunk_row(
+                    &format!("n{i:02}.md"),
+                    vec![a.cos(), a.sin(), (a * 0.5).cos()],
+                )
+            })
+            .collect();
+        let q = vec![(1.3f32).cos(), (1.3f32).sin(), (0.65f32).cos()];
+        let k = 5;
+
+        let exact = brute_top_paths(&cands, &q, k, "");
+        let brute: Vec<String> = retrieve_related_brute(&cands, std::slice::from_ref(&q), k, "")
+            .into_iter()
+            .map(|h| h.path)
+            .collect();
+        assert_eq!(brute, exact, "brute-force retrieval is exact vs nearest");
+
+        // The public entry point dispatches to brute force at this size.
+        let via_public: Vec<String> = retrieve_related(&cands, std::slice::from_ref(&q), k, "")
+            .into_iter()
+            .map(|h| h.path)
+            .collect();
+        assert_eq!(via_public, exact, "retrieve_related is exact <= threshold");
+
+        // The ANN path may reorder distant hits, but must recall the top-1.
+        let ann: Vec<String> = retrieve_related_ann(&cands, std::slice::from_ref(&q), k, "")
+            .into_iter()
+            .map(|h| h.path)
+            .collect();
+        assert!(ann.contains(&exact[0]), "ANN recalls the exact nearest");
+    }
+
+    #[test]
+    fn retrieve_related_brute_takes_best_query_per_chunk() {
+        // Multi-query (the anchor is all its chunks): a candidate's score is its
+        // MAX cosine across the query set. c aligns with q1, d with q2 — each is
+        // scored by its own best query, not the first.
+        let cands = vec![
+            chunk_row("c.md", vec![1.0, 0.0]),
+            chunk_row("d.md", vec![0.0, 1.0]),
+        ];
+        let queries = vec![vec![1.0, 0.0], vec![0.0, 1.0]];
+        let out = retrieve_related_brute(&cands, &queries, 5, "");
+        assert_eq!(out.len(), 2);
+        // Both perfectly align with *some* query → both score ~1.0.
+        for h in &out {
+            assert!((h.score - 1.0).abs() < 1e-6, "scored by its best query");
+        }
+    }
+
+    #[test]
+    #[ignore = "perf measurement; run with --release -- --ignored --nocapture"]
+    fn perf_brute_vs_ann_rebuild_5k() {
+        use std::time::Instant;
+        // 5k candidate chunks, 384-dim (bge-small), a handful of anchor queries —
+        // the AmbientSuggestions shape that fires every few seconds while typing.
+        let dim = 384usize;
+        let n = 5_000usize;
+        let mk = |seed: usize| -> Vec<f32> {
+            (0..dim)
+                .map(|j| (((seed * 131 + j * 17) % 1000) as f32 / 500.0) - 1.0)
+                .collect()
+        };
+        let cands: Vec<ChunkRow> = (0..n)
+            .map(|i| chunk_row(&format!("n{i}.md"), mk(i)))
+            .collect();
+        let queries: Vec<Vec<f32>> = (0..4).map(|i| mk(1_000_000 + i)).collect();
+
+        let t0 = Instant::now();
+        let brute = retrieve_related_brute(&cands, &queries, 5, "");
+        let brute_ms = t0.elapsed().as_secs_f64() * 1e3;
+
+        let t1 = Instant::now();
+        let ann = retrieve_related_ann(&cands, &queries, 5, "");
+        let ann_ms = t1.elapsed().as_secs_f64() * 1e3;
+
+        println!("perf @ {n} chunks, {} queries, dim {dim}:", queries.len());
+        println!(
+            "  brute-force cosine : {brute_ms:.3} ms  ({} hits)",
+            brute.len()
+        );
+        println!(
+            "  HNSW rebuild+search: {ann_ms:.3} ms  ({} hits)",
+            ann.len()
+        );
+        println!("  speedup            : {:.0}x", ann_ms / brute_ms.max(1e-9));
     }
 
     #[test]

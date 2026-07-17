@@ -417,7 +417,9 @@ async fn build_embedder(app: &AppHandle, resolved: &ResolvedEmbedder) -> CmdResu
 }
 
 /// Load the bundled model (weights cached under the app-data dir), off the
-/// async runtime.
+/// async runtime. The loaded model is cached in managed state and reused across
+/// requests — a fresh load is ~130 MB of ONNX init, far too costly to pay per
+/// RAG question / similarity sort (see [`embed_local::LocalEmbedderCache`]).
 #[cfg(not(target_os = "android"))]
 async fn build_local_embedder(app: &AppHandle) -> CmdResult<Embedder> {
     let cache_dir = app
@@ -425,7 +427,14 @@ async fn build_local_embedder(app: &AppHandle) -> CmdResult<Embedder> {
         .app_data_dir()
         .map_err(|e| CommandError::internal(format!("cannot resolve app data dir: {e}")))?
         .join("embeddings");
-    let local = tauri::async_runtime::spawn_blocking(move || embed_local::load(&cache_dir))
+    // Cache identity: the on-disk model dir + the fixed model id. A config that
+    // repoints the local backend (different dir/model) rebuilds under a new key.
+    let key = format!("{}::{}", cache_dir.display(), LOCAL_EMBEDDING_MODEL);
+    let cache = app
+        .state::<embed_local::LocalEmbedderCache>()
+        .inner()
+        .clone();
+    let local = tauri::async_runtime::spawn_blocking(move || cache.get_or_load(&cache_dir, &key))
         .await
         .map_err(|e| CommandError::internal(format!("model load task failed: {e}")))??;
     Ok(Embedder::Local(local))
@@ -607,26 +616,18 @@ pub async fn ai_build_embeddings(app: AppHandle) -> CmdResult<EmbedStatus> {
 /// user to build the index instead of silently serving neighbors of old text.
 #[tauri::command]
 #[specta::specta]
-pub fn ai_find_related(
+pub async fn ai_find_related(
     app: AppHandle,
-    state: State<AppEngine>,
     path: String,
     limit: u32,
 ) -> CmdResult<Vec<RelatedNote>> {
     let model = resolve_embedding(&app)?.model().to_string();
 
-    fn stale() -> CommandError {
-        CommandError {
-            kind: "aiEmbedStale".to_string(),
-            message: "this note isn't in the semantic index yet".to_string(),
-        }
-    }
-
     // Take the engine lock only to snapshot: the anchor's chunk vectors (+ their
     // shared freshness hash), its title, the raw candidate chunk rows, and the
-    // vault path. The per-row f32 decoding, the ANN build + k-NN scan, and the
-    // freshness file read all happen off the lock.
-    let (anchor, title, rows, vault) = state.with(|e| {
+    // vault path. The per-row f32 decoding, the top-k cosine scan, and the
+    // freshness file read all happen OFF the lock AND off the async runtime.
+    let (anchor, title, rows, vault) = app.state::<AppEngine>().with(|e| {
         Ok((
             vectors::anchor_chunks(&e.db, &path, &model)?,
             vectors::note_title(&e.db, &path)?,
@@ -635,35 +636,50 @@ pub fn ai_find_related(
         ))
     })?;
 
-    let (stored_hash, query_vecs) = match anchor {
-        Some((hash, vecs)) if !vecs.is_empty() => (hash, vecs),
-        _ => return Err(stale()),
-    };
+    // Decode + score are CPU-bound over the whole chunk table, and the freshness
+    // check reads the note file (a cloud-synced vault can hydrate here) — both
+    // must stay off the UI/async runtime. Mirrors `run_query`.
+    tauri::async_runtime::spawn_blocking(move || {
+        fn stale() -> CommandError {
+            CommandError {
+                kind: "aiEmbedStale".to_string(),
+                message: "this note isn't in the semantic index yet".to_string(),
+            }
+        }
 
-    // Freshness: hash what a build would embed right now (same pipeline as
-    // collect_stale) and compare with the stored hash. A note that is missing,
-    // empty, or a cloud placeholder can't match either — it needs a rebuild.
-    let current = title
-        .as_deref()
-        .and_then(|t| vectors::read_embed_text(&vault, &path, t))
-        .map(|full| vectors::content_hash(&full));
-    if current.as_deref() != Some(stored_hash.as_str()) {
-        return Err(stale());
-    }
+        let (stored_hash, query_vecs) = match anchor {
+            Some((hash, vecs)) if !vecs.is_empty() => (hash, vecs),
+            _ => return Err(stale()),
+        };
 
-    // Chunk-level ANN retrieval: the anchor is represented by all its chunks;
-    // hits aggregate to the best chunk per note, excluding the anchor itself.
-    let cands = vectors::decode_chunk_rows(rows);
-    Ok(
-        vectors::retrieve_related(&cands, &query_vecs, limit as usize, &path)
-            .into_iter()
-            .map(|h| RelatedNote {
-                path: h.path,
-                title: h.title,
-                score: h.score as f64,
-            })
-            .collect(),
-    )
+        // Freshness: hash what a build would embed right now (same pipeline as
+        // collect_stale) and compare with the stored hash. A note that is
+        // missing, empty, or a cloud placeholder can't match either — it needs
+        // a rebuild.
+        let current = title
+            .as_deref()
+            .and_then(|t| vectors::read_embed_text(&vault, &path, t))
+            .map(|full| vectors::content_hash(&full));
+        if current.as_deref() != Some(stored_hash.as_str()) {
+            return Err(stale());
+        }
+
+        // Chunk-level retrieval: the anchor is represented by all its chunks;
+        // hits aggregate to the best chunk per note, excluding the anchor itself.
+        let cands = vectors::decode_chunk_rows(rows);
+        Ok(
+            vectors::retrieve_related(&cands, &query_vecs, limit as usize, &path)
+                .into_iter()
+                .map(|h| RelatedNote {
+                    path: h.path,
+                    title: h.title,
+                    score: h.score as f64,
+                })
+                .collect(),
+        )
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("find-related task panicked: {e}")))?
 }
 
 /// Rank the vault's embedded notes by semantic similarity to `phrase`, returning

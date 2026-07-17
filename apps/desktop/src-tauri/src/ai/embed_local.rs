@@ -80,6 +80,37 @@ pub fn load(cache_dir: &Path) -> Result<LocalEmbedder, CommandError> {
     })
 }
 
+/// Process-global cache of the loaded on-device embedder, held in Tauri managed
+/// state. Loading rebuilds a ~130 MB ONNX model ([`load`]), so a fresh load per
+/// RAG question / similarity sort cost 1–3 s each; this keeps a single instance
+/// alive across requests, keyed by the `(cache_dir, model-id)` identity it was
+/// built for. A key change (the embedding config now points somewhere else)
+/// transparently rebuilds and replaces the cached instance. The inner handle is
+/// an `Arc<Mutex<…>>` so the whole cache clones cheaply out of `State` before a
+/// `spawn_blocking` (`State` can't be held across an `.await`).
+#[derive(Clone, Default)]
+pub struct LocalEmbedderCache {
+    inner: Arc<Mutex<Option<(String, LocalEmbedder)>>>,
+}
+
+impl LocalEmbedderCache {
+    /// Return the cached embedder for `key`, loading + caching it on a miss (or
+    /// when `key` differs from the cached one). `key` is a stable identity of
+    /// what the model was built for (`cache_dir` + model id). Blocking (a miss
+    /// loads the model) — call on a blocking thread.
+    pub fn get_or_load(&self, cache_dir: &Path, key: &str) -> Result<LocalEmbedder, CommandError> {
+        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        if let Some((cached_key, embedder)) = guard.as_ref() {
+            if cached_key == key {
+                return Ok(embedder.clone());
+            }
+        }
+        let embedder = load(cache_dir)?;
+        *guard = Some((key.to_string(), embedder.clone()));
+        Ok(embedder)
+    }
+}
+
 impl LocalEmbedder {
     /// Embed `inputs` into one vector each, in input order. Blocking — run on a
     /// blocking thread. Validates the output the same way the HTTP adapter does

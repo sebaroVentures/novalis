@@ -303,6 +303,15 @@ pub fn run() {
         .setup(move |app| {
             builder.mount_events(app);
 
+            // Cache the loaded on-device embedder in managed state so a RAG
+            // question / similarity sort doesn't reload ~130 MB of ONNX per
+            // request (desktop only — no bundled ONNX Runtime on Android).
+            #[cfg(not(target_os = "android"))]
+            {
+                use tauri::Manager;
+                app.manage(ai::embed_local::LocalEmbedderCache::default());
+            }
+
             // Android's file-backed secret store needs the app-private data
             // dir, which only the path resolver knows (see secrets.rs).
             #[cfg(target_os = "android")]
