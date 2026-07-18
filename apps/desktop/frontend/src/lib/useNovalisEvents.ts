@@ -1,5 +1,7 @@
 import { useEffect } from "react";
 
+import { listen } from "@tauri-apps/api/event";
+
 import { events } from "../ipc/api";
 import { useConflicts } from "../stores/conflictStore";
 import { useGitConflicts } from "../stores/gitConflictStore";
@@ -27,9 +29,17 @@ export function useNovalisEvents() {
     const unlisten = [
       // A full (re)index — also fires when the last vault auto-opens on launch.
       events.reindexedEvent.listen(() => {
+        // The (re)index finished — drop any lingering progress bar.
+        useVault.setState({ indexProgress: null });
         void useVault.getState().sync();
         void useTasks.getState().load();
         void useConflicts.getState().scan();
+      }),
+      // Live (re)index progress: animate a real bar, and clear it once the last
+      // note lands (the reindexed-event above also clears it as a backstop).
+      listen<{ done: number; total: number }>("index-progress", (e) => {
+        const { done, total } = e.payload;
+        useVault.setState({ indexProgress: done >= total ? null : { done, total } });
       }),
       events.conflictDetected.listen(() => scanConflictsSoon()),
       // A background sync hit merge conflicts: open the resolver — unless it

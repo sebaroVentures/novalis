@@ -40,6 +40,7 @@
     "linksCount": "{{n}} Verknüpfungen",
     "notesCount": "{{n}} Notizen"
   },
+  "indexing": "Indiziere {{done}} / {{total}} Notizen…",
   "loading": "Wird geladen…",
   "mainNav": "Hauptnavigation",
   "menu": "Menü",

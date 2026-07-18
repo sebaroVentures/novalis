@@ -266,6 +266,10 @@ interface VaultState {
   paneEpochs: Map<string, number>;
   loading: boolean;
   error: string | null;
+  /** Live (re)index progress from the backend `index-progress` event, or null
+   *  when no index is running — drives a real progress bar instead of an
+   *  indeterminate spinner on large vaults. */
+  indexProgress: { done: number; total: number } | null;
 
   // Save lifecycle, keyed by note path (a tab strip surfaces each tab's state;
   // the editor reads the active path's). Absent ⇒ "idle".
@@ -432,6 +436,7 @@ export const useVault = create<VaultState>((set, get) => ({
   paneEpochs: new Map<string, number>(),
   loading: true,
   error: null,
+  indexProgress: null,
 
   saveStates: new Map<string, SaveState>(),
   saveErrors: new Map<string, string>(),

@@ -92,6 +92,7 @@ function cycleTab(dir: 1 | -1): void {
 
 export default function App() {
   const loading = useVault((s) => s.loading);
+  const indexProgress = useVault((s) => s.indexProgress);
   const vaultPath = useVault((s) => s.vaultPath);
   const activePath = useVault((s) => s.activePath);
   const error = useVault((s) => s.error);
@@ -297,8 +298,24 @@ export default function App() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen items-center justify-center bg-app text-fg-subtle">
-        {t("loading")}
+      <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-app text-fg-subtle">
+        {indexProgress ? (
+          <>
+            <p className="text-sm">
+              {t("indexing", { done: indexProgress.done, total: indexProgress.total })}
+            </p>
+            <div className="h-1 w-56 overflow-hidden rounded-full bg-active">
+              <div
+                className="h-full bg-accent transition-[width] duration-200"
+                style={{
+                  width: `${Math.round((indexProgress.done / Math.max(indexProgress.total, 1)) * 100)}%`,
+                }}
+              />
+            </div>
+          </>
+        ) : (
+          t("loading")
+        )}
       </main>
     );
   }
@@ -412,6 +429,25 @@ export default function App() {
             of CloudHint / the conflict banner. Renders only while a capture is
             active; the idle start trigger lives in the rail + palette. */}
         <RecordingDock />
+        {/* Background (re)index progress (e.g. the palette "Reindex" on an
+            already-open vault): a fixed pill so a multi-minute rebuild of a large
+            vault isn't mistaken for a hang. The full-screen loading path above
+            shows its own bar; this covers the case where the vault stays open. */}
+        {indexProgress && !loading && (
+          <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-surface-2 px-4 py-2 text-xs text-fg-muted shadow-lg">
+            <span>
+              {t("indexing", { done: indexProgress.done, total: indexProgress.total })}
+            </span>
+            <div className="h-1 w-24 overflow-hidden rounded-full bg-active">
+              <div
+                className="h-full bg-accent transition-[width] duration-200"
+                style={{
+                  width: `${Math.round((indexProgress.done / Math.max(indexProgress.total, 1)) * 100)}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
         <div className="flex min-h-0 flex-1 flex-col">
           {view === "notes" ? (
             <WorkspaceLayout />

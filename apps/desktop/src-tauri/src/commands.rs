@@ -141,6 +141,29 @@ pub fn default_vault_path(app: AppHandle) -> CmdResult<String> {
 
 // ── Vault lifecycle ─────────────────────────────────────────────────────────
 
+/// Payload for the `index-progress` event: notes processed of the total, so the
+/// UI can show a real progress bar during a (re)index instead of an indeterminate
+/// spinner that reads as a hang on a large vault.
+#[derive(Clone, serde::Serialize)]
+struct IndexProgress {
+    done: usize,
+    total: usize,
+}
+
+/// A throttled progress sink for the core index functions: emits `index-progress`
+/// at the first note, at ~2% steps, and on completion — enough to animate a bar
+/// without flooding the event channel on a several-thousand-note vault.
+fn index_progress_emitter(app: &AppHandle) -> impl FnMut(usize, usize) + '_ {
+    let mut last = 0usize;
+    move |done, total| {
+        let step = (total / 50).max(1);
+        if done == 1 || done == total || done.saturating_sub(last) >= step {
+            last = done;
+            let _ = app.emit("index-progress", IndexProgress { done, total });
+        }
+    }
+}
+
 /// Open (or create) a vault at `path`: build its index, persist it as the
 /// last vault, and start the file watcher. Shared by the command and startup.
 pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
@@ -174,7 +197,8 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
     // already dropped+recreated the tables in `open_db`, so the first scan after
     // an upgrade reindexes everything (empty index ⇒ every note is "new"); the
     // explicit rebuild path (`reindex_vault`) still does a full `build_index`.
-    search::incremental_index(&db, &vault_path)?;
+    let mut on_progress = index_progress_emitter(app);
+    search::incremental_index_with_progress(&db, &vault_path, &mut on_progress)?;
 
     let info = stats::vault_info(&vault_path);
 
@@ -926,7 +950,8 @@ pub async fn reindex_vault(app: AppHandle) -> CmdResult<u32> {
     let engine_app = app.clone();
     let count = tauri::async_runtime::spawn_blocking(move || {
         engine_app.state::<AppEngine>().with(|e| {
-            search::build_index(&e.db, &e.vault_path)?;
+            let mut on_progress = index_progress_emitter(&engine_app);
+            search::build_index_with_progress(&e.db, &e.vault_path, &mut on_progress)?;
             let n: i64 =
                 e.db.query_row("SELECT COUNT(*) FROM note_meta", [], |row| {
                     row.get::<_, i64>(0)

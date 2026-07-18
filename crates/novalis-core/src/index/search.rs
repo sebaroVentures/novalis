@@ -9,8 +9,21 @@ use crate::index::links;
 use crate::models::{NoteSummary, SearchResult, TagCount};
 use crate::vault::{frontmatter, fs as vault_fs};
 
+/// A per-note indexing progress callback, `(done, total)` — called as each note
+/// is processed so a long rebuild can report progress instead of an opaque wait.
+pub type IndexProgress<'a> = &'a mut dyn FnMut(usize, usize);
+
 /// Full scan of the vault to (re)build the search index.
 pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
+    build_index_with_progress(db, vault, &mut |_, _| {})
+}
+
+/// Like [`build_index`] but reports per-note progress (see [`IndexProgress`]).
+pub fn build_index_with_progress(
+    db: &Connection,
+    vault: &Path,
+    progress: IndexProgress,
+) -> CoreResult<()> {
     log::info!("building full search index for vault: {}", vault.display());
 
     // One transaction for the whole rebuild: the per-statement autocommits
@@ -45,7 +58,9 @@ pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
     db.execute("DELETE FROM events WHERE source_id = 'local'", [])?;
 
     let notes = vault_fs::list_notes(vault);
-    for summary in &notes {
+    let total = notes.len();
+    for (i, summary) in notes.iter().enumerate() {
+        progress(i + 1, total);
         let abs = vault.join(&summary.path);
         // Cloud-only placeholders (OneDrive/iCloud "online only") are indexed
         // from metadata alone — reading them would block on a network download.
@@ -200,6 +215,17 @@ pub fn stamp_mtime(db: &Connection, path: &str, mtime_ms: i64) -> CoreResult<()>
 /// full rebuild ([`build_index`]) is reserved for schema bumps and the explicit
 /// "rebuild index" path.
 pub fn incremental_index(db: &Connection, vault: &Path) -> CoreResult<usize> {
+    incremental_index_with_progress(db, vault, &mut |_, _| {})
+}
+
+/// Like [`incremental_index`] but reports per-note progress (see
+/// [`IndexProgress`]) as the vault walk advances — the first scan after a schema
+/// bump reindexes everything, so this drives the same UI as a full rebuild.
+pub fn incremental_index_with_progress(
+    db: &Connection,
+    vault: &Path,
+    progress: IndexProgress,
+) -> CoreResult<usize> {
     log::info!("incremental index scan for vault: {}", vault.display());
 
     // One transaction like `build_index`: a concurrent search never sees a
@@ -223,7 +249,10 @@ pub fn incremental_index(db: &Connection, vault: &Path) -> CoreResult<usize> {
     let mut reindexed = 0usize;
     let mut dirty = false;
 
-    for (rel, meta) in vault_fs::walk_note_metadata(vault) {
+    let notes = vault_fs::walk_note_metadata(vault);
+    let total = notes.len();
+    for (i, (rel, meta)) in notes.into_iter().enumerate() {
+        progress(i + 1, total);
         seen.insert(rel.clone());
         let file_mtime = vault_fs::file_mtime_ms(&meta);
         // Unchanged only when the file has a readable mtime that exactly matches
@@ -730,6 +759,22 @@ mod tests {
             from_index, from_disk,
             "index-served summaries must match a from-disk walk field-for-field"
         );
+    }
+
+    #[test]
+    fn build_index_reports_progress_to_completion() {
+        let (_base, vault, db) = scan_ctx();
+        for n in 0..5 {
+            std::fs::write(vault.join(format!("n{n}.md")), format!("note {n}")).unwrap();
+        }
+        let mut calls: Vec<(usize, usize)> = Vec::new();
+        build_index_with_progress(&db, &vault, &mut |done, total| calls.push((done, total)))
+            .unwrap();
+        assert_eq!(calls.len(), 5, "one progress tick per note");
+        assert!(calls.iter().all(|&(_, total)| total == 5), "total is stable");
+        assert_eq!(*calls.last().unwrap(), (5, 5), "ends at 100%");
+        // done is monotonically increasing 1..=5.
+        assert!(calls.iter().map(|&(d, _)| d).eq(1..=5));
     }
 
     #[test]
