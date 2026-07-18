@@ -753,10 +753,11 @@ mod tests {
     #[test]
     fn update_meta_fails_loud_on_malformed_frontmatter() {
         let c = ctx();
-        // Deserialization fails (`tags` is not a sequence); with a lenient
-        // parse the default would be re-serialized over the hand-written
-        // metadata. The update must error and leave the file untouched.
-        let broken = "---\ntitle: Keep\ntags: notalist\n---\nbody";
+        // Deserialization fails (`pinned` is not a boolean — an uncoercible
+        // type, unlike the integer/scalar cases the parser now tolerates); with
+        // a lenient parse the default would be re-serialized over the
+        // hand-written metadata. The update must error and leave the file untouched.
+        let broken = "---\ntitle: Keep\npinned: notabool\n---\nbody";
         std::fs::write(c.vault.join("B.md"), broken).unwrap();
         crate::change::reindex_path(&c.db, &c.vault, "B.md").unwrap();
 

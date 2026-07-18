@@ -620,10 +620,12 @@ mod tests {
     fn write_note_fails_loud_on_malformed_frontmatter() {
         let tmp = temp_vault();
         let vault = tmp.path().to_path_buf();
-        // `tags` must be a sequence — this deserializes to an error, and a
-        // lenient parse would fall back to default frontmatter, erasing
-        // `title` (and any custom keys) on re-serialize.
-        let broken = "---\ntitle: Keep Me\ntags: notalist\n---\nbody\n";
+        // `pinned` must be a boolean — this can't be coerced (unlike an
+        // integer-valued string field or a scalar-where-a-list-is-expected,
+        // which the parser now tolerates), so it still deserializes to an error.
+        // A lenient parse would fall back to default frontmatter, erasing
+        // `title` (and any custom keys) on re-serialize; the write must refuse.
+        let broken = "---\ntitle: Keep Me\npinned: notabool\n---\nbody\n";
         std::fs::write(vault.join("broken.md"), broken).unwrap();
 
         assert!(write_note(&vault, "broken.md", broken).is_err());

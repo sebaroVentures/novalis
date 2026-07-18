@@ -20,19 +20,81 @@ pub fn parse_frontmatter(content: &str) -> (NoteFrontmatter, String) {
     let matter = Matter::<YAML>::new();
     let result = matter.parse(content);
 
-    let fm: NoteFrontmatter = if let Some(data) = result.data {
-        match data.deserialize() {
+    let fm = match frontmatter_value(&result.data) {
+        // No block, or a legitimately-empty `---\n---` (YAML null), or a
+        // non-mapping (a stray scalar/list) — none of which is metadata.
+        None => NoteFrontmatter::default(),
+        Some(val) => match serde_json::from_value(val) {
             Ok(fm) => fm,
             Err(e) => {
                 log::warn!("failed to deserialize frontmatter: {e}");
                 NoteFrontmatter::default()
             }
-        }
-    } else {
-        NoteFrontmatter::default()
+        },
     };
 
     (fm, result.content)
+}
+
+/// Normalize a parsed frontmatter block to a mapping value ready to deserialize,
+/// or `None` when it is absent / null / not a mapping (an empty `---\n---` block
+/// parses to YAML null, which is not malformed — just empty). Real vaults hold
+/// values whose YAML type doesn't match ours (a year written as an integer
+/// `created: 2026`, a single tag written as a bare scalar `tags: work`); those
+/// are coerced here so one odd field doesn't fail the whole struct and drop ALL
+/// of the note's metadata from the index.
+fn frontmatter_value(data: &Option<gray_matter::Pod>) -> Option<serde_json::Value> {
+    let mut val: serde_json::Value = data.as_ref()?.deserialize().ok()?;
+    let obj = val.as_object_mut()?;
+    // String-typed fields: coerce a number/bool to its string form; a null to "".
+    for key in ["title", "created", "modified"] {
+        if let Some(v) = obj.get_mut(key) {
+            match v {
+                serde_json::Value::Number(_) | serde_json::Value::Bool(_) => {
+                    *v = serde_json::Value::String(scalar_to_string(v));
+                }
+                // `title` is optional (null → None); `created`/`modified` are
+                // required strings, so a null there becomes "".
+                serde_json::Value::Null if key != "title" => {
+                    *v = serde_json::Value::String(String::new());
+                }
+                _ => {}
+            }
+        }
+    }
+    // List-typed fields: a bare scalar becomes a one-element list; a null becomes
+    // an empty list; existing list elements get number/bool coercion.
+    for key in ["tags", "aliases"] {
+        match obj.get_mut(key) {
+            Some(serde_json::Value::Array(arr)) => {
+                for e in arr.iter_mut() {
+                    if matches!(e, serde_json::Value::Number(_) | serde_json::Value::Bool(_)) {
+                        *e = serde_json::Value::String(scalar_to_string(e));
+                    }
+                }
+            }
+            Some(v @ (serde_json::Value::String(_)
+            | serde_json::Value::Number(_)
+            | serde_json::Value::Bool(_))) => {
+                *v = serde_json::Value::Array(vec![serde_json::Value::String(scalar_to_string(v))]);
+            }
+            Some(v @ serde_json::Value::Null) => {
+                *v = serde_json::Value::Array(Vec::new());
+            }
+            _ => {}
+        }
+    }
+    Some(val)
+}
+
+/// A JSON scalar (string/number/bool) rendered as a plain string.
+fn scalar_to_string(v: &serde_json::Value) -> String {
+    match v {
+        serde_json::Value::String(s) => s.clone(),
+        serde_json::Value::Number(n) => n.to_string(),
+        serde_json::Value::Bool(b) => b.to_string(),
+        _ => String::new(),
+    }
 }
 
 /// Like [`parse_frontmatter`], but a frontmatter block that EXISTS yet fails
@@ -42,13 +104,13 @@ pub fn parse_frontmatter(content: &str) -> (NoteFrontmatter, String) {
 pub fn parse_frontmatter_strict(content: &str) -> CoreResult<(NoteFrontmatter, String)> {
     let matter = Matter::<YAML>::new();
     let result = matter.parse(content);
-    let fm = match result.data {
-        Some(data) => data.deserialize().map_err(|e| {
+    let fm = match frontmatter_value(&result.data) {
+        None => NoteFrontmatter::default(),
+        Some(val) => serde_json::from_value(val).map_err(|e| {
             CoreError::BadRequest(format!(
                 "frontmatter is not valid ({e}); fix it in the editor first"
             ))
         })?,
-        None => NoteFrontmatter::default(),
     };
     Ok((fm, result.content))
 }
@@ -243,5 +305,55 @@ mod tests {
             extract_body_tags("just a # and ## with spaces"),
             Vec::<String>::new()
         );
+    }
+
+    #[test]
+    fn tolerates_integer_valued_string_fields() {
+        // A year written as a bare integer must not drop the note's other
+        // metadata (the pre-fix behaviour discarded the whole struct).
+        let (fm, body) = parse_frontmatter("---\ncreated: 2026\ntags:\n  - work\n---\nbody\n");
+        assert_eq!(fm.created, "2026");
+        assert_eq!(fm.tags, vec!["work".to_string()]);
+        assert_eq!(body.trim(), "body");
+    }
+
+    #[test]
+    fn tolerates_scalar_where_a_list_is_expected() {
+        let (fm, _) = parse_frontmatter("---\ntags: work\naliases: 2026\n---\nx");
+        assert_eq!(fm.tags, vec!["work".to_string()]);
+        assert_eq!(fm.aliases, vec!["2026".to_string()]);
+    }
+
+    #[test]
+    fn empty_null_frontmatter_block_is_default_not_a_warning() {
+        // An empty `---\n---` block parses to YAML null — legitimately empty,
+        // must yield defaults (and stay silent, verified by no panic/err here).
+        let (fm, body) = parse_frontmatter("---\n---\nhello\n");
+        assert!(fm.title.is_none());
+        assert!(fm.tags.is_empty());
+        assert_eq!(body.trim(), "hello");
+    }
+
+    #[test]
+    fn integer_title_becomes_a_string() {
+        let (fm, _) = parse_frontmatter("---\ntitle: 2026\n---\nx");
+        assert_eq!(fm.title.as_deref(), Some("2026"));
+    }
+
+    #[test]
+    fn strict_parse_also_coerces_instead_of_erroring() {
+        // The write path must not refuse to save a note that merely has an
+        // integer-valued field; it coerces (preserving the value) like the read.
+        let (fm, _) = parse_frontmatter_strict("---\ncreated: 2026\n---\nx").unwrap();
+        assert_eq!(fm.created, "2026");
+    }
+
+    #[test]
+    fn well_typed_frontmatter_is_unchanged() {
+        let (fm, _) =
+            parse_frontmatter("---\ntitle: Note\ntags: [a, b]\ncreated: \"2026-01-02\"\n---\nx");
+        assert_eq!(fm.title.as_deref(), Some("Note"));
+        assert_eq!(fm.tags, vec!["a".to_string(), "b".to_string()]);
+        assert_eq!(fm.created, "2026-01-02");
     }
 }
