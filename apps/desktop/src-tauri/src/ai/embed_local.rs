@@ -109,6 +109,14 @@ impl LocalEmbedderCache {
         *guard = Some((key.to_string(), embedder.clone()));
         Ok(embedder)
     }
+
+    /// Drop the cached instance. Called by the delete-and-free-space action —
+    /// removing the on-disk weights alone would leave the loaded ~130 MB model
+    /// serving from RAM until app restart.
+    pub fn clear(&self) {
+        let mut guard = self.inner.lock().unwrap_or_else(|e| e.into_inner());
+        *guard = None;
+    }
 }
 
 impl LocalEmbedder {

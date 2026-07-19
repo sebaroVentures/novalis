@@ -96,10 +96,48 @@ pub fn voice_delete_recording(app: AppHandle, file_name: String) -> CmdResult<()
 
 /// Transcribe a recorded WAV on-device. Downloads + caches the whisper model on
 /// first use; runs off the async runtime (whisper is CPU-bound and blocking).
+/// Gated on the voice feature flag HERE (not just in the UI) because the first
+/// call silently re-downloads the ~142 MB model — a deleted cache must stay
+/// deleted while the feature is off. An unreadable config never
+/// default-enables.
 #[tauri::command]
 #[specta::specta]
 pub async fn voice_transcribe(app: AppHandle, wav_path: String) -> CmdResult<String> {
+    // Desktop-only gate: the Android impl below errors "unavailable" anyway.
+    #[cfg(not(target_os = "android"))]
+    {
+        let vault = app
+            .state::<crate::engine::AppEngine>()
+            .with(|e| Ok(e.vault_path.clone()))?;
+        let voice_on = novalis_core::vault::config::try_read_preferences(&vault)
+            .map(|p| p.features.voice)
+            .unwrap_or(false);
+        if !voice_on {
+            return Err(CommandError {
+                kind: "badRequest".to_string(),
+                message: "voice notes are disabled in Settings › Features".to_string(),
+            });
+        }
+    }
     transcribe_impl(app, wav_path).await
+}
+
+/// Bytes the cached whisper model occupies on disk (0 = not downloaded).
+#[tauri::command]
+#[specta::specta]
+pub fn voice_model_status(app: AppHandle) -> CmdResult<u64> {
+    model_status_impl(&app)
+}
+
+/// Settings › Features "delete & free space" for voice notes: remove the
+/// app-global cached whisper weights (and any half-finished `.part` download).
+/// Recordings are untouched. Returns the bytes freed. Deliberately NOT gated
+/// on the feature flag — deleting leftovers is what a switched-off feature
+/// needs.
+#[tauri::command]
+#[specta::specta]
+pub fn voice_delete_model(app: AppHandle) -> CmdResult<u64> {
+    delete_model_impl(&app)
 }
 
 // ── Desktop implementation ──────────────────────────────────────────────────
@@ -209,6 +247,43 @@ async fn transcribe_impl(app: AppHandle, wav_path: String) -> CmdResult<String> 
     .map_err(|e| CommandError::internal(format!("transcription task failed: {e}")))?
 }
 
+#[cfg(not(target_os = "android"))]
+fn model_status_impl(app: &AppHandle) -> CmdResult<u64> {
+    // Count the finished model AND any half-finished `.part` — an interrupted
+    // download strands the latter, and the delete button (which frees both)
+    // is disabled while this reports 0.
+    let dir = model_dir(app)?;
+    let mut total = 0u64;
+    for name in [
+        crate::voice::transcribe::MODEL_FILE.to_string(),
+        format!("{}.part", crate::voice::transcribe::MODEL_FILE),
+    ] {
+        total += std::fs::metadata(dir.join(&name))
+            .map(|m| m.len())
+            .unwrap_or(0);
+    }
+    Ok(total)
+}
+
+#[cfg(not(target_os = "android"))]
+fn delete_model_impl(app: &AppHandle) -> CmdResult<u64> {
+    let dir = model_dir(app)?;
+    let mut freed = 0u64;
+    for name in [
+        crate::voice::transcribe::MODEL_FILE.to_string(),
+        format!("{}.part", crate::voice::transcribe::MODEL_FILE),
+    ] {
+        let path = dir.join(&name);
+        // A missing file is fine — deletion is idempotent.
+        if let Ok(m) = std::fs::metadata(&path) {
+            std::fs::remove_file(&path)
+                .map_err(|e| CommandError::internal(format!("cannot delete the model: {e}")))?;
+            freed += m.len();
+        }
+    }
+    Ok(freed)
+}
+
 /// `app-data/voice/` — where finalized recordings are written.
 #[cfg(not(target_os = "android"))]
 fn voice_dir(app: &AppHandle) -> CmdResult<PathBuf> {
@@ -266,6 +341,16 @@ fn delete_impl(_app: &AppHandle, _file_name: &str) -> CmdResult<()> {
 #[cfg(target_os = "android")]
 async fn transcribe_impl(_app: AppHandle, _wav_path: String) -> CmdResult<String> {
     Err(unavailable())
+}
+
+#[cfg(target_os = "android")]
+fn model_status_impl(_app: &AppHandle) -> CmdResult<u64> {
+    Ok(0)
+}
+
+#[cfg(target_os = "android")]
+fn delete_model_impl(_app: &AppHandle) -> CmdResult<u64> {
+    Ok(0)
 }
 
 #[cfg(all(test, not(target_os = "android")))]

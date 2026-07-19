@@ -187,3 +187,14 @@ pub fn entities_for_note(state: State<AppEngine>, path: String) -> CmdResult<Vec
 pub fn entities_mentions(state: State<AppEngine>, entity_id: i64) -> CmdResult<Vec<EntityMention>> {
     state.with(|e| entities::mentions_for_entity(&e.db, entity_id))
 }
+
+/// Settings › Features "delete & free space" for the entity graph: drop the
+/// whole extracted graph (rows only — tables + version marker stay; the rows
+/// cost LLM tokens to recompute, which is exactly why this is an explicit
+/// button). Deliberately NOT gated on the feature flag — deleting leftovers is
+/// what a switched-off feature needs. Returns the number of entities removed.
+#[tauri::command]
+#[specta::specta]
+pub fn entities_delete_all(state: State<AppEngine>) -> CmdResult<u32> {
+    state.with(|e| Ok(entities::clear_all(&e.db)? as u32))
+}

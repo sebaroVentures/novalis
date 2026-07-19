@@ -673,6 +673,16 @@ pub fn prune_orphans(db: &Connection) -> CoreResult<usize> {
     Ok(n)
 }
 
+/// Delete the ENTIRE extracted graph (mentions first, then entities), for the
+/// Settings › Features "delete & free space" action. Rows only — the tables
+/// and the `entity_index_meta` version marker stay. Returns the number of
+/// entity rows removed.
+pub fn clear_all(db: &Connection) -> CoreResult<usize> {
+    db.execute("DELETE FROM entity_mentions", [])?;
+    let n = db.execute("DELETE FROM entities", [])?;
+    Ok(n)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

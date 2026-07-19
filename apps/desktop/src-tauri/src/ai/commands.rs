@@ -539,6 +539,98 @@ pub fn ai_embed_status(app: AppHandle, state: State<AppEngine>) -> CmdResult<Emb
     })
 }
 
+/// What a delete-and-free-space action reclaimed.
+#[derive(Debug, Clone, serde::Serialize, specta::Type)]
+#[serde(rename_all = "camelCase")]
+pub struct FreedSpace {
+    /// Index rows removed.
+    pub rows: u32,
+    /// Bytes freed on disk (cache dirs + database shrink).
+    pub bytes: u64,
+}
+
+/// Total size of every regular file under `dir` (0 if it doesn't exist).
+/// Directory symlinks are counted as entries, never followed — following
+/// would loop on a cycle and would count external trees the removal below
+/// doesn't actually free.
+fn dir_size(dir: &std::path::Path) -> u64 {
+    let mut total = 0u64;
+    let Ok(entries) = std::fs::read_dir(dir) else {
+        return 0;
+    };
+    for entry in entries.flatten() {
+        let is_dir = entry.file_type().map(|t| t.is_dir()).unwrap_or(false);
+        if is_dir {
+            total += dir_size(&entry.path());
+        } else if let Ok(meta) = entry.metadata() {
+            total += meta.len();
+        }
+    }
+    total
+}
+
+/// Settings › Features "delete & free space" for the semantic index: drop all
+/// stored chunk vectors (rows only — table + version marker stay), evict the
+/// loaded local model from RAM, remove the app-global ~130 MB weights cache,
+/// and VACUUM the vault database so the freed pages actually leave the file.
+/// The heavy work (dir removal, VACUUM on a separate WAL connection) runs OFF
+/// the engine lock, mirroring `reindex_vault`. Deliberately NOT gated on the
+/// AI feature flag — deleting leftovers is exactly what a switched-off feature
+/// needs. Note the weights cache is app-global: other vaults' chunk rows stay,
+/// but they too will re-download the model on their next build.
+#[tauri::command]
+#[specta::specta]
+pub async fn ai_delete_embeddings(app: AppHandle) -> CmdResult<FreedSpace> {
+    // Short lock: clear the rows + snapshot the data dir. Known limitation:
+    // nothing coordinates with a build already in flight — its later batch
+    // flushes repopulate rows from its pre-delete snapshot (harmless: another
+    // delete or rebuild converges).
+    let (rows, data_dir) = app
+        .state::<AppEngine>()
+        .with(|e| Ok((vectors::clear_all(&e.db)? as u32, e.data_dir.clone())))?;
+
+    let cache_dir = app
+        .path()
+        .app_data_dir()
+        .map_err(|e| CommandError::internal(format!("cannot resolve app data dir: {e}")))?
+        .join("embeddings");
+
+    #[cfg(not(target_os = "android"))]
+    let embedder_cache = app
+        .state::<embed_local::LocalEmbedderCache>()
+        .inner()
+        .clone();
+
+    tauri::async_runtime::spawn_blocking(move || -> CmdResult<FreedSpace> {
+        let mut bytes = dir_size(&cache_dir);
+        match std::fs::remove_dir_all(&cache_dir) {
+            Ok(()) => {}
+            Err(e) if e.kind() == std::io::ErrorKind::NotFound => bytes = 0,
+            Err(e) => return Err(CommandError::internal(format!("cache delete failed: {e}"))),
+        }
+        // Evict the in-RAM model AFTER the dir is gone: while removal runs,
+        // concurrent requests keep serving from the still-cached instance
+        // instead of re-downloading into the directory being deleted.
+        #[cfg(not(target_os = "android"))]
+        embedder_cache.clear();
+        // VACUUM on its own WAL connection, off the engine lock; a concurrent
+        // writer hits the 5s busy_timeout and fails loudly — the documented,
+        // acceptable degradation during an explicit maintenance action.
+        let db_file = novalis_core::vault::config::db_path(&data_dir);
+        let before = std::fs::metadata(&db_file).map(|m| m.len()).unwrap_or(0);
+        let db = novalis_core::index::schema::open_db(&db_file)?;
+        db.execute("VACUUM", [])
+            .map_err(novalis_core::error::CoreError::from)?;
+        let after = std::fs::metadata(&db_file)
+            .map(|m| m.len())
+            .unwrap_or(before);
+        bytes += before.saturating_sub(after);
+        Ok(FreedSpace { rows, bytes })
+    })
+    .await
+    .map_err(|e| CommandError::internal(format!("delete task panicked: {e}")))?
+}
+
 /// (Re)build the semantic index: embed every note new or changed since its last
 /// vector. Emits `ai-embed-progress` between batches and returns final coverage.
 /// Network + file IO stay OFF the engine lock (mirrors `git_sync_now`): the only

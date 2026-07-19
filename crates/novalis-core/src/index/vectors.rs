@@ -666,6 +666,16 @@ pub fn prune_orphans(db: &Connection) -> CoreResult<usize> {
     Ok(n)
 }
 
+/// Delete EVERY stored chunk vector, for the Settings › Features
+/// "delete & free space" action. Rows only — the table and its
+/// `note_vectors_meta` version marker stay, so the store deliberately keeps
+/// surviving schema bumps and the next build starts from a clean 0/N.
+/// Returns the number of rows removed.
+pub fn clear_all(db: &Connection) -> CoreResult<usize> {
+    let n = db.execute("DELETE FROM note_chunks", [])?;
+    Ok(n)
+}
+
 /// Map of path → stored content-hash for one model — the freshness oracle the
 /// build uses to decide what needs (re)embedding. All of a note's chunks share
 /// its embed-text hash, so one row per path suffices (`GROUP BY path`).

@@ -106,6 +106,7 @@
       "desc": "El botón «Sugerir metadatos» en la franja de metadatos de una nota.",
       "label": "Sugerencias de metadatos"
     },
+    "aiSetupOffer": "Siguiente paso: conecta un proveedor y construye el índice semántico en Ajustes › IA.",
     "aiTemplates": {
       "aria": "Alternar acciones de IA personalizadas",
       "desc": "Tus propias plantillas de prompts en el menú de IA.",
@@ -216,6 +217,10 @@
       "desc": "Consultas guardadas estilo base de datos sobre tus notas y tareas.",
       "label": "Vistas de consulta"
     },
+    "reindexOffer": {
+      "text": "Las notas existentes necesitan una reindexación para captar sus id de bloque.",
+      "action": "Reindexar ahora"
+    },
     "relatedNotes": {
       "aria": "Alternar notas relacionadas",
       "desc": "Un panel con notas semánticamente similares. Requiere el índice de embeddings de Ajustes › IA.",
@@ -232,9 +237,38 @@
     "sectionGraph": "Grafo de conocimiento",
     "sectionMedia": "Lienzo y medios",
     "sectionPower": "Usuario avanzado",
+    "sectionStorage": "Datos almacenados",
+    "sectionStorageDesc": "Desactivar una función conserva sus datos. Borrar aquí libera el espacio; todo puede reconstruirse, pero puede costar descargas o tokens.",
     "sectionSync": "Sincronización e integraciones",
     "sectionWorkspace": "Espacio de trabajo",
     "sectionWorkspaceDesc": "Oculta vistas completas para una app más ligera; las notas siempre se quedan.",
+    "storage": {
+      "action": "Borrar",
+      "freed": "{{mb}} MB liberados.",
+      "freedRows": "{{n}} entradas eliminadas.",
+      "embeddings": {
+        "label": "Índice semántico",
+        "desc": "Vectores de notas almacenados más la caché de ~130 MB del modelo local. Se puede reconstruir en Ajustes › IA.",
+        "aria": "Borrar el índice semántico",
+        "confirmTitle": "¿Borrar el índice semántico?",
+        "confirmBody": "Elimina todos los vectores de notas almacenados y la caché del modelo local (todos los baúles comparten el modelo). Reconstruir vuelve a procesar cada nota."
+      },
+      "entities": {
+        "label": "Grafo de entidades",
+        "desc": "Las personas, lugares y temas extraídos. Volver a extraer consume tokens.",
+        "aria": "Borrar el grafo de entidades",
+        "confirmTitle": "¿Borrar el grafo de entidades?",
+        "confirmBody": "Elimina todas las entidades y menciones extraídas. Las notas quedan intactas; volver a extraer consume tokens."
+      },
+      "voiceModel": {
+        "label": "Modelo de voz",
+        "desc": "No descargado.",
+        "descDownloaded": "{{mb}} MB en disco. Se vuelve a descargar en la próxima transcripción.",
+        "aria": "Borrar el modelo de voz",
+        "confirmTitle": "¿Borrar el modelo de voz?",
+        "confirmBody": "Elimina el modelo de transcripción descargado (compartido por todos los baúles). La próxima transcripción lo descargará de nuevo (~142 MB)."
+      }
+    },
     "tagAutocomplete": {
       "aria": "Alternar autocompletado de etiquetas",
       "desc": "Sugiere etiquetas existentes al escribir #.",

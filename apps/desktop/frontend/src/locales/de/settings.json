@@ -106,6 +106,7 @@
       "desc": "Der Button „Metadaten vorschlagen“ in der Metadaten-Leiste einer Notiz.",
       "label": "Metadaten-Vorschläge"
     },
+    "aiSetupOffer": "Als Nächstes: Anbieter verbinden und den semantischen Index unter Einstellungen › KI aufbauen.",
     "aiTemplates": {
       "aria": "Eigene KI-Aktionen umschalten",
       "desc": "Deine eigenen Prompt-Vorlagen im KI-Menü.",
@@ -216,6 +217,10 @@
       "desc": "Gespeicherte datenbankartige Abfragen über Notizen und Aufgaben.",
       "label": "Query-Ansichten"
     },
+    "reindexOffer": {
+      "text": "Bestehende Notizen brauchen einen Reindex, damit ihre Block-IDs erfasst werden.",
+      "action": "Jetzt reindizieren"
+    },
     "relatedNotes": {
       "aria": "Ähnliche Notizen umschalten",
       "desc": "Ein Panel mit semantisch ähnlichen Notizen. Benötigt den Embeddings-Index aus Einstellungen › KI.",
@@ -232,9 +237,38 @@
     "sectionGraph": "Wissensgraph",
     "sectionMedia": "Canvas & Medien",
     "sectionPower": "Power-User",
+    "sectionStorage": "Gespeicherte Daten",
+    "sectionStorageDesc": "Eine Funktion auszuschalten behält ihre Daten. Löschen hier gibt den Platz frei — alles lässt sich neu aufbauen, aber das kann Downloads oder Tokens kosten.",
     "sectionSync": "Sync & Integrationen",
     "sectionWorkspace": "Arbeitsbereich",
     "sectionWorkspaceDesc": "Blendet ganze Ansichten für eine schlankere App aus — Notizen bleiben immer.",
+    "storage": {
+      "action": "Löschen",
+      "freed": "{{mb}} MB freigegeben.",
+      "freedRows": "{{n}} Einträge entfernt.",
+      "embeddings": {
+        "label": "Semantischer Index",
+        "desc": "Gespeicherte Notiz-Vektoren plus der ~130-MB-Cache des lokalen Modells. Jederzeit unter Einstellungen › KI neu aufbaubar.",
+        "aria": "Semantischen Index löschen",
+        "confirmTitle": "Semantischen Index löschen?",
+        "confirmBody": "Entfernt alle gespeicherten Notiz-Vektoren und den lokalen Modell-Cache (alle Vaults teilen das Modell). Ein Neuaufbau bettet jede Notiz erneut ein."
+      },
+      "entities": {
+        "label": "Entitäten-Graph",
+        "desc": "Die extrahierten Personen, Orte und Themen. Erneutes Extrahieren kostet Tokens.",
+        "aria": "Entitäten-Graph löschen",
+        "confirmTitle": "Entitäten-Graph löschen?",
+        "confirmBody": "Entfernt alle extrahierten Entitäten und Erwähnungen. Notizen bleiben unberührt; erneutes Extrahieren kostet Tokens."
+      },
+      "voiceModel": {
+        "label": "Sprachmodell",
+        "desc": "Nicht heruntergeladen.",
+        "descDownloaded": "{{mb}} MB auf der Festplatte. Beim nächsten Transkribieren wird es erneut heruntergeladen.",
+        "aria": "Sprachmodell löschen",
+        "confirmTitle": "Sprachmodell löschen?",
+        "confirmBody": "Entfernt das heruntergeladene Transkriptionsmodell (von allen Vaults geteilt). Die nächste Transkription lädt es erneut (~142 MB)."
+      }
+    },
     "tagAutocomplete": {
       "aria": "Tag-Autovervollständigung umschalten",
       "desc": "Schlägt beim Tippen von # bestehende Tags vor.",

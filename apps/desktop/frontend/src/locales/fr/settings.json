@@ -106,6 +106,7 @@
       "desc": "Le bouton « Suggérer des métadonnées » dans la bande de métadonnées d'une note.",
       "label": "Suggestions de métadonnées"
     },
+    "aiSetupOffer": "Étape suivante : connectez un fournisseur et construisez l'index sémantique dans Réglages › IA.",
     "aiTemplates": {
       "aria": "Basculer les actions IA personnalisées",
       "desc": "Vos propres modèles de prompts dans le menu IA.",
@@ -216,6 +217,10 @@
       "desc": "Requêtes enregistrées façon base de données sur vos notes et tâches.",
       "label": "Vues de requête"
     },
+    "reindexOffer": {
+      "text": "Les notes existantes nécessitent une réindexation pour capter leurs id de bloc.",
+      "action": "Réindexer maintenant"
+    },
     "relatedNotes": {
       "aria": "Basculer les notes associées",
       "desc": "Un panneau de notes sémantiquement proches. Nécessite l'index d'embeddings de Réglages › IA.",
@@ -232,9 +237,38 @@
     "sectionGraph": "Graphe de connaissances",
     "sectionMedia": "Canevas et médias",
     "sectionPower": "Utilisateur avancé",
+    "sectionStorage": "Données stockées",
+    "sectionStorageDesc": "Désactiver une fonction conserve ses données. Supprimer ici libère l'espace — tout peut être reconstruit, mais cela peut coûter des téléchargements ou des jetons.",
     "sectionSync": "Synchro et intégrations",
     "sectionWorkspace": "Espace de travail",
     "sectionWorkspaceDesc": "Masque des vues entières pour une app plus légère — les notes restent toujours.",
+    "storage": {
+      "action": "Supprimer",
+      "freed": "{{mb}} Mo libérés.",
+      "freedRows": "{{n}} entrées supprimées.",
+      "embeddings": {
+        "label": "Index sémantique",
+        "desc": "Vecteurs de notes stockés plus le cache d'environ 130 Mo du modèle local. Reconstructible à tout moment dans Réglages › IA.",
+        "aria": "Supprimer l'index sémantique",
+        "confirmTitle": "Supprimer l'index sémantique ?",
+        "confirmBody": "Supprime tous les vecteurs de notes stockés et le cache du modèle local (tous les coffres partagent le modèle). La reconstruction ré-encode chaque note."
+      },
+      "entities": {
+        "label": "Graphe d'entités",
+        "desc": "Les personnes, lieux et sujets extraits. Une nouvelle extraction consomme des jetons.",
+        "aria": "Supprimer le graphe d'entités",
+        "confirmTitle": "Supprimer le graphe d'entités ?",
+        "confirmBody": "Supprime toutes les entités et mentions extraites. Les notes restent intactes ; ré-extraire consomme des jetons."
+      },
+      "voiceModel": {
+        "label": "Modèle vocal",
+        "desc": "Non téléchargé.",
+        "descDownloaded": "{{mb}} Mo sur le disque. Il sera retéléchargé à la prochaine transcription.",
+        "aria": "Supprimer le modèle vocal",
+        "confirmTitle": "Supprimer le modèle vocal ?",
+        "confirmBody": "Supprime le modèle de transcription téléchargé (partagé par tous les coffres). La prochaine transcription le retéléchargera (~142 Mo)."
+      }
+    },
     "tagAutocomplete": {
       "aria": "Basculer l'autocomplétion des tags",
       "desc": "Suggère les tags existants pendant la saisie de #.",

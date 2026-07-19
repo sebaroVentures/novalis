@@ -1,14 +1,17 @@
-import type { ReactNode } from "react";
+import { useEffect, useState, type ReactNode } from "react";
 
+import { Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import type { FeaturePrefs } from "../../../ipc/api";
+import { api, type FeaturePrefs } from "../../../ipc/api";
 import {
   resolveFeaturePrefs,
   resolveGitPrefs,
   useSettings,
 } from "../../../stores/settingsStore";
+import { useVault } from "../../../stores/vaultStore";
 import { SettingRow, SettingsSection, Switch } from "../../ui";
+import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { PanelLoading } from "./PanelLoading";
 
 type FlagKey = keyof Required<FeaturePrefs>;
@@ -22,6 +25,7 @@ function FeatureRow({
   description,
   aria,
   disabled,
+  onToggled,
 }: {
   flag: FlagKey;
   checked: boolean;
@@ -29,6 +33,8 @@ function FeatureRow({
   description: string;
   aria: string;
   disabled?: boolean;
+  /** Called after the flag is written — the enable-time setup offers hook. */
+  onToggled?: (v: boolean) => void;
 }) {
   return (
     <SettingRow
@@ -38,7 +44,10 @@ function FeatureRow({
         <Switch
           checked={checked}
           disabled={disabled}
-          onChange={(v) => useSettings.getState().setFeatures({ [flag]: v })}
+          onChange={(v) => {
+            useSettings.getState().setFeatures({ [flag]: v });
+            onToggled?.(v);
+          }}
           aria-label={aria}
         />
       }
@@ -54,11 +63,31 @@ function SubRows({ children }: { children: ReactNode }) {
 export function FeaturesPanel() {
   const { t } = useTranslation("settings");
   const prefs = useSettings((s) => s.prefs);
+  // Session-local enable-time setup offers (decision: enabling a feature
+  // offers its one-time setup instead of silently doing nothing).
+  const [offerAiSetup, setOfferAiSetup] = useState(false);
+  const [offerReindex, setOfferReindex] = useState(false);
+  const [reindexing, setReindexing] = useState(false);
   if (!prefs) return <PanelLoading />;
 
   const settings = useSettings.getState();
   const f = resolveFeaturePrefs(prefs.features);
   const git = resolveGitPrefs(prefs.git);
+
+  const reindexNow = async () => {
+    setReindexing(true);
+    try {
+      // Progress shows on the global reindex bar (index-progress events).
+      await api.reindexVault();
+      setOfferReindex(false);
+    } catch (e) {
+      // A caught rejection never reaches the unhandled-rejection toast —
+      // route it to the global error surface explicitly.
+      useVault.getState().reportError(e);
+    } finally {
+      setReindexing(false);
+    }
+  };
 
   return (
     <>
@@ -72,7 +101,11 @@ export function FeaturesPanel() {
           label={t("features.ai.label")}
           description={t("features.ai.desc")}
           aria={t("features.ai.aria")}
+          onToggled={(v) => setOfferAiSetup(v)}
         />
+        {offerAiSetup && f.ai && (
+          <p className="px-1 pt-2 text-xs text-accent">{t("features.aiSetupOffer")}</p>
+        )}
         <SubRows>
           {/* Ambient suggestions keep their canonical gate in
               EditorPrefs.ambientAi — this row is the same pref as
@@ -155,7 +188,22 @@ export function FeaturesPanel() {
           label={t("features.blockRefs.label")}
           description={t("features.blockRefs.desc")}
           aria={t("features.blockRefs.aria")}
+          onToggled={(v) => setOfferReindex(v)}
         />
+        {offerReindex && f.blockRefs && (
+          <div className="flex items-center justify-between gap-3 px-1 pt-2">
+            <p className="text-xs text-accent">{t("features.reindexOffer.text")}</p>
+            <button
+              type="button"
+              onClick={() => void reindexNow()}
+              disabled={reindexing}
+              className="flex shrink-0 items-center gap-1.5 rounded-md bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-50"
+            >
+              {reindexing && <Loader2 size={13} className="animate-spin" />}
+              {t("features.reindexOffer.action")}
+            </button>
+          </div>
+        )}
         <FeatureRow
           flag="transclusion"
           checked={f.transclusion}
@@ -349,6 +397,155 @@ export function FeaturesPanel() {
           aria={t("features.voice.aria")}
         />
       </SettingsSection>
+
+      <StorageSection />
     </>
+  );
+}
+
+type StorageTarget = "embeddings" | "entities" | "voiceModel";
+
+/** "Delete & free space" (decision: disabling keeps data; deleting is a
+ *  separate, explicit, confirmed action). The commands are deliberately
+ *  available while the features are off — leftovers are exactly what a
+ *  switched-off feature accumulates. */
+function StorageSection() {
+  const { t } = useTranslation("settings");
+  const [confirm, setConfirm] = useState<StorageTarget | null>(null);
+  const [busy, setBusy] = useState<StorageTarget | null>(null);
+  const [result, setResult] = useState<
+    Partial<Record<StorageTarget, { ok: boolean; text: string }>>
+  >({});
+  const [voiceModelBytes, setVoiceModelBytes] = useState<number | null>(null);
+
+  useEffect(() => {
+    api
+      .voiceModelStatus()
+      .then(setVoiceModelBytes)
+      .catch(() => setVoiceModelBytes(null));
+  }, []);
+
+  // Honest rounding for freed-space reports (0 stays 0); the on-disk display
+  // below floors at 1 so a real file never reads "0 MB".
+  const mb = (bytes: number) => Math.round(bytes / 1_000_000);
+
+  const ok = (target: StorageTarget, text: string) =>
+    setResult((r) => ({ ...r, [target]: { ok: true, text } }));
+
+  const run = async (target: StorageTarget) => {
+    setConfirm(null);
+    setBusy(target);
+    try {
+      if (target === "embeddings") {
+        const freed = await api.aiDeleteEmbeddings();
+        ok(target, t("features.storage.freed", { mb: mb(freed.bytes) }));
+      } else if (target === "entities") {
+        const rows = await api.entitiesDeleteAll();
+        ok(target, t("features.storage.freedRows", { n: rows }));
+      } else {
+        const bytes = await api.voiceDeleteModel();
+        setVoiceModelBytes(0);
+        ok(target, t("features.storage.freed", { mb: mb(bytes) }));
+      }
+    } catch (e) {
+      const message = e instanceof Error ? e.message : String(e);
+      setResult((r) => ({ ...r, [target]: { ok: false, text: message } }));
+    } finally {
+      setBusy(null);
+    }
+  };
+
+  const deleteButton = (target: StorageTarget, aria: string, disabled?: boolean) => (
+    <button
+      type="button"
+      onClick={() => setConfirm(target)}
+      disabled={busy !== null || disabled}
+      aria-label={aria}
+      className="flex items-center gap-1.5 rounded-md border border-border px-3 py-1.5 text-xs font-medium text-danger transition hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50"
+    >
+      {busy === target && <Loader2 size={13} className="animate-spin" />}
+      {t("features.storage.action")}
+    </button>
+  );
+
+  // Success and failure must not read alike: results render on their own
+  // line, errors in the danger color like every other panel's error slot.
+  // (Hoisted to variables — the i18n lint rule reads inline string args in
+  // JSX expression containers as untranslated literals.)
+  const resultLine = (target: StorageTarget) => {
+    const r = result[target];
+    if (!r) return null;
+    return (
+      <p className={`px-1 pt-1 text-xs ${r.ok ? "text-fg-subtle" : "text-danger"}`} role={r.ok ? undefined : "alert"}>
+        {r.text}
+      </p>
+    );
+  };
+  const embeddingsResult = resultLine("embeddings");
+  const entitiesResult = resultLine("entities");
+  const voiceModelResult = resultLine("voiceModel");
+
+  return (
+    <SettingsSection
+      title={t("features.sectionStorage")}
+      description={t("features.sectionStorageDesc")}
+    >
+      <SettingRow
+        label={t("features.storage.embeddings.label")}
+        description={t("features.storage.embeddings.desc")}
+        control={deleteButton("embeddings", t("features.storage.embeddings.aria"))}
+      />
+      {embeddingsResult}
+      <SettingRow
+        label={t("features.storage.entities.label")}
+        description={t("features.storage.entities.desc")}
+        control={deleteButton("entities", t("features.storage.entities.aria"))}
+      />
+      {entitiesResult}
+      <SettingRow
+        label={t("features.storage.voiceModel.label")}
+        description={
+          voiceModelBytes && voiceModelBytes > 0
+            ? t("features.storage.voiceModel.descDownloaded", {
+                mb: Math.max(1, mb(voiceModelBytes)),
+              })
+            : t("features.storage.voiceModel.desc")
+        }
+        control={deleteButton(
+          "voiceModel",
+          t("features.storage.voiceModel.aria"),
+          !voiceModelBytes,
+        )}
+      />
+      {voiceModelResult}
+
+      <ConfirmDialog
+        open={confirm === "embeddings"}
+        title={t("features.storage.embeddings.confirmTitle")}
+        body={t("features.storage.embeddings.confirmBody")}
+        confirmLabel={t("features.storage.action")}
+        danger
+        onConfirm={() => void run("embeddings")}
+        onCancel={() => setConfirm(null)}
+      />
+      <ConfirmDialog
+        open={confirm === "entities"}
+        title={t("features.storage.entities.confirmTitle")}
+        body={t("features.storage.entities.confirmBody")}
+        confirmLabel={t("features.storage.action")}
+        danger
+        onConfirm={() => void run("entities")}
+        onCancel={() => setConfirm(null)}
+      />
+      <ConfirmDialog
+        open={confirm === "voiceModel"}
+        title={t("features.storage.voiceModel.confirmTitle")}
+        body={t("features.storage.voiceModel.confirmBody")}
+        confirmLabel={t("features.storage.action")}
+        danger
+        onConfirm={() => void run("voiceModel")}
+        onCancel={() => setConfirm(null)}
+      />
+    </SettingsSection>
   );
 }

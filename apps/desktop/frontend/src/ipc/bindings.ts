@@ -564,6 +564,18 @@ export const commands = {
 	 */
 	aiBuildEmbeddings: () => typedError<EmbedStatus, CommandError>(__TAURI_INVOKE("ai_build_embeddings")),
 	/**
+	 *  Settings › Features "delete & free space" for the semantic index: drop all
+	 *  stored chunk vectors (rows only — table + version marker stay), evict the
+	 *  loaded local model from RAM, remove the app-global ~130 MB weights cache,
+	 *  and VACUUM the vault database so the freed pages actually leave the file.
+	 *  The heavy work (dir removal, VACUUM on a separate WAL connection) runs OFF
+	 *  the engine lock, mirroring `reindex_vault`. Deliberately NOT gated on the
+	 *  AI feature flag — deleting leftovers is exactly what a switched-off feature
+	 *  needs. Note the weights cache is app-global: other vaults' chunk rows stay,
+	 *  but they too will re-download the model on their next build.
+	 */
+	aiDeleteEmbeddings: () => typedError<FreedSpace, CommandError>(__TAURI_INVOKE("ai_delete_embeddings")),
+	/**
 	 *  Notes semantically nearest to `path`, from stored embeddings only (local, no
 	 *  network). Returns `aiEmbedStale` when the note isn't indexed for the current
 	 *  model yet — or was edited since it was embedded — so the panel can nudge the
@@ -607,6 +619,14 @@ export const commands = {
 	 *  Index-only, no network.
 	 */
 	entitiesMentions: (entityId: number) => typedError<EntityMention[], CommandError>(__TAURI_INVOKE("entities_mentions", { entityId })),
+	/**
+	 *  Settings › Features "delete & free space" for the entity graph: drop the
+	 *  whole extracted graph (rows only — tables + version marker stay; the rows
+	 *  cost LLM tokens to recompute, which is exactly why this is an explicit
+	 *  button). Deliberately NOT gated on the feature flag — deleting leftovers is
+	 *  what a switched-off feature needs. Returns the number of entities removed.
+	 */
+	entitiesDeleteAll: () => typedError<number, CommandError>(__TAURI_INVOKE("entities_delete_all")),
 	/**  Report whether voice capture works here (false on mobile). */
 	voiceCapabilities: () => __TAURI_INVOKE<VoiceCapabilities>("voice_capabilities"),
 	/**
@@ -631,8 +651,22 @@ export const commands = {
 	/**
 	 *  Transcribe a recorded WAV on-device. Downloads + caches the whisper model on
 	 *  first use; runs off the async runtime (whisper is CPU-bound and blocking).
+	 *  Gated on the voice feature flag HERE (not just in the UI) because the first
+	 *  call silently re-downloads the ~142 MB model — a deleted cache must stay
+	 *  deleted while the feature is off. An unreadable config never
+	 *  default-enables.
 	 */
 	voiceTranscribe: (wavPath: string) => typedError<string, CommandError>(__TAURI_INVOKE("voice_transcribe", { wavPath })),
+	/**  Bytes the cached whisper model occupies on disk (0 = not downloaded). */
+	voiceModelStatus: () => typedError<number, CommandError>(__TAURI_INVOKE("voice_model_status")),
+	/**
+	 *  Settings › Features "delete & free space" for voice notes: remove the
+	 *  app-global cached whisper weights (and any half-finished `.part` download).
+	 *  Recordings are untouched. Returns the bytes freed. Deliberately NOT gated
+	 *  on the feature flag — deleting leftovers is what a switched-off feature
+	 *  needs.
+	 */
+	voiceDeleteModel: () => typedError<number, CommandError>(__TAURI_INVOKE("voice_delete_model")),
 };
 
 /** Events */
@@ -1215,6 +1249,14 @@ export type FolderNode = {
 	path: string,
 	children: FolderNode[],
 	notes: NoteSummary[],
+};
+
+/**  What a delete-and-free-space action reclaimed. */
+export type FreedSpace = {
+	/**  Index rows removed. */
+	rows: number,
+	/**  Bytes freed on disk (cache dirs + database shrink). */
+	bytes: number,
 };
 
 /**

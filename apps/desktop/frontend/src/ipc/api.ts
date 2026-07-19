@@ -262,6 +262,8 @@ export const api = {
     unwrap(commands.aiSetEmbeddingConfig(connectionId, model)),
   aiEmbedStatus: () => unwrap(commands.aiEmbedStatus()),
   aiBuildEmbeddings: () => unwrap(commands.aiBuildEmbeddings()),
+  // Delete & free space (Settings › Features): rows + model caches.
+  aiDeleteEmbeddings: () => unwrap(commands.aiDeleteEmbeddings()),
   aiFindRelated: (path: string, limit: number) =>
     unwrap(commands.aiFindRelated(path, limit)),
   // Chat with your vault: retrieves + returns citations, streams the answer over
@@ -275,6 +277,7 @@ export const api = {
   entitiesList: () => unwrap(commands.entitiesList()),
   entitiesForNote: (path: string) => unwrap(commands.entitiesForNote(path)),
   entitiesMentions: (entityId: number) => unwrap(commands.entitiesMentions(entityId)),
+  entitiesDeleteAll: () => unwrap(commands.entitiesDeleteAll()),
 
   // Native voice/meeting capture (W4.3): mic capture + on-device whisper
   // transcription. Desktop-only; `voiceCapabilities().available` is false on
@@ -286,6 +289,8 @@ export const api = {
   voiceCancelRecording: () => unwrap(commands.voiceCancelRecording()),
   voiceDeleteRecording: (fileName: string) => unwrap(commands.voiceDeleteRecording(fileName)),
   voiceTranscribe: (wavPath: string) => unwrap(commands.voiceTranscribe(wavPath)),
+  voiceModelStatus: () => unwrap(commands.voiceModelStatus()),
+  voiceDeleteModel: () => unwrap(commands.voiceDeleteModel()),
 };
 
 export interface EventDraft {

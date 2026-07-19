@@ -106,6 +106,7 @@
       "desc": "The “Suggest metadata” button in a note's metadata strip.",
       "label": "Metadata suggestions"
     },
+    "aiSetupOffer": "Next: connect a provider and build the semantic index in Settings › AI.",
     "aiTemplates": {
       "aria": "Toggle custom AI actions",
       "desc": "Your own prompt templates in the AI menu.",
@@ -216,6 +217,10 @@
       "desc": "Saved database-style queries over your notes and tasks.",
       "label": "Query views"
     },
+    "reindexOffer": {
+      "action": "Reindex now",
+      "text": "Existing notes need one reindex to pick up their block ids."
+    },
     "relatedNotes": {
       "aria": "Toggle related notes",
       "desc": "A panel of semantically similar notes. Needs the embeddings index from Settings › AI.",
@@ -232,9 +237,38 @@
     "sectionGraph": "Knowledge graph",
     "sectionMedia": "Canvas & media",
     "sectionPower": "Power user",
+    "sectionStorage": "Stored data",
+    "sectionStorageDesc": "Switching a feature off keeps its data. Deleting here frees the space — everything can be rebuilt, but rebuilding may cost downloads or tokens.",
     "sectionSync": "Sync & integrations",
     "sectionWorkspace": "Workspace",
     "sectionWorkspaceDesc": "Hide whole views for a leaner app — notes always stay.",
+    "storage": {
+      "action": "Delete",
+      "embeddings": {
+        "aria": "Delete the semantic index",
+        "confirmBody": "Removes every stored note vector and the local model cache (all vaults share the model). Rebuilding embeds every note again.",
+        "confirmTitle": "Delete the semantic index?",
+        "desc": "Stored note vectors plus the ~130 MB local model cache. Rebuild any time from Settings › AI.",
+        "label": "Semantic index"
+      },
+      "entities": {
+        "aria": "Delete the entity graph",
+        "confirmBody": "Removes every extracted entity and mention. Notes are untouched; re-extraction costs tokens.",
+        "confirmTitle": "Delete the entity graph?",
+        "desc": "The extracted people, places and topics. Extracting again costs tokens.",
+        "label": "Entity graph"
+      },
+      "freed": "Freed {{mb}} MB.",
+      "freedRows": "Removed {{n}} entries.",
+      "voiceModel": {
+        "aria": "Delete the voice model",
+        "confirmBody": "Removes the downloaded transcription model (shared by all vaults). The next transcription downloads it again (~142 MB).",
+        "confirmTitle": "Delete the voice model?",
+        "desc": "Not downloaded.",
+        "descDownloaded": "{{mb}} MB on disk. It re-downloads on the next transcription.",
+        "label": "Voice model"
+      }
+    },
     "tagAutocomplete": {
       "aria": "Toggle tag autocomplete",
       "desc": "Suggest existing tags while typing #.",
