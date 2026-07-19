@@ -43,6 +43,7 @@
     "notesCount": "{{n}} notes"
   },
   "indexing": "Indexing {{done}} / {{total}} notes…",
+  "indexingHint": "This can take a moment for a large vault — the app stays usable.",
   "loading": "Loading…",
   "mainNav": "Main navigation",
   "menu": "Menu",

@@ -1,7 +1,7 @@
 import { lazy, Suspense, useEffect, useRef, useState } from "react";
 
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { Menu, X } from "lucide-react";
+import { Loader2, Menu, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { ActivityRail } from "./components/ActivityRail";
@@ -298,20 +298,27 @@ export default function App() {
 
   if (loading) {
     return (
-      <main className="flex min-h-screen flex-col items-center justify-center gap-3 bg-app text-fg-subtle">
+      <main className="flex min-h-screen flex-col items-center justify-center gap-4 bg-app text-fg-subtle">
         {indexProgress ? (
           <>
-            <p className="text-sm">
-              {t("indexing", { done: indexProgress.done, total: indexProgress.total })}
-            </p>
-            <div className="h-1 w-56 overflow-hidden rounded-full bg-active">
+            <div className="flex items-center gap-2 text-base font-medium text-fg">
+              <Loader2 size={18} className="animate-spin text-accent" />
+              <span>
+                {t("indexing", { done: indexProgress.done, total: indexProgress.total })}
+              </span>
+              <span className="text-fg-muted">
+                {Math.round((indexProgress.done / Math.max(indexProgress.total, 1)) * 100)}%
+              </span>
+            </div>
+            <div className="h-2 w-72 overflow-hidden rounded-full bg-active">
               <div
-                className="h-full bg-accent transition-[width] duration-200"
+                className="h-full rounded-full bg-accent transition-[width] duration-200"
                 style={{
                   width: `${Math.round((indexProgress.done / Math.max(indexProgress.total, 1)) * 100)}%`,
                 }}
               />
             </div>
+            <p className="text-xs text-fg-faint">{t("indexingHint")}</p>
           </>
         ) : (
           t("loading")
@@ -434,13 +441,19 @@ export default function App() {
             vault isn't mistaken for a hang. The full-screen loading path above
             shows its own bar; this covers the case where the vault stays open. */}
         {indexProgress && !loading && (
-          <div className="fixed bottom-4 left-1/2 z-50 flex -translate-x-1/2 items-center gap-3 rounded-full border border-border bg-surface-2 px-4 py-2 text-xs text-fg-muted shadow-lg">
-            <span>
-              {t("indexing", { done: indexProgress.done, total: indexProgress.total })}
-            </span>
-            <div className="h-1 w-24 overflow-hidden rounded-full bg-active">
+          <div className="fixed bottom-5 left-1/2 z-50 flex w-80 max-w-[calc(100vw-2rem)] -translate-x-1/2 flex-col gap-2 rounded-xl border border-border bg-surface-2 px-5 py-3.5 text-sm text-fg shadow-xl">
+            <div className="flex items-center gap-2">
+              <Loader2 size={16} className="shrink-0 animate-spin text-accent" />
+              <span className="font-medium">
+                {t("indexing", { done: indexProgress.done, total: indexProgress.total })}
+              </span>
+              <span className="ml-auto text-fg-muted">
+                {Math.round((indexProgress.done / Math.max(indexProgress.total, 1)) * 100)}%
+              </span>
+            </div>
+            <div className="h-2 w-full overflow-hidden rounded-full bg-active">
               <div
-                className="h-full bg-accent transition-[width] duration-200"
+                className="h-full rounded-full bg-accent transition-[width] duration-200"
                 style={{
                   width: `${Math.round((indexProgress.done / Math.max(indexProgress.total, 1)) * 100)}%`,
                 }}

@@ -43,6 +43,7 @@
     "notesCount": "{{n}} notes"
   },
   "indexing": "Indexation de {{done}} / {{total}} notes…",
+  "indexingHint": "Cela peut prendre un moment pour un grand coffre — l’app reste utilisable.",
   "loading": "Chargement…",
   "mainNav": "Navigation principale",
   "menu": "Menu",

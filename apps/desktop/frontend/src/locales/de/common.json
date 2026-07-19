@@ -43,6 +43,7 @@
     "notesCount": "{{n}} Notizen"
   },
   "indexing": "Indiziere {{done}} / {{total}} Notizen…",
+  "indexingHint": "Bei einem großen Vault kann das einen Moment dauern — die App bleibt nutzbar.",
   "loading": "Wird geladen…",
   "mainNav": "Hauptnavigation",
   "menu": "Menü",

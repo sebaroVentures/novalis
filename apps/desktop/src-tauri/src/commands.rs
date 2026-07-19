@@ -961,18 +961,26 @@ pub fn get_vault_stats(state: State<AppEngine>) -> CmdResult<VaultStats> {
 #[tauri::command]
 #[specta::specta]
 pub async fn reindex_vault(app: AppHandle) -> CmdResult<u32> {
-    let engine_app = app.clone();
-    let count = tauri::async_runtime::spawn_blocking(move || {
-        engine_app.state::<AppEngine>().with(|e| {
-            let mut on_progress = index_progress_emitter(&engine_app);
-            search::build_index_with_progress(&e.db, &e.vault_path, &mut on_progress)?;
-            let n: i64 =
-                e.db.query_row("SELECT COUNT(*) FROM note_meta", [], |row| {
-                    row.get::<_, i64>(0)
-                })
-                .unwrap_or(0);
-            Ok(n as u32)
-        })
+    // Rebuild on a SEPARATE connection to the same WAL database, WITHOUT holding
+    // the engine lock. A full rebuild of a large vault takes minutes, and the old
+    // code held the engine mutex the whole time — every other command blocked on
+    // it, so the app looked frozen/crashed. WAL lets this second connection do its
+    // write while the engine's connection keeps serving reads (navigating notes,
+    // search); readers see the previous index until the rebuild commits, then the
+    // new one. (A concurrent WRITE waits on the 5s busy_timeout and may fail — an
+    // acceptable, loud degradation during an explicit reindex, vs. a total freeze.)
+    let (data_dir, vault_path) =
+        app.state::<AppEngine>()
+            .with(|e| Ok((e.data_dir.clone(), e.vault_path.clone())))?;
+    let progress_app = app.clone();
+    let count = tauri::async_runtime::spawn_blocking(move || -> CmdResult<u32> {
+        let db = schema::open_db(&config::db_path(&data_dir))?;
+        let mut on_progress = index_progress_emitter(&progress_app);
+        search::build_index_with_progress(&db, &vault_path, &mut on_progress)?;
+        let n: i64 = db
+            .query_row("SELECT COUNT(*) FROM note_meta", [], |row| row.get::<_, i64>(0))
+            .unwrap_or(0);
+        Ok(n as u32)
     })
     .await
     .map_err(|e| CommandError::internal(format!("reindex_vault task panicked: {e}")))??;
