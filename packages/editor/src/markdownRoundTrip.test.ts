@@ -83,6 +83,48 @@ describe("markdown round-trip: byte-equal", () => {
   });
 });
 
+describe("markdown round-trip: all optional features disabled", () => {
+  // Serialization safety is flag-independent: MarkdownText (the round-trip-safe
+  // serializer) stays registered regardless of feature flags, and the gated
+  // extensions are decoration-only. Disabling every feature must therefore
+  // never touch the markdown — a regression here means a feature toggle
+  // silently rewrites notes on disk.
+  function roundTripAllOff(markdown: string): string {
+    const editor = new Editor({
+      extensions: buildEditorExtensions({
+        features: {
+          math: false,
+          mermaid: false,
+          embeds: false,
+          blockRefs: false,
+          callouts: false,
+          codeHighlight: false,
+          tagAutocomplete: false,
+        },
+      }),
+      content: markdown,
+    });
+    editors.push(editor);
+    return serialize(editor);
+  }
+
+  const cases: [name: string, markdown: string][] = [
+    ["wikilink, embed and math", "See [[Meeting Notes]] and ![[Diagram.png]] and $x_i * y$"],
+    ["inline math with backslash", "The rule $\\frac{a}{b}$ applies."],
+    ["single-line block math", "$$\\sum_{i=0}^{n} x_i$$"],
+    ["block reference and marker", "Per ((^k3f9qz)) — a claim. ^k3f9qz"],
+    ["single-line callout", "> [!NOTE] Remember this"],
+    ["mermaid code fence", "```mermaid\ngraph TD; A-->B;\n```"],
+    ["code fence containing wikilink and math", "```text\n[[Not A Link]] and $not math$\n```"],
+    ["tags", "#foo/bar and #x"],
+    ["less-than in prose", "5 < 7 and 9 > 3"],
+  ];
+
+  it.each(cases)("%s", (_name, markdown) => {
+    expect(roundTripAllOff(markdown)).toBe(markdown);
+  });
+});
+
 describe("markdown round-trip: documented normalizations", () => {
   const cases: [name: string, markdown: string, normalized: string][] = [
     // prosemirror-markdown escapes markdown punctuation in plain text; the

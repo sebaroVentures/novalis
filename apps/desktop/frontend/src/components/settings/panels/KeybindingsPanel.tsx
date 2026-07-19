@@ -2,7 +2,9 @@ import { useState } from "react";
 
 import { useTranslation } from "react-i18next";
 
+import { featureOn } from "../../../lib/features";
 import {
+  ACTION_FEATURE,
   ACTION_IDS,
   type ActionId,
   chordFromEvent,
@@ -10,6 +12,7 @@ import {
   normalizeChord,
 } from "../../../lib/keybindings";
 import { useKeymap } from "../../../stores/keymapStore";
+import { useSettings } from "../../../stores/settingsStore";
 import { SettingRow, SettingsSection } from "../../ui";
 
 /** Human labels for each action, shared by the panel and the cheatsheet.
@@ -42,17 +45,31 @@ export function useActionLabels(): Record<ActionId, string> {
   };
 }
 
+/** The actions to display: core ones plus those whose owning feature
+ *  (ACTION_FEATURE) is on. Shared by the panel and the cheatsheet, like the
+ *  labels above. Hidden actions keep their ids and stored chords, so toggling
+ *  a feature back on restores the user's bindings. */
+export function useVisibleActionIds(): ActionId[] {
+  const features = useSettings((s) => s.prefs?.features);
+  return ACTION_IDS.filter((a) => {
+    const feat = ACTION_FEATURE[a];
+    return !feat || featureOn(features, feat);
+  });
+}
+
 export function KeybindingsPanel() {
   const { t } = useTranslation("settings");
   const keymap = useKeymap((s) => s.keymap);
   const rebind = useKeymap((s) => s.rebind);
   const reset = useKeymap((s) => s.reset);
   const labels = useActionLabels();
+  const actionIds = useVisibleActionIds();
   const [capturing, setCapturing] = useState<ActionId | null>(null);
 
-  // Count chord usage so duplicates can be flagged as conflicts.
+  // Count chord usage so duplicates can be flagged as conflicts. Only visible
+  // actions count — a chord held by a feature-off action isn't reachable.
   const counts = new Map<string, number>();
-  for (const a of ACTION_IDS) counts.set(keymap[a], (counts.get(keymap[a]) ?? 0) + 1);
+  for (const a of actionIds) counts.set(keymap[a], (counts.get(keymap[a]) ?? 0) + 1);
 
   const onCapture = (action: ActionId, e: React.KeyboardEvent) => {
     e.preventDefault();
@@ -68,7 +85,7 @@ export function KeybindingsPanel() {
 
   return (
     <SettingsSection title={t("keybindings.title")}>
-      {ACTION_IDS.map((a) => (
+      {actionIds.map((a) => (
         <SettingRow
           key={a}
           label={labels[a]}

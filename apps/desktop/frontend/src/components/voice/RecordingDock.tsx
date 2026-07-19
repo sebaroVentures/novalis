@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Loader2, Square, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { useFeature } from "../../lib/features";
 import { useVoice } from "../../stores/voiceStore";
 
 /** Two-digit zero-pad. */
@@ -23,6 +24,7 @@ export function RecordingDock() {
   const error = useVoice((s) => s.error);
   const startedAt = useVoice((s) => s.recordingStartedAt);
   const checkAvailability = useVoice((s) => s.checkAvailability);
+  const voiceOn = useFeature("voice");
 
   useEffect(() => {
     void checkAvailability();
@@ -43,6 +45,12 @@ export function RecordingDock() {
     const id = setInterval(tick, 1000);
     return () => clearInterval(id);
   }, [status, startedAt]);
+
+  // Feature off: stay mounted (the availability probe above is what feeds the
+  // rail mic + palette entry) but show no UI — EXCEPT while a capture is in
+  // flight or finishing: these buttons are the only stop/cancel affordance, so
+  // hiding them mid-recording would strand a live microphone capture.
+  if (!voiceOn && status === "idle") return null;
 
   // Nothing to show while idle (and no lingering error): keep the editor clear.
   if (status === "idle" && !error) return null;

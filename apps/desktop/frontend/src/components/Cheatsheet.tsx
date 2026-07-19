@@ -1,16 +1,18 @@
 import { X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { ACTION_IDS, formatChord } from "../lib/keybindings";
+import { formatChord } from "../lib/keybindings";
 import { useKeymap } from "../stores/keymapStore";
-import { useActionLabels } from "./settings/panels/KeybindingsPanel";
+import { useActionLabels, useVisibleActionIds } from "./settings/panels/KeybindingsPanel";
 import { Modal } from "./ui/Modal";
 
-/** Read-only keyboard-shortcut reference (bound to the `cheatsheet` action). */
+/** Read-only keyboard-shortcut reference (bound to the `cheatsheet` action).
+ *  Lists only actions whose feature (if any) is on, like the settings panel. */
 export function Cheatsheet({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { t } = useTranslation("settings");
   const keymap = useKeymap((s) => s.keymap);
   const labels = useActionLabels();
+  const actionIds = useVisibleActionIds();
 
   if (!open) return null;
 
@@ -32,7 +34,7 @@ export function Cheatsheet({ open, onClose }: { open: boolean; onClose: () => vo
         </button>
       </div>
       <ul className="space-y-1.5">
-        {ACTION_IDS.map((a) => (
+        {actionIds.map((a) => (
           <li key={a} className="flex items-center justify-between gap-3 text-sm">
             <span className="text-fg-muted">{labels[a]}</span>
             <kbd className="rounded bg-surface-2 px-1.5 py-0.5 text-xs text-fg ring-1 ring-border">

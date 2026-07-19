@@ -23,6 +23,11 @@ function ensureMermaid(): Promise<MermaidLike> {
 }
 
 interface MermaidOptions extends CodeBlockLowlightOptions {
+  /** Render ```mermaid blocks as diagrams. When false they fall through to the
+   *  plain `<pre><code>` NodeView and mermaid never lazy-loads. The extension
+   *  itself must stay registered either way — it is the schema's only
+   *  codeBlock node. */
+  renderDiagrams: boolean;
   mermaidShowSource: string;
   mermaidShowDiagram: string;
 }
@@ -35,6 +40,7 @@ export const MermaidCodeBlock = CodeBlockLowlight.extend<MermaidOptions>({
   addOptions() {
     return {
       ...this.parent?.(),
+      renderDiagrams: true,
       mermaidShowSource: "Show source",
       mermaidShowDiagram: "Show diagram",
     };
@@ -45,8 +51,9 @@ export const MermaidCodeBlock = CodeBlockLowlight.extend<MermaidOptions>({
 
     return ({ node }) => {
       // Plain code block: reproduce the default <pre><code> so the lowlight
-      // decoration plugin highlights it exactly as before.
-      if (node.attrs.language !== "mermaid") {
+      // decoration plugin highlights it exactly as before. With diagram
+      // rendering off, ```mermaid blocks take this branch too.
+      if (node.attrs.language !== "mermaid" || !options.renderDiagrams) {
         const pre = document.createElement("pre");
         const code = document.createElement("code");
         if (node.attrs.language) code.className = `language-${node.attrs.language}`;
@@ -56,7 +63,7 @@ export const MermaidCodeBlock = CodeBlockLowlight.extend<MermaidOptions>({
           contentDOM: code,
           update: (updated) => {
             if (updated.type !== node.type) return false;
-            if (updated.attrs.language === "mermaid") return false; // became mermaid → rebuild
+            if (updated.attrs.language === "mermaid" && options.renderDiagrams) return false; // became mermaid → rebuild
             code.className = updated.attrs.language ? `language-${updated.attrs.language}` : "";
             return true;
           },

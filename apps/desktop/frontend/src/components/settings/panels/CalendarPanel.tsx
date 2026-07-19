@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 
 import { api, type CalendarSourceConfig } from "../../../ipc/api";
 import { displayError } from "../../../lib/errors";
+import { useFeature } from "../../../lib/features";
 import { useSettings } from "../../../stores/settingsStore";
 import { NumberField, SegmentedControl, SettingRow, SettingsSection, TextField } from "../../ui";
 import { PanelLoading } from "./PanelLoading";
@@ -16,6 +17,11 @@ export function CalendarPanel() {
   const [srcName, setSrcName] = useState("");
   const [srcUrl, setSrcUrl] = useState("");
   const [calMsg, setCalMsg] = useState<string | null>(null);
+  // Feature-off hides only the "add" affordances (connect buttons / subscribe
+  // form); already-configured sources stay listed so refresh/remove keep
+  // working — removal is the cleanup path even with the feature off.
+  const calendarSyncOn = useFeature("calendarSync");
+  const icsSubscriptionsOn = useFeature("icsSubscriptions");
 
   const reload = () => void api.listCalendarSources().then(setSources).catch(() => {});
   useEffect(() => {
@@ -117,18 +123,20 @@ export function CalendarPanel() {
         title={t("calendar.sectionCalendars")}
         description={t("calendar.calendarsDesc")}
       >
-        <div className="mb-3 flex gap-2">
-          {/* eslint-disable-next-line i18next/no-literal-string -- provider ids (logic keys); label via connectProvider */}
-          {(["google", "outlook"] as const).map((p) => (
-            <button
-              key={p}
-              onClick={() => connect(p)}
-              className="rounded-lg border border-border-strong px-2.5 py-1 text-xs capitalize text-fg-muted transition-colors hover:bg-hover"
-            >
-              {t("calendar.connectProvider", { provider: p })}
-            </button>
-          ))}
-        </div>
+        {calendarSyncOn && (
+          <div className="mb-3 flex gap-2">
+            {/* eslint-disable-next-line i18next/no-literal-string -- provider ids (logic keys); label via connectProvider */}
+            {(["google", "outlook"] as const).map((p) => (
+              <button
+                key={p}
+                onClick={() => connect(p)}
+                className="rounded-lg border border-border-strong px-2.5 py-1 text-xs capitalize text-fg-muted transition-colors hover:bg-hover"
+              >
+                {t("calendar.connectProvider", { provider: p })}
+              </button>
+            ))}
+          </div>
+        )}
         {calMsg && <p className="mb-2 text-xs text-danger">{calMsg}</p>}
         <div className="space-y-1">
           {sources.length === 0 && (
@@ -163,26 +171,28 @@ export function CalendarPanel() {
             </div>
           ))}
         </div>
-        <div className="mt-3 space-y-2 rounded-xl bg-app/50 p-3">
-          <TextField
-            value={srcName}
-            onChange={(e) => setSrcName(e.target.value)}
-            placeholder={t("calendar.namePlaceholder")}
-            className="w-full"
-          />
-          <TextField
-            value={srcUrl}
-            onChange={(e) => setSrcUrl(e.target.value)}
-            placeholder={t("calendar.urlPlaceholder")}
-            className="w-full"
-          />
-          <button
-            onClick={subscribe}
-            className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90"
-          >
-            {t("calendar.subscribe")}
-          </button>
-        </div>
+        {icsSubscriptionsOn && (
+          <div className="mt-3 space-y-2 rounded-xl bg-app/50 p-3">
+            <TextField
+              value={srcName}
+              onChange={(e) => setSrcName(e.target.value)}
+              placeholder={t("calendar.namePlaceholder")}
+              className="w-full"
+            />
+            <TextField
+              value={srcUrl}
+              onChange={(e) => setSrcUrl(e.target.value)}
+              placeholder={t("calendar.urlPlaceholder")}
+              className="w-full"
+            />
+            <button
+              onClick={subscribe}
+              className="rounded-lg bg-accent px-3 py-1.5 text-xs font-medium text-accent-fg transition-opacity hover:opacity-90"
+            >
+              {t("calendar.subscribe")}
+            </button>
+          </div>
+        )}
       </SettingsSection>
     </>
   );

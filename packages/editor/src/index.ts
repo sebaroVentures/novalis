@@ -8,7 +8,7 @@
 // Markdown plain, so round-trip stays trivial too.
 
 export { NovalisEditor, getMarkdown, buildEditorExtensions } from "./NovalisEditor";
-export type { NovalisEditorProps, EditorExtensionsOptions } from "./NovalisEditor";
+export type { NovalisEditorProps, EditorExtensionsOptions, EditorFeatures } from "./NovalisEditor";
 export { MarkdownText } from "./MarkdownText";
 export { extractHeadings } from "./outline";
 export type { OutlineItem } from "./outline";

@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { getMarkdown, type Editor } from "@novalis/editor";
 
 import { api, type NoteSummary, type PropertyValue } from "../../ipc/api";
+import { useFeature } from "../../lib/features";
 import { useAi } from "../../stores/aiStore";
 import {
   Chip,
@@ -162,6 +163,7 @@ export function AmbientSuggestions(props: AmbientSuggestionsProps) {
   const { t } = useTranslation("ai");
   const connections = useAi((s) => s.connections);
   const selectedId = useAi((s) => s.selectedConnectionId);
+  const propertiesOn = useFeature("properties");
 
   const [links, setLinks] = useState<LinkSuggestion[]>([]);
   const [meta, setMeta] = useState<Suggestions>({ tags: [], aliases: [], properties: [] });
@@ -298,7 +300,11 @@ export function AmbientSuggestions(props: AmbientSuggestionsProps) {
   const dismissProperty = (key: string) =>
     setMeta((s) => ({ ...s, properties: s.properties.filter((p) => p.key !== key) }));
 
-  const total = links.length + meta.tags.length + meta.aliases.length + meta.properties.length;
+  // With the `properties` feature off, property chips are hidden and uncounted —
+  // accepting one would silently write frontmatter no visible surface shows.
+  const metaView = propertiesOn ? meta : { ...meta, properties: [] };
+  const total =
+    links.length + metaView.tags.length + metaView.aliases.length + metaView.properties.length;
   // Silent until there is something to offer — this must never nag mid-write.
   if (!active || total === 0) return null;
 
@@ -339,9 +345,9 @@ export function AmbientSuggestions(props: AmbientSuggestionsProps) {
             ))}
           </SuggestionRow>
         )}
-        {meta.tags.length > 0 && (
+        {metaView.tags.length > 0 && (
           <SuggestionRow label={t("meta.tags")}>
-            {meta.tags.map((tag) => (
+            {metaView.tags.map((tag) => (
               <Chip
                 key={tag}
                 text={`#${tag}`}
@@ -353,9 +359,9 @@ export function AmbientSuggestions(props: AmbientSuggestionsProps) {
             ))}
           </SuggestionRow>
         )}
-        {meta.aliases.length > 0 && (
+        {metaView.aliases.length > 0 && (
           <SuggestionRow label={t("meta.aliases")}>
-            {meta.aliases.map((alias) => (
+            {metaView.aliases.map((alias) => (
               <Chip
                 key={alias}
                 text={alias}
@@ -367,9 +373,9 @@ export function AmbientSuggestions(props: AmbientSuggestionsProps) {
             ))}
           </SuggestionRow>
         )}
-        {meta.properties.length > 0 && (
+        {metaView.properties.length > 0 && (
           <SuggestionRow label={t("meta.properties")}>
-            {meta.properties.map((p) => (
+            {metaView.properties.map((p) => (
               <Chip
                 key={p.key}
                 text={`${p.key}: ${shortValue(p.value)}`}

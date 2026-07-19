@@ -1,8 +1,9 @@
-// Device-local activity-rail layout: which top-level views appear in the left
-// activity rail and in what order. Global UI chrome (not per-vault), like the
-// sidebar collapse/width in lib/uiPrefs.ts — stored in localStorage. A fresh
-// install (no stored config) renders exactly today's rail: all five views in
-// canonical order, all enabled.
+// Device-local activity-rail ORDER: in what order the top-level views appear
+// in the left activity rail. WHICH views are available is not decided here —
+// that comes from the vault-synced feature flags (Preferences.features via
+// lib/features.ts); the rail and the Navigation settings panel intersect this
+// order with the flags at render time. Global UI chrome (not per-vault), like
+// the sidebar collapse/width in lib/uiPrefs.ts — stored in localStorage.
 
 import { create } from "zustand";
 
@@ -10,14 +11,17 @@ import type { MainView } from "../components/Sidebar";
 
 export interface RailItem {
   view: MainView;
+  /** Legacy per-view visibility (pre feature-flags). Still parsed and stored
+   *  so old configs round-trip unchanged, but IGNORED by all readers —
+   *  availability is managed in Settings › Features. */
   enabled: boolean;
 }
 export type RailConfig = RailItem[];
 
 const KEY = "novalis:device:railConfig";
 
-/** Canonical view order (mirrors ActivityRail's VIEW_ITEMS). The default config
- *  is these five, all enabled — so untouched installs see no change. */
+/** Canonical view order (mirrors ActivityRail's VIEW_ITEMS) — the default
+ *  config for installs that never reordered the rail. */
 const DEFAULT_ORDER: MainView[] = [
   "notes",
   "today",
@@ -33,8 +37,9 @@ export function defaultRailConfig(): RailConfig {
   return DEFAULT_ORDER.map((view) => ({ view, enabled: true }));
 }
 
-/** Guarantee at least one view stays enabled — an all-off rail would be a dead
- *  end. If a config would disable everything, re-enable the first item. */
+/** Legacy invariant on the ignored `enabled` bit (an all-off rail used to be a
+ *  dead end) — kept so stored configs stay valid for older builds reading the
+ *  same key; today's readers derive visibility from feature flags instead. */
 function ensureOneEnabled(cfg: RailConfig): RailConfig {
   if (cfg.some((i) => i.enabled)) return cfg;
   return cfg.map((i, idx) => (idx === 0 ? { ...i, enabled: true } : i));
@@ -42,8 +47,9 @@ function ensureOneEnabled(cfg: RailConfig): RailConfig {
 
 /** Reconcile a possibly-stale stored config against the known view set so app
  *  upgrades never lose or break items: keep the stored order for known views,
- *  drop unknown/duplicate ones, and append any missing (newly added) views as
- *  enabled at the end. Also enforces the at-least-one-enabled guard. */
+ *  drop unknown/duplicate ones, and append any missing (newly added) views at
+ *  the end. The legacy `enabled` bit is carried along (and defaulted) purely
+ *  for shape compatibility. */
 function reconcile(stored: unknown): RailConfig {
   if (!Array.isArray(stored)) return defaultRailConfig();
   const seen = new Set<MainView>();
@@ -80,21 +86,14 @@ export function saveRailConfig(cfg: RailConfig): RailConfig {
   return safe;
 }
 
-/** The ordered list of views the rail should render (enabled only). */
-export function enabledRailViews(cfg: RailConfig): MainView[] {
-  return cfg.filter((i) => i.enabled).map((i) => i.view);
-}
-
 // ── Reactive store ──────────────────────────────────────────────────────────
 // A tiny zustand store so the rail and the settings panel share one source of
 // truth: editing the config in Settings re-renders the rail live. Mirrors the
 // keymapStore pattern (store wraps the pure load/save helpers).
 interface RailConfigStore {
   config: RailConfig;
-  /** Persist a new config (enforcing the guard) and re-render subscribers. */
+  /** Persist a new config and re-render subscribers. */
   setConfig: (cfg: RailConfig) => void;
-  /** Toggle one view on/off. */
-  toggle: (view: MainView) => void;
   /** Move a view one slot up (-1) or down (+1) in rail order. */
   move: (view: MainView, dir: -1 | 1) => void;
 }
@@ -102,10 +101,6 @@ interface RailConfigStore {
 export const useRailConfig = create<RailConfigStore>((set, get) => ({
   config: loadRailConfig(),
   setConfig: (cfg) => set({ config: saveRailConfig(cfg) }),
-  toggle: (view) =>
-    get().setConfig(
-      get().config.map((i) => (i.view === view ? { ...i, enabled: !i.enabled } : i)),
-    ),
   move: (view, dir) => {
     const cfg = get().config;
     const i = cfg.findIndex((x) => x.view === view);

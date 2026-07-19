@@ -11,6 +11,7 @@ import {
   monthYearLabel,
   weekdayShortNames,
 } from "../lib/datetime";
+import { useFeature } from "../lib/features";
 import { type CalMode, gridFor, isoDate, useCalendar } from "../stores/calendarStore";
 import { useSettings } from "../stores/settingsStore";
 import { useVoice } from "../stores/voiceStore";
@@ -316,6 +317,8 @@ function EventModal({
   const [d, setD] = useState<EventDraft>(draft);
   const [freq, setFreq] = useState(rruleToFreq(draft.rrule));
   const editing = Boolean(draft.notePath);
+  // Voice surfaces need the feature flag AND the runtime capability.
+  const voiceOn = useFeature("voice");
   const voiceAvailable = useVoice((s) => s.available);
   const voiceStatus = useVoice((s) => s.status);
   const titleRef = useRef<HTMLInputElement>(null);
@@ -432,7 +435,7 @@ function EventModal({
             <button onClick={() => void addMeeting()} className="text-xs text-fg-muted hover:text-fg">
               {t("addMeetingNote")}
             </button>
-            {voiceAvailable && (
+            {voiceOn && voiceAvailable && (
               <button
                 onClick={() => {
                   void useVoice.getState().start();

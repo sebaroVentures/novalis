@@ -18,9 +18,11 @@ import {
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { formatChord, type ActionId, type Chord } from "../lib/keybindings";
+import { featureOn, useFeature } from "../lib/features";
+import { ACTION_FEATURE, formatChord, type ActionId, type Chord } from "../lib/keybindings";
 import { useRailConfig } from "../lib/railPrefs";
 import { useKeymap } from "../stores/keymapStore";
+import { useSettings } from "../stores/settingsStore";
 import { useVoice } from "../stores/voiceStore";
 import type { MainView } from "./Sidebar";
 
@@ -29,9 +31,10 @@ const railBtn =
 const railBtnIdle = "text-fg-muted hover:bg-hover hover:text-fg";
 
 /** Per-view metadata: keymap action (for the live chord in the tooltip) and
- *  icon. Labels come from common:views.*. The rail's ORDER and which views show
- *  come from the (device-local) rail config; this map is keyed by view so the
- *  config can reference any subset in any order. */
+ *  icon. Labels come from common:views.*. The rail's ORDER comes from the
+ *  (device-local) rail config; which views show comes from the vault's feature
+ *  flags (via ACTION_FEATURE). This map is keyed by view so the config can
+ *  reference any subset in any order. */
 const VIEW_ITEMS: Record<MainView, { action: ActionId; Icon: LucideIcon }> = {
   notes: { action: "view-notes", Icon: FileText },
   today: { action: "view-today", Icon: Sun },
@@ -72,17 +75,29 @@ export function ActivityRail({
   // out of view; clicking it while recording stops the take.
   const voiceAvailable = useVoice((s) => s.available);
   const voiceStatus = useVoice((s) => s.status);
+  const voiceOn = useFeature("voice");
+  // Which views exist comes from the vault's feature flags alone; the rail
+  // config only contributes ORDER (its legacy `enabled` bit is ignored —
+  // availability is managed in Settings › Features).
+  const features = useSettings((s) => s.prefs?.features);
   const withChord = (label: string, chord?: Chord) =>
     chord ? `${label} (${formatChord(chord)})` : label;
 
-  // If the active view was just hidden from the rail (disabled in Settings),
-  // fall back to the first enabled view so the content pane never strands on a
-  // view with no rail button. The view stays reachable via its keybinding, so
-  // this is only about keeping the visible highlight/content in sync.
+  // If the active view's feature was just turned off (Settings › Features, or
+  // a vault whose flags differ), fall back to the first available view so the
+  // content pane never strands on a feature-off view. Keybindings and the
+  // palette are gated on the same flags, so a hidden view is truly off.
+  // `notes` is core (never gated), so the list can't be empty; the ?? guard
+  // only satisfies the indexed-access type.
   useEffect(() => {
-    const enabled = railConfig.filter((i) => i.enabled).map((i) => i.view);
-    if (!enabled.includes(view)) onViewChange(enabled[0]);
-  }, [railConfig, view, onViewChange]);
+    const available = railConfig
+      .filter((i) => {
+        const feat = ACTION_FEATURE[VIEW_ITEMS[i.view].action];
+        return !feat || featureOn(features, feat);
+      })
+      .map((i) => i.view);
+    if (!available.includes(view)) onViewChange(available[0] ?? "notes");
+  }, [railConfig, features, view, onViewChange]);
   const viewLabels: Record<MainView, string> = {
     notes: t("views.notes"),
     today: t("views.today"),
@@ -101,7 +116,10 @@ export function ActivityRail({
       className="flex h-full w-12 shrink-0 flex-col items-center gap-1 border-r border-border bg-surface py-2"
     >
       {railConfig
-        .filter((i) => i.enabled)
+        .filter((i) => {
+          const feat = ACTION_FEATURE[VIEW_ITEMS[i.view].action];
+          return !feat || featureOn(features, feat);
+        })
         .map(({ view: v }) => {
           const { action, Icon } = VIEW_ITEMS[v];
           return (
@@ -119,7 +137,7 @@ export function ActivityRail({
         })}
 
       <div className="mt-auto flex flex-col items-center gap-1">
-        {voiceAvailable && (
+        {voiceAvailable && voiceOn && (
           <div className="relative">
             <button
               aria-label={voiceStatus === "recording" ? t("ai:voice.stop") : t("ai:voice.tooltip")}

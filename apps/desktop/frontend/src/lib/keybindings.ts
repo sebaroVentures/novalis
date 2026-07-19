@@ -3,6 +3,8 @@
 // modifier (⌘ on macOS, Ctrl elsewhere). Overrides persist in localStorage,
 // mirroring the device-local pattern in lib/language.ts / lib/sidebarPrefs.ts.
 
+import type { FeatureKey } from "./features";
+
 export type ActionId =
   | "search"
   | "command-palette"
@@ -51,6 +53,21 @@ export const ACTION_IDS: ActionId[] = [
   "focus-pane-left",
   "focus-pane-right",
 ];
+
+/** Actions owned by an optional feature (vault-synced Preferences.features).
+ *  Call sites (the App keydown dispatcher, the cheatsheet, the keybindings
+ *  panel) skip an action whose feature is off. The ids deliberately STAY in
+ *  ActionId/ACTION_IDS/DEFAULT_KEYMAP so device-local chord overrides survive
+ *  a feature being toggled off and on again. Type-only coupling to
+ *  lib/features.ts — the effective check (featureOn/isFeatureOn) lives there. */
+export const ACTION_FEATURE: Partial<Record<ActionId, FeatureKey>> = {
+  "view-today": "todayView",
+  "view-tasks": "tasks",
+  "view-calendar": "calendar",
+  "view-graph": "graphView",
+  "view-query": "queryEngine",
+  "view-canvas": "canvas",
+};
 
 /** A chord string like "mod+shift+p", "mod+,", "mod+[". */
 export type Chord = string;
@@ -139,14 +156,19 @@ function chordsMatch(a: ParsedChord, b: ParsedChord): boolean {
 }
 
 /** The action bound to a keyboard event under `keymap`, or null. Ignores plain
- *  (modifier-less) keystrokes so it never swallows ordinary typing. */
+ *  (modifier-less) keystrokes so it never swallows ordinary typing. An action
+ *  the optional `available` predicate rejects (feature off) is skipped during
+ *  matching rather than gated afterwards — otherwise it would silently shadow
+ *  its chord from a visible action the user rebound to the same keys. */
 export function actionForEvent(
   keymap: Record<ActionId, Chord>,
   e: { metaKey: boolean; ctrlKey: boolean; shiftKey: boolean; altKey: boolean; key: string },
+  available?: (action: ActionId) => boolean,
 ): ActionId | null {
   const ev = chordFromEvent(e);
   if (!ev.mod && !ev.alt) return null;
   for (const action of ACTION_IDS) {
+    if (available && !available(action)) continue;
     if (chordsMatch(ev, parseChord(keymap[action]))) return action;
   }
   return null;

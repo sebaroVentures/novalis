@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, MoreHorizontal, Plus } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import type { NotePropertyEntry, PropertyValue } from "../ipc/api";
+import { useFeature } from "../lib/features";
 import {
   coerceTo,
   effectiveKind,
@@ -68,6 +69,7 @@ export function PropertiesPanel({
   properties: NotePropertyEntry[];
 }) {
   const { t } = useTranslation(["editor", "common"]);
+  const propertiesOn = useFeature("properties");
   const vaultPath = useVault((s) => s.vaultPath) ?? "";
   const setProperty = useVault((s) => s.setProperty);
   const removeProperty = useVault((s) => s.removeProperty);
@@ -89,6 +91,11 @@ export function PropertiesPanel({
     setAdding(false);
     setKeyError(null);
   }, [path]);
+
+  // Feature gate lives in the panel itself (not at the EditorPane mount).
+  // After every hook so the hook order stays stable across a flag flip; the
+  // frontmatter itself is untouched — re-enabling shows it again.
+  if (!propertiesOn) return null;
 
   const toggleOpen = () =>
     setOpen((v) => {

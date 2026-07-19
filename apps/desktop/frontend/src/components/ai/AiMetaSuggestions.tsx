@@ -4,6 +4,7 @@ import { ChevronDown, ChevronRight, Loader2, Plus, Sparkles, X } from "lucide-re
 import { useTranslation } from "react-i18next";
 
 import type { PropertyValue } from "../../ipc/api";
+import { useFeature } from "../../lib/features";
 import { useAi } from "../../stores/aiStore";
 
 // Device-local "is the suggestions list expanded" bit (expanded default — a
@@ -156,6 +157,7 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
   const { t } = useTranslation("ai");
   const connections = useAi((s) => s.connections);
   const selectedId = useAi((s) => s.selectedConnectionId);
+  const propertiesOn = useFeature("properties");
 
   const [status, setStatus] = useState<"idle" | "loading" | "ready" | "error">("idle");
   const [error, setError] = useState<string | null>(null);
@@ -262,7 +264,10 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
     );
   }
 
-  const total = sug.tags.length + sug.aliases.length + sug.properties.length;
+  // With the `properties` feature off, property chips are hidden and uncounted —
+  // accepting one would silently write frontmatter no visible surface shows.
+  const view = propertiesOn ? sug : { ...sug, properties: [] };
+  const total = view.tags.length + view.aliases.length + view.properties.length;
   const empty = total === 0;
 
   return (
@@ -317,9 +322,9 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
 
       {open && status === "ready" && !empty && (
         <div className="flex flex-col gap-1.5">
-          {sug.tags.length > 0 && (
+          {view.tags.length > 0 && (
             <SuggestionRow label={t("meta.tags")}>
-              {sug.tags.map((tag) => (
+              {view.tags.map((tag) => (
                 <Chip
                   key={tag}
                   text={`#${tag}`}
@@ -331,9 +336,9 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
               ))}
             </SuggestionRow>
           )}
-          {sug.aliases.length > 0 && (
+          {view.aliases.length > 0 && (
             <SuggestionRow label={t("meta.aliases")}>
-              {sug.aliases.map((alias) => (
+              {view.aliases.map((alias) => (
                 <Chip
                   key={alias}
                   text={alias}
@@ -345,9 +350,9 @@ export function AiMetaSuggestions(props: AiMetaSuggestionsProps) {
               ))}
             </SuggestionRow>
           )}
-          {sug.properties.length > 0 && (
+          {view.properties.length > 0 && (
             <SuggestionRow label={t("meta.properties")}>
-              {sug.properties.map((p) => (
+              {view.properties.map((p) => (
                 <Chip
                   key={p.key}
                   text={`${p.key}: ${shortValue(p.value)}`}

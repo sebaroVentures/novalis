@@ -4,6 +4,7 @@ import { Link2, Loader2, Network, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, type LinkReference } from "../ipc/api";
+import { useFeature } from "../lib/features";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 import { Modal } from "./ui/Modal";
@@ -30,6 +31,8 @@ export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
   const { t } = useTranslation(["links", "common"]);
   const openInWorkspace = useUi((s) => s.openInWorkspace);
   const invalidateNote = useVault((s) => s.invalidateNote);
+  // The local graph reuses the GraphView chunk — hidden when that feature is off.
+  const graphOn = useFeature("graphView");
 
   const [backlinks, setBacklinks] = useState<LinkReference[]>([]);
   const [mentions, setMentions] = useState<LinkReference[]>([]);
@@ -92,13 +95,15 @@ export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
           {t("title")}
         </span>
         <div className="flex items-center gap-0.5">
-          <button
-            onClick={() => setGraphOpen(true)}
-            title={t("graph")}
-            className="rounded p-1 text-fg-faint transition-colors hover:bg-hover hover:text-fg"
-          >
-            <Network size={14} />
-          </button>
+          {graphOn && (
+            <button
+              onClick={() => setGraphOpen(true)}
+              title={t("graph")}
+              className="rounded p-1 text-fg-faint transition-colors hover:bg-hover hover:text-fg"
+            >
+              <Network size={14} />
+            </button>
+          )}
           <button
             onClick={onClose}
             title={t("hide")}
@@ -144,7 +149,7 @@ export function LinksPanel({ title, path, onClose, stacked }: LinksPanelProps) {
         )}
       </div>
 
-      {graphOpen && (
+      {graphOn && graphOpen && (
         <Modal
           label={t("graph")}
           onClose={() => setGraphOpen(false)}

@@ -27,8 +27,18 @@ export interface SlashLabels {
   mermaid: string;
 }
 
+/** Feature gates for the optional menu items. All default true; flagged-off
+ *  items are simply not built (items are frozen per editor instance, so a flag
+ *  change takes effect on editor recreation). */
+export interface SlashFeatures {
+  math: boolean;
+  mermaid: boolean;
+  callout: boolean;
+}
+
 export interface SlashCommandOptions {
   labels: SlashLabels;
+  features: SlashFeatures;
 }
 
 interface SlashItem {
@@ -68,7 +78,8 @@ function findSlashMatch({ $position }: Trigger): SuggestionMatch {
   };
 }
 
-function buildItems(labels: SlashLabels): SlashItem[] {
+/** The static item list, minus flagged-off features. Exported for tests. */
+export function buildItems(labels: SlashLabels, features: SlashFeatures): SlashItem[] {
   return [
     { title: labels.heading1, keywords: "h1 heading title", run: (e) => e.chain().focus().toggleHeading({ level: 1 }).run() },
     { title: labels.heading2, keywords: "h2 heading subtitle", run: (e) => e.chain().focus().toggleHeading({ level: 2 }).run() },
@@ -77,18 +88,26 @@ function buildItems(labels: SlashLabels): SlashItem[] {
     { title: labels.taskList, keywords: "task todo checkbox", run: (e) => e.chain().focus().toggleTaskList().run() },
     { title: labels.codeBlock, keywords: "code block pre fenced", run: (e) => e.chain().focus().toggleCodeBlock().run() },
     { title: labels.blockquote, keywords: "quote blockquote", run: (e) => e.chain().focus().toggleBlockquote().run() },
-    {
-      title: labels.callout,
-      keywords: "callout note admonition",
-      run: (e) => {
-        const c = e.chain().focus();
-        if (!e.isActive("blockquote")) c.toggleBlockquote();
-        c.insertContent("[!NOTE] ").run();
-      },
-    },
+    ...(features.callout
+      ? [
+          {
+            title: labels.callout,
+            keywords: "callout note admonition",
+            run: (e: Editor) => {
+              const c = e.chain().focus();
+              if (!e.isActive("blockquote")) c.toggleBlockquote();
+              c.insertContent("[!NOTE] ").run();
+            },
+          },
+        ]
+      : []),
     { title: labels.horizontalRule, keywords: "hr divider rule separator", run: (e) => e.chain().focus().setHorizontalRule().run() },
-    { title: labels.math, keywords: "math latex equation formula", run: (e) => e.chain().focus().insertContent("$$  $$").run() },
-    { title: labels.mermaid, keywords: "mermaid diagram chart graph", run: (e) => e.chain().focus().toggleCodeBlock({ language: "mermaid" }).run() },
+    ...(features.math
+      ? [{ title: labels.math, keywords: "math latex equation formula", run: (e: Editor) => e.chain().focus().insertContent("$$  $$").run() }]
+      : []),
+    ...(features.mermaid
+      ? [{ title: labels.mermaid, keywords: "mermaid diagram chart graph", run: (e: Editor) => e.chain().focus().toggleCodeBlock({ language: "mermaid" }).run() }]
+      : []),
   ];
 }
 
@@ -110,11 +129,12 @@ export const SlashCommand = Extension.create<SlashCommandOptions>({
         math: "Math block",
         mermaid: "Mermaid diagram",
       },
+      features: { math: true, mermaid: true, callout: true },
     };
   },
 
   addProseMirrorPlugins() {
-    const allItems = buildItems(this.options.labels);
+    const allItems = buildItems(this.options.labels, this.options.features);
     const matcher = withDismissal(findSlashMatch); // Escape ends the session
     return [
       Suggestion<SlashItem, SlashItem>({

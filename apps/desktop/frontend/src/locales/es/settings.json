@@ -381,9 +381,8 @@
   "navigation": {
     "moveDown": "Mover {{view}} hacia abajo",
     "moveUp": "Mover {{view}} hacia arriba",
-    "railDesc": "Elige qué vistas aparecen en la barra de actividad izquierda y en qué orden.",
-    "sectionRail": "Barra de actividad",
-    "toggleAria": "Mostrar {{view}} en la barra de actividad"
+    "railDesc": "Reordena las vistas de la barra de actividad izquierda. Qué vistas están disponibles se gestiona en Ajustes › Funciones.",
+    "sectionRail": "Barra de actividad"
   },
   "plugins": {
     "empty": "No hay plugins instalados. Colocar una carpeta de plugin en <2>.novalis/plugins/</2> en el Vault (ver PLUGINS.md) y volver a abrir los Ajustes.",

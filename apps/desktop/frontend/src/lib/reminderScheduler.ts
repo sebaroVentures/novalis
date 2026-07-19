@@ -17,6 +17,7 @@ import {
 import { api } from "../ipc/api";
 import { useSettings } from "../stores/settingsStore";
 import { usePlugins } from "../stores/pluginStore";
+import { isFeatureOn } from "./features";
 import i18n from "./i18n";
 import { reminderFireTime } from "./reminders";
 import { displayText } from "./taskDisplay";
@@ -132,6 +133,12 @@ export async function runLaunchDigest(): Promise<void> {
   const total = missedReminders.length + missedEvents.length;
   if (total === 0) return;
 
+  // Reminders feature off: stay silent. The baseline already advanced and the
+  // missed items were marked fired above, so re-enabling never fires them
+  // retroactively. Checked here — after the awaits — so the async per-vault
+  // prefs load (kicked off before this digest) has had time to resolve.
+  if (!isFeatureOn("reminders")) return;
+
   const parts: string[] = [];
   if (missedReminders.length > 0)
     parts.push(
@@ -166,6 +173,12 @@ export async function checkReminders(): Promise<void> {
   const since = lastCheck || now;
   lastCheck = now;
   if (activeVault) saveBaseline(activeVault, now);
+
+  // Reminders feature off: still advance the baseline (the off-window stays
+  // silent even after re-enabling — a toggle is not a snooze) but fire
+  // nothing. Re-read every tick, like the lead-minutes pref, so flipping the
+  // flag takes effect without a restart.
+  if (!isFeatureOn("reminders")) return;
 
   const lead = eventLeadMs();
 

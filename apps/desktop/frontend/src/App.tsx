@@ -54,8 +54,9 @@ const VaultChatPanel = lazy(() =>
   import("./components/VaultChatPanel").then((m) => ({ default: m.VaultChatPanel })),
 );
 import { applyAppearance, watchSystemTheme } from "./lib/appearance";
+import { featureOn, isFeatureOn, useFeature } from "./lib/features";
 import { applyLanguage } from "./lib/i18n";
-import { actionForEvent } from "./lib/keybindings";
+import { ACTION_FEATURE, actionForEvent } from "./lib/keybindings";
 import { getLanguage } from "./lib/language";
 import {
   getSidebarWidth,
@@ -120,8 +121,24 @@ export default function App() {
   const taskExtractTarget = useAi((s) => s.taskExtract);
   const weeklyReviewTarget = useAi((s) => s.weeklyReview);
   const chatOpen = useVaultChat((s) => s.open);
+  // Feature flags (vault-synced Preferences.features) gating optional surfaces.
+  const features = useSettings((s) => s.prefs?.features);
+  const aiOn = useFeature("ai");
+  const chatVaultOn = useFeature("vaultChat");
+  const pluginsOn = useFeature("plugins");
   const initialViewVault = useRef<string | null>(null);
   const { t } = useTranslation(["common", "conflict"]);
+
+  // Unmount-by-flag must not leak a live stream: closing the chat cancels its
+  // in-flight ask (closePanel → cancel) and clears `open`, so the panel also
+  // doesn't auto-reopen when the feature comes back; likewise a running AI
+  // action is cancelled when the master goes off.
+  useEffect(() => {
+    if (!chatVaultOn && useVaultChat.getState().open) useVaultChat.getState().closePanel();
+  }, [chatVaultOn]);
+  useEffect(() => {
+    if (!aiOn) useAi.getState().cancelRun();
+  }, [aiOn]);
 
   useNovalisEvents();
   useAiEvents();
@@ -137,10 +154,15 @@ export default function App() {
     });
   }, []);
 
-  // (Re)load plugins whenever a vault becomes active.
+  // (Re)load plugins whenever a vault becomes active — or the plugins feature
+  // is switched on afterwards. With the feature off (the pre-prefs-load default
+  // too), plugin workers and their palette commands never load; switching it
+  // off tears running workers down (hiding the commands alone would leave
+  // loaded workers alive with full RPC until restart).
   useEffect(() => {
-    if (vaultPath) void usePlugins.getState().reload();
-  }, [vaultPath]);
+    if (vaultPath && pluginsOn) void usePlugins.getState().reload();
+    else usePlugins.getState().unload();
+  }, [vaultPath, pluginsOn]);
 
   // Restore this vault's editor tabs (and reopen its active tab) when it becomes
   // active; openVault clears the in-memory workspace first, so no stale tabs.
@@ -163,8 +185,11 @@ export default function App() {
         applyAppearance(prefs?.appearance);
         if (initialViewVault.current !== vaultPath) {
           const dv = prefs?.general?.defaultAppView;
-          if (dv === "notes" || dv === "today" || dv === "tasks" || dv === "calendar")
-            useUi.getState().setView(dv);
+          if (dv === "notes" || dv === "today" || dv === "tasks" || dv === "calendar") {
+            // A start view whose feature is off falls back to Notes (core).
+            const feat = ACTION_FEATURE[`view-${dv}`];
+            useUi.getState().setView(feat && !isFeatureOn(feat) ? "notes" : dv);
+          }
           initialViewVault.current = vaultPath;
         }
       });
@@ -172,6 +197,14 @@ export default function App() {
 
   // Re-apply theme when the OS color scheme changes (only matters for "system").
   useEffect(() => watchSystemTheme(() => useSettings.getState().prefs?.appearance), []);
+
+  // If the active view's feature turns off (Settings › Features, or a vault
+  // switch loading different flags), leave it — the main-view ternary below
+  // would otherwise fall through to Calendar for a stale `view` value.
+  useEffect(() => {
+    const feat = ACTION_FEATURE[`view-${view}`];
+    if (feat && !featureOn(features, feat)) setView("notes");
+  }, [view, features, setView]);
 
   // Poll for task reminders + upcoming events while a vault is open (in-app
   // toast + best-effort OS notification).
@@ -204,8 +237,17 @@ export default function App() {
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // actionForEvent ignores modifier-less keystrokes, so ordinary typing
-      // (including in the editor/inputs) is never intercepted.
-      const action = actionForEvent(useKeymap.getState().keymap, e);
+      // (including in the editor/inputs) is never intercepted. Feature-gated
+      // actions (view-graph/query/canvas …) are skipped during matching while
+      // their feature is off — the same flags that hide the rail and palette
+      // entries, so a disabled view isn't one mod+N away, and a hidden action
+      // never shadows its chord from a visible one rebound to the same keys.
+      // Imperative read: this listener registers once (empty deps), a hook
+      // subscription would be stale.
+      const action = actionForEvent(useKeymap.getState().keymap, e, (a) => {
+        const feat = ACTION_FEATURE[a];
+        return !feat || isFeatureOn(feat);
+      });
       if (!action) return;
       const handlers: Partial<Record<typeof action, () => void>> = {
         search: () => setSearchOpen((v) => !v),
@@ -517,12 +559,14 @@ export default function App() {
       {/* First-run welcome — only reachable here (a vault is open); shows once
           per device, gated on the persisted onboardingDone flag. */}
       {!onboardingDone && <Onboarding />}
-      <AiActionPanel />
+      {/* Streaming AI action output — only exists while the AI family is on. */}
+      {aiOn && <AiActionPanel />}
       {/* Chat with your vault — store-driven right-docked panel; opened from the
           command palette / activity rail. Hybrid retrieval + cited streamed answer.
           Gated on the same `open` flag it checks internally so the lazy chunk
-          loads only when opened. */}
-      {chatOpen && (
+          loads only when opened — plus the vaultChat feature (ai-master-ANDed),
+          which also closes a panel left open when the feature turns off. */}
+      {chatVaultOn && chatOpen && (
         <Suspense fallback={null}>
           <VaultChatPanel />
         </Suspense>

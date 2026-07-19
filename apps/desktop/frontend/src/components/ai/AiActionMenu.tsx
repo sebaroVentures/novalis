@@ -6,6 +6,7 @@ import { useTranslation } from "react-i18next";
 import { getMarkdown, type Editor } from "@novalis/editor";
 
 import type { AiActionView, AiTemplate } from "../../ipc/api";
+import { useFeature } from "../../lib/features";
 import { useDismiss } from "../../lib/useDismiss";
 import { useAi } from "../../stores/aiStore";
 
@@ -34,6 +35,10 @@ export function AiActionMenu({
   notePath: string | null;
 }) {
   const { t } = useTranslation("ai");
+  // Sub-feature flags (the mount is already gated on the `ai` master; these
+  // selectors fold the master in themselves, so no double-AND).
+  const taskExtractOn = useFeature("taskExtract");
+  const templatesOn = useFeature("aiTemplates");
   const connections = useAi((s) => s.connections);
   const actions = useAi((s) => s.actions);
   const templates = useAi((s) => s.templates);
@@ -248,14 +253,16 @@ export function AiActionMenu({
               })}
               {/* Extract tasks: a hidden whole-note action (no selection needed),
                   opening the accept/reject review card via the store. */}
-              <button
-                onClick={onExtractTasks}
-                disabled={!editor || !notePath}
-                className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-fg transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50"
-              >
-                {t("extract.menuItem")}
-              </button>
-              {templates.length > 0 && (
+              {taskExtractOn && (
+                <button
+                  onClick={onExtractTasks}
+                  disabled={!editor || !notePath}
+                  className="block w-full rounded-md px-2.5 py-1.5 text-left text-xs text-fg transition-colors hover:bg-hover disabled:cursor-not-allowed disabled:opacity-50"
+                >
+                  {t("extract.menuItem")}
+                </button>
+              )}
+              {templatesOn && templates.length > 0 && (
                 <>
                   <div className="my-1 border-t border-border" />
                   <div className="px-1.5 pb-1 pt-1 text-[11px] uppercase tracking-wide text-fg-faint">

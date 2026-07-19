@@ -32,6 +32,7 @@ import {
 import { useTranslation } from "react-i18next";
 
 import { api, type PropertyValue } from "../ipc/api";
+import { useFeature } from "../lib/features";
 import { revealLabel } from "../lib/reveal";
 import { useDismiss } from "../lib/useDismiss";
 import { useIsMobile } from "../lib/useIsMobile";
@@ -169,6 +170,22 @@ export function EditorPane({ pane }: { pane: Pane }) {
   const returnView = useUi((s) => s.returnView);
   const goBack = useUi((s) => s.goBack);
   const editorPrefs = useSettings((s) => s.prefs?.editor);
+  // Vault-synced feature flags (lib/features.ts applies the AI master/sub rule
+  // for the AI sub-keys — do not AND `ai` in again here).
+  const aiOn = useFeature("ai");
+  const aiMetaOn = useFeature("aiMetaSuggestions");
+  const backlinksOn = useFeature("backlinks");
+  const outlineOn = useFeature("outline");
+  const relatedOn = useFeature("relatedNotes");
+  const entitiesOn = useFeature("entityGraph");
+  const blockRefsOn = useFeature("blockRefs");
+  const mathOn = useFeature("math");
+  const mermaidOn = useFeature("mermaid");
+  const embedsOn = useFeature("transclusion");
+  const calloutsOn = useFeature("callouts");
+  const codeHighlightOn = useFeature("codeHighlight");
+  const tagAutocompleteOn = useFeature("tagAutocomplete");
+  const propertiesOn = useFeature("properties");
   const timer = useRef<number | null>(null);
   // The pending autosave, bound to the note it was typed in, so a flush always
   // writes to the correct path even mid-switch.
@@ -285,7 +302,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
       setHeadings([]);
       return;
     }
-    if (!panels.outline) return;
+    if (!panels.outline || !outlineOn) return;
     let htimer = 0;
     const recompute = () => {
       window.clearTimeout(htimer);
@@ -297,7 +314,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
       window.clearTimeout(htimer);
       editor.off("update", recompute);
     };
-  }, [editor, panels.outline]);
+  }, [editor, panels.outline, outlineOn]);
 
   const split = useMemo(() => (note ? splitFrontmatter(note.content) : null), [note]);
 
@@ -558,6 +575,49 @@ export function EditorPane({ pane }: { pane: Pane }) {
     setHovered(null);
   }, []);
 
+  // Editor extension flags fold into the NovalisEditor remount key below (the
+  // TipTap extension set is fixed at creation, so a flag flip must recreate
+  // the editor). But the remount must not race the debounced autosave: keying
+  // on the LIVE flags would remount from the store's stale content while the
+  // newest edit is still local (typed text visibly gone, and a later stale
+  // save could overwrite the flushed copy on disk). So the key uses
+  // `appliedFeatKey`, advanced only after this pane's pending edit is safely
+  // flushed — a successful save patches `openNotes`, so the remount then
+  // mounts exactly the content that was just persisted.
+  const featKey = [
+    mathOn,
+    mermaidOn,
+    embedsOn,
+    blockRefsOn,
+    calloutsOn,
+    codeHighlightOn,
+    tagAutocompleteOn,
+  ]
+    .map((v) => (v ? "1" : "0"))
+    .join("");
+  const [appliedFeatKey, setAppliedFeatKey] = useState(featKey);
+  useEffect(() => {
+    if (featKey === appliedFeatKey) return;
+    let cancelled = false;
+    void (async () => {
+      // Drain until clean: typing DURING an await re-dirties the live doc,
+      // and remounting then would still drop those keystrokes.
+      while (!cancelled && (pending.current !== null || liveDirty.current)) {
+        await flushPending();
+        // A failed save retains `pending` for retry; remounting over it would
+        // recreate the stale-mount race. Keep the old editor (it holds the
+        // only copy) — same flush-then-bail rule as the uiStore navigations.
+        if (pending.current !== null) return;
+      }
+      // `cancelled` also covers the flag flipping back (or again) mid-flush:
+      // the effect re-runs with the new featKey and this stale apply is dropped.
+      if (!cancelled) setAppliedFeatKey(featKey);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [featKey, appliedFeatKey, flushPending]);
+
   if (!path) {
     return (
       <section className="flex flex-1 flex-col items-center justify-center gap-3 text-center text-fg-faint">
@@ -596,7 +656,29 @@ export function EditorPane({ pane }: { pane: Pane }) {
   const metaCount =
     (note.frontmatter.tags?.length ?? 0) +
     (note.frontmatter.aliases?.length ?? 0) +
-    (note.properties?.length ?? 0);
+    // The properties panel self-gates on the flag; keep the badge in sync.
+    (propertiesOn ? (note.properties?.length ?? 0) : 0);
+
+  // Effective right-rail visibility: feature-off hides a panel even when a
+  // stale device-local `nv:rightPanel` bit says open. The stored value is left
+  // alone so re-enabling the feature restores the user's layout.
+  const showLinks = panels.links && backlinksOn;
+  const showOutline = panels.outline && outlineOn;
+  const showRelated = panels.related && relatedOn;
+  const showEntities = panels.entities && entitiesOn;
+
+  // Editor extension flags, read only at editor creation. A flag flip
+  // recreates the editor via `appliedFeatKey` (see the flush-before-remount
+  // machinery above the early returns).
+  const editorFeatures = {
+    math: mathOn,
+    mermaid: mermaidOn,
+    embeds: embedsOn,
+    blockRefs: blockRefsOn,
+    callouts: calloutsOn,
+    codeHighlight: codeHighlightOn,
+    tagAutocomplete: tagAutocompleteOn,
+  };
 
   const onChange = (body: string) => {
     // Between a discard and the remount that resolves it, every serialization
@@ -789,53 +871,63 @@ export function EditorPane({ pane }: { pane: Pane }) {
           >
             <BookOpen size={15} />
           </button>
-          <button
-            onClick={() => void copyBlockRef()}
-            title={t("copyBlockRef")}
-            className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
-          >
-            <Hash size={15} />
-          </button>
-          <button
-            onClick={() => togglePanel("links")}
-            title={panels.links ? t("links:hide") : t("links:show")}
-            aria-pressed={panels.links}
-            className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
-              panels.links ? "bg-active text-fg" : "text-fg-muted"
-            }`}
-          >
-            <Link2 size={15} />
-          </button>
-          <button
-            onClick={() => togglePanel("outline")}
-            title={panels.outline ? t("links:hideOutline") : t("links:showOutline")}
-            aria-pressed={panels.outline}
-            className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
-              panels.outline ? "bg-active text-fg" : "text-fg-muted"
-            }`}
-          >
-            <ListTree size={15} />
-          </button>
-          <button
-            onClick={() => togglePanel("related")}
-            title={panels.related ? t("links:related.hide") : t("links:related.show")}
-            aria-pressed={panels.related}
-            className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
-              panels.related ? "bg-active text-fg" : "text-fg-muted"
-            }`}
-          >
-            <Orbit size={15} />
-          </button>
-          <button
-            onClick={() => togglePanel("entities")}
-            title={panels.entities ? t("ai:entities.hide") : t("ai:entities.show")}
-            aria-pressed={panels.entities}
-            className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
-              panels.entities ? "bg-active text-fg" : "text-fg-muted"
-            }`}
-          >
-            <Network size={15} />
-          </button>
+          {blockRefsOn && (
+            <button
+              onClick={() => void copyBlockRef()}
+              title={t("copyBlockRef")}
+              className="rounded-md p-1.5 text-fg-muted transition-colors hover:bg-active hover:text-fg"
+            >
+              <Hash size={15} />
+            </button>
+          )}
+          {backlinksOn && (
+            <button
+              onClick={() => togglePanel("links")}
+              title={panels.links ? t("links:hide") : t("links:show")}
+              aria-pressed={panels.links}
+              className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
+                panels.links ? "bg-active text-fg" : "text-fg-muted"
+              }`}
+            >
+              <Link2 size={15} />
+            </button>
+          )}
+          {outlineOn && (
+            <button
+              onClick={() => togglePanel("outline")}
+              title={panels.outline ? t("links:hideOutline") : t("links:showOutline")}
+              aria-pressed={panels.outline}
+              className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
+                panels.outline ? "bg-active text-fg" : "text-fg-muted"
+              }`}
+            >
+              <ListTree size={15} />
+            </button>
+          )}
+          {relatedOn && (
+            <button
+              onClick={() => togglePanel("related")}
+              title={panels.related ? t("links:related.hide") : t("links:related.show")}
+              aria-pressed={panels.related}
+              className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
+                panels.related ? "bg-active text-fg" : "text-fg-muted"
+              }`}
+            >
+              <Orbit size={15} />
+            </button>
+          )}
+          {entitiesOn && (
+            <button
+              onClick={() => togglePanel("entities")}
+              title={panels.entities ? t("ai:entities.hide") : t("ai:entities.show")}
+              aria-pressed={panels.entities}
+              className={`rounded-md p-1.5 transition-colors hover:bg-active hover:text-fg ${
+                panels.entities ? "bg-active text-fg" : "text-fg-muted"
+              }`}
+            >
+              <Network size={15} />
+            </button>
+          )}
           <button
             onClick={() => setHistoryOpen(true)}
             title={t("versions:open")}
@@ -852,11 +944,13 @@ export function EditorPane({ pane }: { pane: Pane }) {
           >
             <FolderOpen size={15} />
           </button>
-          <AiActionMenu
-            editor={editor}
-            notePath={path}
-            noteTitle={path ? (path.split("/").pop()?.replace(/\.md$/, "") ?? "") : ""}
-          />
+          {aiOn && (
+            <AiActionMenu
+              editor={editor}
+              notePath={path}
+              noteTitle={path ? (path.split("/").pop()?.replace(/\.md$/, "") ?? "") : ""}
+            />
+          )}
           <div ref={exportRef} className="relative">
             <button
               onClick={() => setExportOpen((v) => !v)}
@@ -922,7 +1016,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
         path={path}
         noteTitle={note.title}
         editor={editor}
-        enabled={editorPrefs?.ambientAi ?? false}
+        enabled={aiOn && (editorPrefs?.ambientAi ?? false)}
         knownTags={tagSuggestions}
         existingTags={note.frontmatter.tags ?? []}
         existingAliases={note.frontmatter.aliases ?? []}
@@ -972,26 +1066,29 @@ export function EditorPane({ pane }: { pane: Pane }) {
             />
           </div>
           <PropertiesPanel path={path} properties={note.properties ?? []} />
-          <AiMetaSuggestions
-            path={path}
-            noteTitle={note.title}
-            body={split.body}
-            knownTags={tagSuggestions}
-            existingTags={note.frontmatter.tags ?? []}
-            existingAliases={note.frontmatter.aliases ?? []}
-            existingPropertyKeys={(note.properties ?? []).map((p) => p.key)}
-            onAcceptTag={acceptSuggestedTag}
-            onAcceptAlias={acceptSuggestedAlias}
-            onAcceptProperty={acceptSuggestedProperty}
-          />
+          {aiMetaOn && (
+            <AiMetaSuggestions
+              path={path}
+              noteTitle={note.title}
+              body={split.body}
+              knownTags={tagSuggestions}
+              existingTags={note.frontmatter.tags ?? []}
+              existingAliases={note.frontmatter.aliases ?? []}
+              existingPropertyKeys={(note.properties ?? []).map((p) => p.key)}
+              onAcceptTag={acceptSuggestedTag}
+              onAcceptAlias={acceptSuggestedAlias}
+              onAcceptProperty={acceptSuggestedProperty}
+            />
+          )}
         </div>
       </div>
       <div className="relative flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col">
           <NovalisEditor
-            key={`${pane.id}:${path}:${epoch}`}
+            key={`${pane.id}:${path}:${epoch}:${appliedFeatKey}`}
             value={split.body}
             editable={!readingMode}
+            features={editorFeatures}
             onChange={onChange}
             onUploadImage={onUploadImage}
             resolveImageSrc={resolveImageSrc}
@@ -1037,7 +1134,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
             }}
           />
         </div>
-        {(panels.links || panels.outline || panels.related || panels.entities) && (
+        {(showLinks || showOutline || showRelated || showEntities) && (
           <div
             className={
               isMobile
@@ -1045,7 +1142,7 @@ export function EditorPane({ pane }: { pane: Pane }) {
                 : "flex w-72 shrink-0 flex-col border-l border-border"
             }
           >
-            {panels.outline && (
+            {showOutline && (
               <OutlinePanel
                 headings={headings}
                 onJump={jumpToHeading}
@@ -1053,8 +1150,8 @@ export function EditorPane({ pane }: { pane: Pane }) {
                 stacked
               />
             )}
-            {panels.outline && panels.links && <div className="border-t border-border" />}
-            {panels.links && (
+            {showOutline && showLinks && <div className="border-t border-border" />}
+            {showLinks && (
               <LinksPanel
                 title={note.title}
                 path={path}
@@ -1062,16 +1159,16 @@ export function EditorPane({ pane }: { pane: Pane }) {
                 stacked
               />
             )}
-            {(panels.outline || panels.links) && panels.related && (
+            {(showOutline || showLinks) && showRelated && (
               <div className="border-t border-border" />
             )}
-            {panels.related && (
+            {showRelated && (
               <RelatedPanel path={path} onClose={() => togglePanel("related")} stacked />
             )}
-            {(panels.outline || panels.links || panels.related) && panels.entities && (
+            {(showOutline || showLinks || showRelated) && showEntities && (
               <div className="border-t border-border" />
             )}
-            {panels.entities && (
+            {showEntities && (
               <EntitiesPanel path={path} onClose={() => togglePanel("entities")} stacked />
             )}
           </div>

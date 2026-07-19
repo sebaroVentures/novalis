@@ -47,11 +47,18 @@ vi.mock("../../stores/pluginStore", () => ({
   usePlugins: { getState: () => ({ notify: mocks.notify }) },
 }));
 
-vi.mock("../../stores/settingsStore", () => ({
-  useSettings: {
-    getState: () => ({ prefs: { calendar: { eventNotifyLeadMinutes: mocks.lead.value } } }),
-  },
-}));
+// Partial mock: the scheduler reads the lead-minutes pref through useSettings,
+// but lib/features.ts (isFeatureOn, used for the reminders flag gate) needs the
+// real resolveFeaturePrefs from the same module.
+vi.mock(import("../../stores/settingsStore"), async (importOriginal) => {
+  const actual = await importOriginal();
+  return {
+    ...actual,
+    useSettings: {
+      getState: () => ({ prefs: { calendar: { eventNotifyLeadMinutes: mocks.lead.value } } }),
+    } as unknown as typeof actual.useSettings,
+  };
+});
 
 const VAULT = "/vault";
 const MIN = 60_000;

@@ -67,6 +67,9 @@ interface PluginState {
   notify: (msg: string) => void;
   setNotify: (fn: (msg: string) => void) => void;
   reload: () => Promise<void>;
+  /** Terminate every plugin worker and drop its commands — the teardown half
+   *  of reload(), used when the plugins feature is switched off. */
+  unload: () => void;
 }
 
 const workers = new Map<string, Worker>();
@@ -76,10 +79,14 @@ export const usePlugins = create<PluginState>((set, get) => ({
   notify: () => {},
   setNotify: (fn) => set({ notify: fn }),
 
-  reload: async () => {
+  unload: () => {
     workers.forEach((w) => w.terminate());
     workers.clear();
     set({ commands: [] });
+  },
+
+  reload: async () => {
+    get().unload();
 
     let plugins;
     try {

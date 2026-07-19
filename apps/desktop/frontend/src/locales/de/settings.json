@@ -381,9 +381,8 @@
   "navigation": {
     "moveDown": "{{view}} nach unten verschieben",
     "moveUp": "{{view}} nach oben verschieben",
-    "railDesc": "Wähle, welche Ansichten in der linken Aktivitätsleiste erscheinen und in welcher Reihenfolge.",
-    "sectionRail": "Aktivitätsleiste",
-    "toggleAria": "{{view}} in der Aktivitätsleiste anzeigen"
+    "railDesc": "Ordne die Ansichten der linken Aktivitätsleiste. Welche Ansichten verfügbar sind, wird unter Einstellungen › Funktionen verwaltet.",
+    "sectionRail": "Aktivitätsleiste"
   },
   "plugins": {
     "empty": "Keine Plugins installiert. Einen Plugin-Ordner in <2>.novalis/plugins/</2> im Vault ablegen (siehe PLUGINS.md), dann die Einstellungen erneut öffnen.",

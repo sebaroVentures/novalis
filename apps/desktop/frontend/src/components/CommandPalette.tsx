@@ -5,6 +5,7 @@ import { useTranslation } from "react-i18next";
 import { getMarkdown } from "@novalis/editor";
 
 import { api, type NoteTemplate } from "../ipc/api";
+import { featureOn, type FeatureKey } from "../lib/features";
 import { fuzzyRank } from "../lib/fuzzy";
 import { type ActionId, formatChord } from "../lib/keybindings";
 import { localWeekRange } from "../lib/weeklyReview";
@@ -13,6 +14,7 @@ import { useCanvas } from "../stores/canvasStore";
 import { useKeymap } from "../stores/keymapStore";
 import { usePdf } from "../stores/pdfStore";
 import { usePlugins } from "../stores/pluginStore";
+import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
 import { useVaultChat } from "../stores/vaultChatStore";
@@ -35,6 +37,12 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
   const pluginCommands = usePlugins((s) => s.commands);
   const keymap = useKeymap((s) => s.keymap);
   const voiceAvailable = useVoice((s) => s.available);
+  // Vault-synced feature flags: gated entries use the same conditional-spread
+  // pattern as `record-meeting` below. The builtins array is rebuilt on every
+  // render, so a plain subscription keeps the list live; featureOn folds the
+  // `ai` master switch into the AI sub-feature keys.
+  const features = useSettings((s) => s.prefs?.features);
+  const on = (key: FeatureKey) => featureOn(features, key);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const openTodaysNote = () => {
@@ -97,42 +105,79 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
 
   const builtins: Command[] = [
     builtin("view-notes", viewTitle.notes, "view-notes", () => useUi.getState().setView("notes")),
-    builtin("view-today", viewTitle.today, "view-today", () => useUi.getState().setView("today")),
-    builtin("view-tasks", viewTitle.tasks, "view-tasks", () => useUi.getState().setView("tasks")),
-    builtin("view-calendar", viewTitle.calendar, "view-calendar", () =>
-      useUi.getState().setView("calendar"),
-    ),
-    builtin("view-graph", viewTitle.graph, "view-graph", () => useUi.getState().setView("graph")),
-    builtin("view-canvas", viewTitle.canvas, "view-canvas", () =>
-      useUi.getState().setView("canvas"),
-    ),
-    builtin("new-canvas", t("cmdNewCanvas"), null, () => void useCanvas.getState().createAndOpen()),
+    ...(on("todayView")
+      ? [
+          builtin("view-today", viewTitle.today, "view-today", () =>
+            useUi.getState().setView("today"),
+          ),
+        ]
+      : []),
+    ...(on("tasks")
+      ? [
+          builtin("view-tasks", viewTitle.tasks, "view-tasks", () =>
+            useUi.getState().setView("tasks"),
+          ),
+        ]
+      : []),
+    ...(on("calendar")
+      ? [
+          builtin("view-calendar", viewTitle.calendar, "view-calendar", () =>
+            useUi.getState().setView("calendar"),
+          ),
+        ]
+      : []),
+    ...(on("graphView")
+      ? [
+          builtin("view-graph", viewTitle.graph, "view-graph", () =>
+            useUi.getState().setView("graph"),
+          ),
+        ]
+      : []),
+    ...(on("canvas")
+      ? [
+          builtin("view-canvas", viewTitle.canvas, "view-canvas", () =>
+            useUi.getState().setView("canvas"),
+          ),
+          builtin("new-canvas", t("cmdNewCanvas"), null, () =>
+            void useCanvas.getState().createAndOpen(),
+          ),
+        ]
+      : []),
     builtin("new-note", t("cmdNewNote"), "new-note", () =>
       void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
     ),
-    builtin("today-note", t("today:openTodaysNote"), null, openTodaysNote),
-    builtin("open-pdf", t("pdf:openPdf"), null, () => usePdf.getState().openPicker()),
+    ...(on("dailyNotes")
+      ? [builtin("today-note", t("today:openTodaysNote"), null, openTodaysNote)]
+      : []),
+    ...(on("pdfAnnotate")
+      ? [builtin("open-pdf", t("pdf:openPdf"), null, () => usePdf.getState().openPicker())]
+      : []),
     builtin("reindex", t("cmdReindex"), null, () => void api.reindexVault()),
     builtin("reveal-in-fm", t("cmdRevealInFm"), null, () => {
       const p = useVault.getState().activeNote?.path;
       if (p) void useVault.getState().revealInFileManager(p);
     }),
     // Whole-note AI action: open the task-extraction review for the active note.
-    builtin("extract-tasks", t("cmdExtractTasks"), null, () => {
-      const ed = useUi.getState().activeEditor;
-      const note = useVault.getState().activeNote;
-      if (ed && note) {
-        useAi.getState().startTaskExtract({
-          editor: ed,
-          notePath: note.path,
-          noteTitle: note.title,
-          body: getMarkdown(ed),
-        });
-      }
-    }),
+    ...(on("taskExtract")
+      ? [
+          builtin("extract-tasks", t("cmdExtractTasks"), null, () => {
+            const ed = useUi.getState().activeEditor;
+            const note = useVault.getState().activeNote;
+            if (ed && note) {
+              useAi.getState().startTaskExtract({
+                editor: ed,
+                notePath: note.path,
+                noteTitle: note.title,
+                body: getMarkdown(ed),
+              });
+            }
+          }),
+        ]
+      : []),
     // Native voice/meeting capture (W4.3): record → on-device transcript → note
-    // → task-extract review. Only offered where capture is available (desktop).
-    ...(voiceAvailable
+    // → task-extract review. Only offered where capture is available (desktop)
+    // AND the voice feature is on.
+    ...(voiceAvailable && on("voice")
       ? [
           builtin("record-meeting", t("ai:voice.record"), null, () => {
             void useVoice.getState().start();
@@ -141,23 +186,29 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       : []),
     // Chat with your vault — opens the right-docked RAG panel (which surfaces
     // "no connection configured" itself when there's none).
-    builtin("chat-vault", t("cmdChatVault"), null, () => useVaultChat.getState().openPanel()),
-    // Phase 1 deterministic digest — no AI required.
+    ...(on("vaultChat")
+      ? [builtin("chat-vault", t("cmdChatVault"), null, () => useVaultChat.getState().openPanel())]
+      : []),
+    // Phase 1 deterministic digest — no AI required, so never feature-gated.
     builtin("insert-weekly-digest", t("cmdInsertDigest"), null, insertWeeklyDigest),
     // Phase 2 AI narrative + carry-overs — opens the review card (which needs a
     // configured provider; it surfaces "no connections" itself when there's none).
-    builtin("weekly-review", t("cmdWeeklyReview"), null, () => {
-      const ed = useUi.getState().activeEditor;
-      const note = useVault.getState().activeNote;
-      if (ed && note) {
-        useAi.getState().startWeeklyReview({
-          editor: ed,
-          notePath: note.path,
-          noteTitle: note.title,
-          body: getMarkdown(ed),
-        });
-      }
-    }),
+    ...(on("weeklyReview")
+      ? [
+          builtin("weekly-review", t("cmdWeeklyReview"), null, () => {
+            const ed = useUi.getState().activeEditor;
+            const note = useVault.getState().activeNote;
+            if (ed && note) {
+              useAi.getState().startWeeklyReview({
+                editor: ed,
+                notePath: note.path,
+                noteTitle: note.title,
+                body: getMarkdown(ed),
+              });
+            }
+          }),
+        ]
+      : []),
   ];
 
   const templateCmds: Command[] = templates.map((tpl) =>
@@ -166,12 +217,16 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
     ),
   );
 
-  const pluginCmds: Command[] = pluginCommands.map((c) => ({
-    id: c.id,
-    title: c.title,
-    badge: c.pluginId,
-    run: c.run,
-  }));
+  // Plugin commands surface only while the plugins feature is on — the store
+  // may still hold commands registered before the flag was switched off.
+  const pluginCmds: Command[] = on("plugins")
+    ? pluginCommands.map((c) => ({
+        id: c.id,
+        title: c.title,
+        badge: c.pluginId,
+        run: c.run,
+      }))
+    : [];
 
   const filtered = fuzzyRank(
     [...builtins, ...templateCmds, ...pluginCmds],

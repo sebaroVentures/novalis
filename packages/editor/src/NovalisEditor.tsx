@@ -13,6 +13,7 @@ import TaskList from "@tiptap/extension-task-list";
 import { EditorContent, type Editor, useEditor, useEditorState } from "@tiptap/react";
 import type { EditorView } from "@tiptap/pm/view";
 import StarterKit from "@tiptap/starter-kit";
+import { createLowlight } from "lowlight";
 import { Markdown } from "tiptap-markdown";
 
 import { BlockRef, type BlockRefResult } from "./BlockRef";
@@ -35,6 +36,22 @@ import { WikiLinkSuggestion } from "./WikiLinkSuggestion";
 // depth the Embed extension is simply not registered, so inner `![[…]]` stays
 // inert literal text.
 const MAX_EMBED_DEPTH = 3;
+
+/** Per-feature gates for the optional extensions. All default to ON — a bare
+ *  buildEditorExtensions() yields the full shipped schema (the round-trip tests
+ *  rely on that). Disabling a feature only unregisters decoration-only
+ *  extensions (or, for mermaid/code highlighting, disables rendering), so the
+ *  markdown on disk is never affected. Read at editor creation: hosts must
+ *  remount (React `key`) for a change to take effect. */
+export interface EditorFeatures {
+  math?: boolean;
+  mermaid?: boolean;
+  embeds?: boolean;
+  blockRefs?: boolean;
+  callouts?: boolean;
+  codeHighlight?: boolean;
+  tagAutocomplete?: boolean;
+}
 
 export interface NovalisEditorProps {
   /** Initial markdown content. Remount (via a React `key`) to load another note. */
@@ -91,6 +108,9 @@ export interface NovalisEditorProps {
   /** Localized UI strings (placeholder + toolbar). The host fills these from its
    *  i18n catalog; any omitted fall back to the English defaults. */
   labels?: Partial<NovalisEditorLabels>;
+  /** Feature gates for the optional extensions (all default ON). Consumed at
+   *  editor creation — remount (via the React `key`) after changing them. */
+  features?: EditorFeatures;
 }
 
 /** User-facing strings the editor renders. Exposed as a prop (with English
@@ -191,6 +211,7 @@ export interface EditorExtensionsOptions {
   onSearchBlocks?: (query: string) => Promise<BlockCandidate[]>;
   onResolveBlock?: (id: string) => Promise<BlockRefResult>;
   onOpenBlock?: (notePath: string) => void;
+  features?: EditorFeatures;
 }
 
 /** The full extension stack. Exported (and used by the NovalisEditor component
@@ -198,6 +219,9 @@ export interface EditorExtensionsOptions {
  *  serializers the app ships — the two can't drift. */
 export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Extensions {
   const lbl = { ...DEFAULT_LABELS, ...opts.labels };
+  // `?? true` per flag (not an object spread): an explicitly-undefined field
+  // must still mean "on", and defaults-ON keeps the bare call full-schema.
+  const feat = opts.features ?? {};
   const resolveImageSrc = opts.resolveImageSrc;
 
   // Image node that stores the relative `src` (for markdown round-trip) but
@@ -220,15 +244,26 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
     // that doesn't corrupt wikilinks/math/`<`/`>` on save).
     StarterKit.configure({ codeBlock: false, text: false }),
     MarkdownText,
+    // Never unregistered — it IS the schema's only codeBlock node. The mermaid
+    // feature flag only disables diagram rendering (renderDiagrams: false makes
+    // ```mermaid blocks plain <pre><code>, and mermaid never lazy-loads).
+    // codeHighlight=false swaps the shared lowlight singleton for a fresh,
+    // permanently-empty registry: grammars another editor lazy-loaded into the
+    // singleton earlier in the session must not leak in, and with LazyHighlight
+    // skipped (below) nothing ever registers into this one — code blocks stay
+    // plain for the life of this editor.
     MermaidCodeBlock.configure({
-      lowlight,
+      lowlight: (feat.codeHighlight ?? true) ? lowlight : createLowlight(),
+      renderDiagrams: feat.mermaid ?? true,
       mermaidShowSource: lbl.mermaidShowSource,
       mermaidShowDiagram: lbl.mermaidShowDiagram,
     }),
     // Loads the (empty-at-first) `lowlight` registry's grammars on demand the
     // first time a code block appears, then repaints — keeps ~167 kB of
     // highlight.js grammars out of the eager bundle. See lowlightLazy.ts.
-    LazyHighlight,
+    // Skipped when highlighting is off: this editor's registry (the empty one
+    // above) never gains grammars, so code blocks render unhighlighted.
+    ...((feat.codeHighlight ?? true) ? [LazyHighlight] : []),
     Markdown.configure({
       html: false,
       linkify: true,
@@ -253,9 +288,9 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
       onHover: opts.onWikiLinkHover,
       onHoverEnd: opts.onWikiLinkHoverEnd,
     }),
-    // Register transclusion only below the depth cap; at/above it the inner
-    // `![[…]]` of a maximally-nested embed renders as inert literal text.
-    ...((opts.embedDepth ?? 0) < MAX_EMBED_DEPTH
+    // Register transclusion only when enabled AND below the depth cap; either
+    // way the unregistered `![[…]]` renders as inert literal text.
+    ...((feat.embeds ?? true) && (opts.embedDepth ?? 0) < MAX_EMBED_DEPTH
       ? [
           Embed.configure({
             onResolve: opts.onResolveEmbed,
@@ -274,17 +309,30 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
       onSearch: opts.onSearchLinkTargets,
       createLabel: lbl.wikiCreateNew,
     }),
-    TagSuggestion.configure({ onSearch: opts.onSearchTags }),
+    ...((feat.tagAutocomplete ?? true)
+      ? [TagSuggestion.configure({ onSearch: opts.onSearchTags })]
+      : []),
     // First-class block references: render `((^id))` inline + dim ` ^id`
     // markers; `((` autocomplete over the block index. Both are plain-text
     // constructs (no custom node), so the markdown round-trip stays trivial.
-    BlockRef.configure({
-      onResolve: opts.onResolveBlock,
-      onOpen: opts.onOpenBlock,
-      labels: { loading: lbl.blockRefLoading, missing: lbl.blockRefMissing },
-    }),
-    BlockRefSuggestion.configure({ onSearch: opts.onSearchBlocks }),
+    // The extension and its autocomplete always register (and unregister)
+    // together.
+    ...((feat.blockRefs ?? true)
+      ? [
+          BlockRef.configure({
+            onResolve: opts.onResolveBlock,
+            onOpen: opts.onOpenBlock,
+            labels: { loading: lbl.blockRefLoading, missing: lbl.blockRefMissing },
+          }),
+          BlockRefSuggestion.configure({ onSearch: opts.onSearchBlocks }),
+        ]
+      : []),
     SlashCommand.configure({
+      features: {
+        math: feat.math ?? true,
+        mermaid: feat.mermaid ?? true,
+        callout: feat.callouts ?? true,
+      },
       labels: {
         heading1: lbl.heading1,
         heading2: lbl.heading2,
@@ -303,8 +351,8 @@ export function buildEditorExtensions(opts: EditorExtensionsOptions = {}): Exten
     SuggestRewrite.configure({
       labels: { reject: lbl.suggestReject, restore: lbl.suggestRestore },
     }),
-    Callout,
-    MathExtension,
+    ...((feat.callouts ?? true) ? [Callout] : []),
+    ...((feat.math ?? true) ? [MathExtension] : []),
   ];
 }
 
@@ -331,6 +379,7 @@ export function NovalisEditor({
   serializeMs,
   spellCheck,
   labels,
+  features,
 }: NovalisEditorProps) {
   const lbl = { ...DEFAULT_LABELS, ...labels };
   // Latest onChange, without re-creating the editor when it changes.
@@ -383,6 +432,7 @@ export function NovalisEditor({
         onResolveBlock={onResolveBlock}
         onOpenBlock={onOpenBlock}
         labels={lbl}
+        features={features}
       />,
     );
     return () => root.unmount();
@@ -411,6 +461,7 @@ export function NovalisEditor({
       onSearchBlocks,
       onResolveBlock,
       onOpenBlock,
+      features,
     }),
     content: value,
     onUpdate: ({ editor }) => {
@@ -487,13 +538,21 @@ export function NovalisEditor({
 
   return (
     <div className={`nv-editor${editable ? "" : " nv-reading"}`}>
-      {editable && <Toolbar editor={editor} labels={lbl} />}
+      {editable && <Toolbar editor={editor} labels={lbl} showCallout={features?.callouts ?? true} />}
       <EditorContent editor={editor} className="nv-editor-content" />
     </div>
   );
 }
 
-function Toolbar({ editor, labels }: { editor: Editor; labels: NovalisEditorLabels }) {
+function Toolbar({
+  editor,
+  labels,
+  showCallout,
+}: {
+  editor: Editor;
+  labels: NovalisEditorLabels;
+  showCallout: boolean;
+}) {
   // Narrow subscription: re-render the Toolbar only when one of the buttons'
   // active states actually flips (deep-equal is the default comparator), not on
   // every transaction. With `shouldRerenderOnTransaction: false` on the editor
@@ -551,15 +610,17 @@ function Toolbar({ editor, labels }: { editor: Editor; labels: NovalisEditorLabe
       <Btn glyph={labels.taskList} title={labels.taskList} onClick={() => editor.chain().focus().toggleTaskList().run()} active={active?.taskList} />
       <Btn glyph={labels.codeBlock} title={labels.codeBlock} onClick={() => editor.chain().focus().toggleCodeBlock().run()} active={active?.codeBlock} />
       <Btn glyph={labels.blockquote} title={labels.blockquote} onClick={() => editor.chain().focus().toggleBlockquote().run()} active={active?.blockquote} />
-      <Btn
-        glyph={labels.callout}
-        title={labels.callout}
-        onClick={() => {
-          const c = editor.chain().focus();
-          if (!editor.isActive("blockquote")) c.toggleBlockquote();
-          c.insertContent("[!NOTE] ").run();
-        }}
-      />
+      {showCallout && (
+        <Btn
+          glyph={labels.callout}
+          title={labels.callout}
+          onClick={() => {
+            const c = editor.chain().focus();
+            if (!editor.isActive("blockquote")) c.toggleBlockquote();
+            c.insertContent("[!NOTE] ").run();
+          }}
+        />
+      )}
       <Btn glyph="—" title={labels.horizontalRule} onClick={() => editor.chain().focus().setHorizontalRule().run()} />
     </div>
   );

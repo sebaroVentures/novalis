@@ -4,6 +4,7 @@ import { getMarkdown, type Editor } from "@novalis/editor";
 
 import { api } from "../ipc/api";
 import { displayError } from "../lib/errors";
+import { isFeatureOn } from "../lib/features";
 import i18n from "../lib/i18n";
 import { useAi } from "./aiStore";
 import { useUi } from "./uiStore";
@@ -163,17 +164,22 @@ export const useVoice = create<VoiceState>((set, get) => ({
       await useVault.getState().refreshTree();
       useUi.getState().openInWorkspace(notePath);
 
-      try {
-        const ed = await waitForActiveEditor(notePath, EDITOR_WAIT_MS);
-        useAi.getState().startTaskExtract({
-          editor: ed,
-          notePath,
-          noteTitle: stem,
-          body: getMarkdown(ed),
-        });
-      } catch {
-        // Editor never mounted (rare): the transcript is safely saved; the user
-        // can open it and run Extract Tasks manually.
+      // Hand off only when task extraction (and the AI master) is enabled —
+      // voice-on with AI off must not open a "no connections" error modal
+      // after every recording. The transcript note is the deliverable either way.
+      if (isFeatureOn("taskExtract")) {
+        try {
+          const ed = await waitForActiveEditor(notePath, EDITOR_WAIT_MS);
+          useAi.getState().startTaskExtract({
+            editor: ed,
+            notePath,
+            noteTitle: stem,
+            body: getMarkdown(ed),
+          });
+        } catch {
+          // Editor never mounted (rare): the transcript is safely saved; the user
+          // can open it and run Extract Tasks manually.
+        }
       }
       set({ status: "idle", lastNotePath: notePath });
     } catch (e) {

@@ -1,6 +1,7 @@
 import { create } from "zustand";
 
 import { api, events, NovalisError, type RagCitation } from "../ipc/api";
+import { isFeatureOn } from "../lib/features";
 import i18n from "../lib/i18n";
 
 export type ChatStatus = "idle" | "retrieving" | "streaming" | "done" | "error";
@@ -44,7 +45,12 @@ export const useVaultChat = create<VaultChatState>((set, get) => ({
   error: null,
   requestId: "",
 
-  openPanel: () => set({ open: true }),
+  // Belt-and-braces under the palette gate: a programmatic open of a
+  // feature-disabled chat must stay a no-op.
+  openPanel: () => {
+    if (!isFeatureOn("vaultChat")) return;
+    set({ open: true });
+  },
   closePanel: () => {
     get().cancel();
     set({ open: false });

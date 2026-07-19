@@ -11,7 +11,7 @@ import { Editor } from "@tiptap/core";
 import { afterEach, describe, expect, it } from "vitest";
 
 import { ensureHighlightGrammars, highlightGrammarsLoaded, lowlight } from "./lowlightLazy";
-import { buildEditorExtensions } from "./NovalisEditor";
+import { buildEditorExtensions, type EditorFeatures } from "./NovalisEditor";
 
 const editors: Editor[] = [];
 const mounts: HTMLElement[] = [];
@@ -21,11 +21,14 @@ afterEach(() => {
   while (mounts.length) mounts.pop()?.remove();
 });
 
-function mountEditor(content: string): { editor: Editor; element: HTMLElement } {
+function mountEditor(
+  content: string,
+  features?: EditorFeatures,
+): { editor: Editor; element: HTMLElement } {
   const element = document.createElement("div");
   document.body.appendChild(element);
   mounts.push(element);
-  const editor = new Editor({ element, extensions: buildEditorExtensions(), content });
+  const editor = new Editor({ element, extensions: buildEditorExtensions({ features }), content });
   editors.push(editor);
   return { editor, element };
 }
@@ -54,5 +57,22 @@ describe("lazy syntax highlighting", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     const highlighted = element.querySelectorAll('[class*="hljs-"]');
     expect(highlighted.length).toBeGreaterThan(0);
+  });
+
+  it("codeHighlight:false stays plain even after grammars loaded elsewhere in the session", async () => {
+    // Another editor already lazy-loaded the grammars into the shared
+    // module-scope registry…
+    await ensureHighlightGrammars();
+    // …control: a default-features editor created NOW highlights immediately,
+    // proving the shared registry is hot…
+    const on = mountEditor("```ts\nconst x: number = 1;\n```");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(on.element.querySelectorAll('[class*="hljs-"]').length).toBeGreaterThan(0);
+    // …but a codeHighlight:false editor is wired to its own permanently-empty
+    // registry, so the hot singleton must not leak highlighting into it.
+    const off = mountEditor("```ts\nconst x: number = 1;\n```", { codeHighlight: false });
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    expect(off.element.querySelector("pre code")).not.toBeNull();
+    expect(off.element.querySelectorAll('[class*="hljs-"]').length).toBe(0);
   });
 });

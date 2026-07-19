@@ -381,9 +381,8 @@
   "navigation": {
     "moveDown": "Move {{view}} down",
     "moveUp": "Move {{view}} up",
-    "railDesc": "Choose which views appear in the left activity rail and in what order.",
-    "sectionRail": "Activity rail",
-    "toggleAria": "Show {{view}} in the activity rail"
+    "railDesc": "Reorder the views in the left activity rail. Which views are available is managed in Settings › Features.",
+    "sectionRail": "Activity rail"
   },
   "plugins": {
     "empty": "No plugins installed. Drop a plugin folder into <2>.novalis/plugins/</2> in your vault (see PLUGINS.md), then reopen Settings.",
