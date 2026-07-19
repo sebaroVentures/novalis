@@ -499,6 +499,12 @@ export const commands = {
 	oauthDisconnect: (provider: string) => typedError<null, CommandError>(__TAURI_INVOKE("oauth_disconnect", { provider })),
 	listPlugins: () => typedError<PluginInfo[], CommandError>(__TAURI_INVOKE("list_plugins")),
 	setPluginEnabled: (id: string, enabled: boolean) => typedError<null, CommandError>(__TAURI_INVOKE("set_plugin_enabled", { id, enabled })),
+	/**
+	 *  Source is what actually boots a plugin worker, so it hard-gates on the
+	 *  plugins feature flag (defense in depth under the frontend gate). Listing
+	 *  and enable/disable stay available — the Settings panel manages plugins
+	 *  even while the feature is off. An unreadable config never default-enables.
+	 */
 	readPluginSource: (id: string) => typedError<string, CommandError>(__TAURI_INVOKE("read_plugin_source", { id })),
 	/**  The actions the editor can offer (metadata only). */
 	aiListActions: () => __TAURI_INVOKE<AiActionView[]>("ai_list_actions"),

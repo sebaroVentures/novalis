@@ -393,6 +393,7 @@
   "sync": {
     "p2p": {
       "desc": "Synchronisez directement entre vos propres appareils, sans serveur. Le contenu des fichiers est chiffré de bout en bout, de sorte que seuls vos appareils jumelés peuvent le lire. Une alternative facultative à la synchronisation Git.",
+      "disabledHint": "Activez la synchro d'appareils dans Réglages › Fonctionnalités pour appairer des appareils et synchroniser.",
       "error": "Échec de la synchronisation : {{message}}",
       "outcome": {
         "conflicts": "{{n}} fichier(s) ont divergé et ont été laissés pour résolution dans la vue des conflits",

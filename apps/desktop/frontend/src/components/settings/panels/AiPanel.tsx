@@ -12,6 +12,7 @@ import {
   type AiTemplateScope,
   type EmbedStatus,
 } from "../../../ipc/api";
+import { useFeature } from "../../../lib/features";
 import { useAi } from "../../../stores/aiStore";
 import { useSettings } from "../../../stores/settingsStore";
 import { useVault } from "../../../stores/vaultStore";
@@ -156,6 +157,7 @@ function AmbientSection() {
  *  the sole network/token cost, so it's an explicit, batched button. */
 function SemanticSearchSection() {
   const { t } = useTranslation("ai");
+  const aiOn = useFeature("ai");
   const connections = useAi((s) => s.connections);
   const eligible = connections.filter(
     (c) => c.kind === "openAiCompatible" && c.enabled,
@@ -251,6 +253,11 @@ function SemanticSearchSection() {
   return (
     <SettingsSection title={t("settings.embed.title")} description={t("settings.embed.desc")}>
       <div className="flex flex-col gap-3">
+        {/* The backend refuses embedding work while the AI master switch is
+            off, so coverage below reads "not configured" — say why. */}
+        {!aiOn && (
+          <p className="py-1 text-sm text-fg-faint">{t("settings.embed.featureOffHint")}</p>
+        )}
         {/* The form is always available now that a bundled local model exists;
             this stays as a nudge for anyone who'd rather use a cloud model. */}
         {eligible.length === 0 && (

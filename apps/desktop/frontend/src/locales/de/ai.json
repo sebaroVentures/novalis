@@ -173,6 +173,7 @@
     "embed": {
       "title": "Semantische Suche",
       "desc": "Erstellt einen geräteinternen Index aus Notiz-Embeddings, um verwandte Notizen zu finden. Embeddings werden einmalig berechnet – lokal oder über eine OpenAI-kompatible Verbindung – die Suche bleibt danach lokal.",
+      "featureOffHint": "Die KI-Unterstützung ist unter Einstellungen › Funktionen ausgeschaltet — der semantische Index pausiert, bis sie wieder an ist.",
       "connection": "Verbindung",
       "connectionLocal": "Lokal (integriert)",
       "connectionNone": "Keine (aus)",

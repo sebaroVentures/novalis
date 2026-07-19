@@ -41,6 +41,21 @@ mod imp {
             .with(|e| Ok((e.vault_path.clone(), e.data_dir.clone())))
     }
 
+    /// The vault's P2P feature flag. An unreadable config never
+    /// default-enables gated work.
+    fn p2p_enabled(vault: &Path) -> bool {
+        novalis_core::vault::config::try_read_preferences(vault)
+            .map(|p| p.features.p2p_sync)
+            .unwrap_or(false)
+    }
+
+    fn p2p_disabled_error() -> CommandError {
+        CommandError {
+            kind: "badRequest".to_string(),
+            message: "P2P sync is disabled in Settings › Features".to_string(),
+        }
+    }
+
     /// Where the self-contained sync state lives — under the per-vault app-data
     /// dir, deliberately NOT in the vault and NOT in the disposable index cache.
     fn sync_dir(data_dir: &Path) -> PathBuf {
@@ -124,6 +139,9 @@ mod imp {
 
     pub(crate) async fn generate_ticket(app: &AppHandle) -> Result<String, CommandError> {
         let (vault, data) = vault_and_data(app)?;
+        if !p2p_enabled(&vault) {
+            return Err(p2p_disabled_error());
+        }
         let dir = sync_dir(&data);
         let identity = ensure_identity()?;
         let key = ensure_vault_key(&vault)?;
@@ -156,6 +174,9 @@ mod imp {
     pub(crate) async fn join(app: &AppHandle, ticket_str: String) -> Result<(), CommandError> {
         let ticket = SyncTicket::decode(&ticket_str).map_err(CommandError::from)?;
         let (vault, data) = vault_and_data(app)?;
+        if !p2p_enabled(&vault) {
+            return Err(p2p_disabled_error());
+        }
         let dir = sync_dir(&data);
 
         let mut store = SyncStore::load(&dir);
@@ -201,6 +222,12 @@ mod imp {
             skipped_oversize: 0,
         };
 
+        // Feature off reports the same soft NotConfigured outcome as a
+        // never-set-up vault — the UI already renders that state.
+        if !p2p_enabled(&vault) {
+            outcome.kind = SyncOutcomeKind::NotConfigured;
+            return Ok(outcome);
+        }
         if store.vault_id.trim().is_empty() {
             outcome.kind = SyncOutcomeKind::NotConfigured;
             return Ok(outcome);
@@ -330,6 +357,13 @@ mod imp {
     pub(crate) fn responder_ctx(app: &AppHandle) -> CoreResult<SessionCtx> {
         let (vault, data) =
             vault_and_data(app).map_err(|e| CoreError::Internal(format!("sync: {}", e.message)))?;
+        // The iroh endpoint is a process-global that can never be torn down —
+        // this per-connection check is the live off-switch for inbound sync.
+        if !p2p_enabled(&vault) {
+            return Err(CoreError::BadRequest(
+                "sync: P2P sync is disabled on this device".to_string(),
+            ));
+        }
         let dir = sync_dir(&data);
         let store = SyncStore::load(&dir);
         if store.vault_id.trim().is_empty() {

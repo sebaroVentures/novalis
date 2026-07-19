@@ -440,6 +440,7 @@
     },
     "p2p": {
       "desc": "Sync directly between your own devices with no server. File contents are end-to-end encrypted, so only your paired devices can read them. An opt-in alternative to Git sync.",
+      "disabledHint": "Turn on device sync in Settings › Features to pair devices and sync.",
       "error": "Sync failed: {{message}}",
       "outcome": {
         "conflicts": "{{n}} file(s) diverged and were left for you to resolve in the conflict view",

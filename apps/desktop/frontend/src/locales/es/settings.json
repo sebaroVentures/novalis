@@ -393,6 +393,7 @@
   "sync": {
     "p2p": {
       "desc": "Sincroniza directamente entre tus propios dispositivos, sin servidor. El contenido de los archivos está cifrado de extremo a extremo, de modo que solo tus dispositivos emparejados pueden leerlo. Una alternativa opcional a la sincronización con Git.",
+      "disabledHint": "Activa la sincronización entre dispositivos en Ajustes › Funciones para emparejar dispositivos y sincronizar.",
       "error": "Error de sincronización: {{message}}",
       "outcome": {
         "conflicts": "{{n}} archivo(s) divergieron y se dejaron para que los resuelvas en la vista de conflictos",

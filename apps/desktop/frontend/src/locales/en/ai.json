@@ -168,6 +168,7 @@
       "connectionNone": "None (off)",
       "coverage": "{{embedded}} of {{total}} notes indexed",
       "desc": "Build an on-device index of note embeddings to surface related notes. Embeddings are computed once — on-device or through an OpenAI-compatible connection — and lookups then stay local.",
+      "featureOffHint": "AI assistance is turned off in Settings › Features — the semantic index pauses until it is back on.",
       "localHint": "Runs entirely on your device (bge-small-en-v1.5). The first build downloads a ~130 MB model, then works offline.",
       "model": "Embedding model",
       "modelPlaceholder": "text-embedding-3-small",

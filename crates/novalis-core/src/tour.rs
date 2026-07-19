@@ -64,6 +64,19 @@ pub fn generate(target: &Path) -> CoreResult<()> {
     }
     write_file(target, CANVAS_REL, &canvas())?;
 
+    // The tour exists to demonstrate the flagship features, so its vault
+    // config enables every optional one its content showcases (backlinks is
+    // already default-on; AI stays off — it additionally needs a provider).
+    // A fresh vault elsewhere still starts with the lean serde defaults.
+    let mut prefs = crate::models::Preferences::default();
+    prefs.features.block_refs = true;
+    prefs.features.transclusion = true;
+    prefs.features.canvas = true;
+    prefs.features.graph_view = true;
+    prefs.features.properties = true;
+    prefs.features.query_engine = true;
+    crate::vault::config::write_preferences(target, &prefs)?;
+
     Ok(())
 }
 

@@ -101,7 +101,12 @@ pub fn update(
     content: &str,
 ) -> CoreResult<Note> {
     let (note, summary) = update_write(vault, data_dir, path, content)?;
-    crate::index::search::index_note(db, &summary, &note.content)?;
+    crate::index::search::index_note_with_opts(
+        db,
+        &summary,
+        &note.content,
+        crate::index::search::IndexOptions::for_vault(vault),
+    )?;
     // Keep the on-disk mtime stamped so the incremental startup scan can skip
     // this note next time (matches `change::reindex_path`).
     if let Some(ms) = std::fs::metadata(vault_fs::vault_rel(vault, path)?)

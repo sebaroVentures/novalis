@@ -13,6 +13,43 @@ use crate::vault::{frontmatter, fs as vault_fs};
 /// is processed so a long rebuild can report progress instead of an opaque wait.
 pub type IndexProgress<'a> = &'a mut dyn FnMut(usize, usize);
 
+/// Which optional ingest passes run during indexing. Resolved from the vault's
+/// feature flags ONCE per operation (never per note inside a rebuild
+/// transaction) — the full-scan entry points resolve it themselves via
+/// [`IndexOptions::for_vault`], per-note callers pass it down explicitly.
+/// `Default` is all-on: the historic full pipeline, kept for direct API use
+/// and tests that index without a real vault config.
+#[derive(Debug, Clone, Copy)]
+pub struct IndexOptions {
+    /// Index ` ^id` block markers and the `((^id))` reference graph.
+    pub block_refs: bool,
+}
+
+impl Default for IndexOptions {
+    fn default() -> Self {
+        Self { block_refs: true }
+    }
+}
+
+impl IndexOptions {
+    /// Resolve the vault's feature flags into index options. A missing
+    /// config.json yields the serde defaults; a malformed one warns and also
+    /// falls back to the defaults — never to "everything on" (matching the
+    /// autocommit convention of not default-enabling gated work on a corrupt
+    /// config).
+    pub fn for_vault(vault: &Path) -> Self {
+        let features = crate::vault::config::try_read_preferences(vault)
+            .unwrap_or_else(|e| {
+                log::warn!("could not read preferences for index options: {e}");
+                crate::models::Preferences::default()
+            })
+            .features;
+        Self {
+            block_refs: features.block_refs,
+        }
+    }
+}
+
 /// Full scan of the vault to (re)build the search index.
 pub fn build_index(db: &Connection, vault: &Path) -> CoreResult<()> {
     build_index_with_progress(db, vault, &mut |_, _| {})
@@ -57,6 +94,12 @@ pub fn build_index_with_progress(
     db.execute("DELETE FROM tasks", [])?;
     db.execute("DELETE FROM events WHERE source_id = 'local'", [])?;
 
+    // Feature flags resolved once for the whole rebuild — never per note
+    // inside the transaction loop. With block refs off, the up-front clears
+    // above have already emptied block_index/block_refs and the loop leaves
+    // them empty.
+    let opts = IndexOptions::for_vault(vault);
+
     let notes = vault_fs::list_notes(vault);
     let total = notes.len();
     for (i, summary) in notes.iter().enumerate() {
@@ -77,7 +120,7 @@ pub fn build_index_with_progress(
                 }
             },
         };
-        if let Err(e) = index_note(db, summary, &content) {
+        if let Err(e) = index_note_with_opts(db, summary, &content, opts) {
             log::warn!("failed to index {}: {e}", summary.path);
             continue;
         }
@@ -101,8 +144,22 @@ pub fn build_index_with_progress(
     Ok(())
 }
 
-/// Upsert a single note into `note_meta`, the FTS index, and the link graph.
+/// Upsert a single note into `note_meta`, the FTS index, and the link graph,
+/// with the full (all-on) ingest pipeline. Vault-flag-aware callers use
+/// [`index_note_with_opts`] instead.
 pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> CoreResult<()> {
+    index_note_with_opts(db, summary, content, IndexOptions::default())
+}
+
+/// Like [`index_note`] but skips the ingest passes whose feature is off. With
+/// block refs off, this note's existing block rows are left as-is (data is
+/// kept on disable); a full rebuild clears them.
+pub fn index_note_with_opts(
+    db: &Connection,
+    summary: &NoteSummary,
+    content: &str,
+    opts: IndexOptions,
+) -> CoreResult<()> {
     let tags_json = serde_json::to_string(&summary.tags).unwrap_or_else(|_| "[]".to_string());
     let aliases_json = serde_json::to_string(&summary.aliases).unwrap_or_else(|_| "[]".to_string());
     let (fm, body) = frontmatter::parse_frontmatter(content);
@@ -154,10 +211,12 @@ pub fn index_note(db: &Connection, summary: &NoteSummary, content: &str) -> Core
 
     // Stable block ids (` ^id` markers) and the outgoing `((^id))` reference
     // graph — both rebuilt per-note so they never drift from the Markdown.
-    let blocks = crate::index::blocks::extract_block_ids(&body);
-    crate::index::blocks::index_blocks(db, &summary.path, &blocks)?;
-    let block_refs = crate::index::blocks::extract_block_refs(&body);
-    crate::index::blocks::index_block_refs(db, &summary.path, &block_refs)?;
+    if opts.block_refs {
+        let blocks = crate::index::blocks::extract_block_ids(&body);
+        crate::index::blocks::index_blocks(db, &summary.path, &blocks)?;
+        let block_refs = crate::index::blocks::extract_block_refs(&body);
+        crate::index::blocks::index_block_refs(db, &summary.path, &block_refs)?;
+    }
 
     // Typed frontmatter properties + relations (query-engine foundation).
     let props = frontmatter::properties_from_extra(&fm.extra);
@@ -249,6 +308,9 @@ pub fn incremental_index_with_progress(
     let mut reindexed = 0usize;
     let mut dirty = false;
 
+    // Feature flags resolved once for the whole scan, like `build_index`.
+    let opts = IndexOptions::for_vault(vault);
+
     let notes = vault_fs::walk_note_metadata(vault);
     let total = notes.len();
     for (i, (rel, meta)) in notes.into_iter().enumerate() {
@@ -289,7 +351,7 @@ pub fn incremental_index_with_progress(
                 }
             }
         };
-        if let Err(e) = index_note(db, &summary, &content) {
+        if let Err(e) = index_note_with_opts(db, &summary, &content, opts) {
             log::warn!("failed to index {rel}: {e}");
             continue;
         }
@@ -486,6 +548,66 @@ mod tests {
         let quick = quick_search(&db, "bet").unwrap();
         assert_eq!(quick.len(), 1);
         assert_eq!(quick[0].title, "Beta");
+    }
+
+    #[test]
+    fn index_options_gate_the_block_ref_passes() {
+        let (_tmp, db) = mem_db();
+        let body = "para one ^blk1\n\nsee ((^blk1))\n";
+
+        // Flag off: no block rows are written for the note.
+        index_note_with_opts(
+            &db,
+            &summary("off.md", "Off"),
+            body,
+            IndexOptions { block_refs: false },
+        )
+        .unwrap();
+        let blocks: i64 = db
+            .query_row("SELECT COUNT(*) FROM block_index", [], |r| r.get(0))
+            .unwrap();
+        let refs: i64 = db
+            .query_row("SELECT COUNT(*) FROM block_refs", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!((blocks, refs), (0, 0));
+
+        // The plain API keeps the historic full pipeline.
+        index_note(&db, &summary("on.md", "On"), body).unwrap();
+        let blocks: i64 = db
+            .query_row("SELECT COUNT(*) FROM block_index", [], |r| r.get(0))
+            .unwrap();
+        assert!(blocks > 0);
+    }
+
+    #[test]
+    fn build_index_honors_the_vault_block_refs_flag() {
+        // A vault whose config has blockRefs on indexes blocks; flipping the
+        // flag off and rebuilding clears them (the up-front DELETEs run either
+        // way, and the per-note pass skips re-adding). The vault must be a
+        // non-hidden subdir — tempdirs themselves are named `.tmp…`, which the
+        // note walker skips as hidden.
+        let base = tempfile::tempdir().unwrap();
+        let vault = base.path().join("Vault");
+        std::fs::create_dir_all(&vault).unwrap();
+        std::fs::write(vault.join("n.md"), "para ^blk1\n\nsee ((^blk1))\n").unwrap();
+        let (_tmp, db) = mem_db();
+
+        let mut prefs = crate::models::Preferences::default();
+        prefs.features.block_refs = true;
+        crate::vault::config::write_preferences(&vault, &prefs).unwrap();
+        build_index(&db, &vault).unwrap();
+        let blocks: i64 = db
+            .query_row("SELECT COUNT(*) FROM block_index", [], |r| r.get(0))
+            .unwrap();
+        assert!(blocks > 0);
+
+        prefs.features.block_refs = false;
+        crate::vault::config::write_preferences(&vault, &prefs).unwrap();
+        build_index(&db, &vault).unwrap();
+        let blocks: i64 = db
+            .query_row("SELECT COUNT(*) FROM block_index", [], |r| r.get(0))
+            .unwrap();
+        assert_eq!(blocks, 0);
     }
 
     #[test]

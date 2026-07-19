@@ -13,15 +13,27 @@ use crate::index::search;
 use crate::vault::fs as vault_fs;
 
 /// Re-index the note at `relative`, or remove it from the index if the file no
-/// longer exists on disk.
+/// longer exists on disk. Resolves the vault's feature flags itself; a caller
+/// holding the engine lock resolves them beforehand and uses
+/// [`reindex_path_with_opts`] instead.
 pub fn reindex_path(db: &Connection, vault: &Path, relative: &str) -> CoreResult<()> {
+    reindex_path_with_opts(db, vault, relative, search::IndexOptions::for_vault(vault))
+}
+
+/// Like [`reindex_path`] with pre-resolved [`search::IndexOptions`].
+pub fn reindex_path_with_opts(
+    db: &Connection,
+    vault: &Path,
+    relative: &str,
+    opts: search::IndexOptions,
+) -> CoreResult<()> {
     let abs = vault_fs::vault_rel(vault, relative)?;
     if !abs.exists() {
         return search::remove_note(db, relative);
     }
     let summary = vault_fs::build_summary(vault, relative)?;
     let content = std::fs::read_to_string(&abs)?;
-    search::index_note(db, &summary, &content)?;
+    search::index_note_with_opts(db, &summary, &content, opts)?;
     // Stamp the on-disk mtime so the incremental startup scan can skip this note
     // next time (a watcher/rescan reindex otherwise leaves mtime unstamped,
     // forcing a needless reindex at the following open).

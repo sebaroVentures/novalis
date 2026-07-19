@@ -11,6 +11,7 @@ import {
   type SyncOutcome,
   type SyncStatus,
 } from "../../../ipc/api";
+import { useFeature } from "../../../lib/features";
 import { useGitConflicts } from "../../../stores/gitConflictStore";
 import { resolveGitPrefs, useSettings } from "../../../stores/settingsStore";
 import { NumberField, SettingRow, SettingsSection, Switch, TextField } from "../../ui";
@@ -368,6 +369,7 @@ const P2P_OUTCOME = {
  */
 function P2PSyncSection() {
   const { t, i18n } = useTranslation("settings");
+  const p2pOn = useFeature("p2pSync");
   const [status, setStatus] = useState<SyncStatus | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -385,10 +387,11 @@ function P2PSyncSection() {
   }, []);
 
   useEffect(() => {
+    if (!p2pOn) return;
     void refresh();
     const id = setInterval(() => void refresh(), 5000);
     return () => clearInterval(id);
-  }, [refresh]);
+  }, [refresh, p2pOn]);
 
   const run = async (op: () => Promise<void>) => {
     if (busy) return;
@@ -443,6 +446,16 @@ function P2PSyncSection() {
   const outcomeText = outcome
     ? t(P2P_OUTCOME[outcome.kind], { taken: outcome.taken, sent: outcome.sent })
     : null;
+
+  // The backend hard-gates ticket/join/sync when the feature is off — don't
+  // offer buttons that can only fail; point at the switch instead.
+  if (!p2pOn) {
+    return (
+      <SettingsSection title={t("sync.p2p.title")} description={t("sync.p2p.desc")}>
+        <p className="pt-1 text-xs text-fg-subtle">{t("sync.p2p.disabledHint")}</p>
+      </SettingsSection>
+    );
+  }
 
   return (
     <SettingsSection title={t("sync.p2p.title")} description={t("sync.p2p.desc")}>

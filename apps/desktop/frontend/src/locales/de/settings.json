@@ -393,6 +393,7 @@
   "sync": {
     "p2p": {
       "desc": "Synchronisiere direkt zwischen deinen eigenen Geräten – ganz ohne Server. Dateiinhalte sind Ende-zu-Ende-verschlüsselt, sodass nur deine gekoppelten Geräte sie lesen können. Eine optionale Alternative zur Git-Synchronisierung.",
+      "disabledHint": "Schalte Geräte-Sync unter Einstellungen › Funktionen ein, um Geräte zu koppeln und zu synchronisieren.",
       "error": "Synchronisierung fehlgeschlagen: {{message}}",
       "outcome": {
         "conflicts": "{{n}} Datei(en) sind auseinandergelaufen und wurden zur Auflösung in der Konfliktansicht belassen",

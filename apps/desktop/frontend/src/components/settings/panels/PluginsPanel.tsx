@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 
 import { api, type PluginInfo } from "../../../ipc/api";
+import { isFeatureOn } from "../../../lib/features";
 import { usePlugins } from "../../../stores/pluginStore";
 import { SettingsSection, Switch } from "../../ui";
 
@@ -18,7 +19,11 @@ export function PluginsPanel() {
   const toggle = async (id: string, enabled: boolean) => {
     try {
       await api.setPluginEnabled(id, enabled);
-      await usePlugins.getState().reload();
+      // Managing plugins works while the feature is off, but only reload
+      // workers when it is on — the backend hard-rejects source reads
+      // otherwise, which would toast a "load failed" per enabled plugin.
+      if (isFeatureOn("plugins")) await usePlugins.getState().reload();
+      else usePlugins.getState().unload();
       setPlugins(await api.listPlugins());
     } catch {
       /* ignore */

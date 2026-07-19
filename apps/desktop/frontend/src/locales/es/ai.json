@@ -173,6 +173,7 @@
     "embed": {
       "title": "Búsqueda semántica",
       "desc": "Crea un índice local de embeddings de notas para mostrar notas relacionadas. Los embeddings se calculan una vez —en el dispositivo o mediante una conexión compatible con OpenAI— y luego las búsquedas son locales.",
+      "featureOffHint": "La asistencia de IA está desactivada en Ajustes › Funciones; el índice semántico se pausa hasta que vuelva a activarse.",
       "connection": "Conexión",
       "connectionLocal": "Local (integrado)",
       "connectionNone": "Ninguna (desactivado)",

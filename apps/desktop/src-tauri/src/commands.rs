@@ -159,9 +159,6 @@ fn index_progress_emitter(app: &AppHandle) -> impl FnMut(usize, usize) + '_ {
         let step = (total / 50).max(1);
         if done == 1 || done == total || done.saturating_sub(last) >= step {
             last = done;
-            if done == 1 || done == total {
-                log::info!("index-progress emit {done}/{total}");
-            }
             let _ = app.emit("index-progress", IndexProgress { done, total });
         }
     }
@@ -432,9 +429,11 @@ pub async fn update_note(app: AppHandle, path: String, content: String) -> CmdRe
         // File IO OFF the lock.
         let (note, summary) =
             novalis_core::notes::update_write(&vault, &data_dir, &path, &content)?;
+        // Feature flags for the ingest passes — read off-lock like the write.
+        let opts = search::IndexOptions::for_vault(&vault);
         // Re-acquire only for the index upsert + mtime stamp (pure DB).
         state.with(|e| {
-            search::index_note(&e.db, &summary, &note.content)?;
+            search::index_note_with_opts(&e.db, &summary, &note.content, opts)?;
             if let Some(ms) = std::fs::metadata(vault.join(&path))
                 .ok()
                 .as_ref()
@@ -1983,10 +1982,24 @@ pub fn set_plugin_enabled(state: State<AppEngine>, id: String, enabled: bool) ->
     state.with(|e| novalis_core::plugins::set_enabled(&e.vault_path, &id, enabled))
 }
 
+/// Source is what actually boots a plugin worker, so it hard-gates on the
+/// plugins feature flag (defense in depth under the frontend gate). Listing
+/// and enable/disable stay available — the Settings panel manages plugins
+/// even while the feature is off. An unreadable config never default-enables.
 #[tauri::command]
 #[specta::specta]
 pub fn read_plugin_source(state: State<AppEngine>, id: String) -> CmdResult<String> {
-    state.with(|e| novalis_core::plugins::read_source(&e.vault_path, &id))
+    state.with(|e| {
+        let plugins_on = config::try_read_preferences(&e.vault_path)
+            .map(|p| p.features.plugins)
+            .unwrap_or(false);
+        if !plugins_on {
+            return Err(CoreError::BadRequest(
+                "plugins are disabled in Settings › Features".to_string(),
+            ));
+        }
+        novalis_core::plugins::read_source(&e.vault_path, &id)
+    })
 }
 
 /// Build a stable, filesystem-safe key for a vault path (used to name its

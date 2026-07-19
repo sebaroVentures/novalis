@@ -108,6 +108,7 @@ pub async fn ai_run_action(
     registry: State<'_, AiRegistry>,
     req: AiRunRequest,
 ) -> CmdResult<String> {
+    ensure_ai_feature(&app)?;
     let conn = find_connection(&app, &req.connection_id)?;
     if !conn.enabled {
         return Err(CommandError {
@@ -304,6 +305,27 @@ fn embed_not_configured() -> CommandError {
     }
 }
 
+/// Backend half of the AI master switch: token-spending commands refuse before
+/// any provider call when the vault's `features.ai` is off (the frontend hides
+/// their surfaces, but a stale renderer — e.g. a flag synced in from another
+/// device — must not keep spending). An unreadable config never
+/// default-enables gated work.
+fn ensure_ai_feature(app: &AppHandle) -> CmdResult<()> {
+    let vault = app
+        .state::<AppEngine>()
+        .with(|e| Ok(e.vault_path.clone()))?;
+    let ai_on = novalis_core::vault::config::try_read_preferences(&vault)
+        .map(|p| p.features.ai)
+        .unwrap_or(false);
+    if !ai_on {
+        return Err(CommandError {
+            kind: "badRequest".to_string(),
+            message: "AI assistance is disabled in Settings › Features".to_string(),
+        });
+    }
+    Ok(())
+}
+
 /// A resolved embedding backend: either a remote OpenAI-compatible connection or
 /// the bundled on-device model. Both carry the `note_vectors.model` id they
 /// write under (so local and remote vectors coexist under distinct models).
@@ -331,7 +353,21 @@ impl ResolvedEmbedder {
 /// otherwise a missing/empty config, or a connection that is disabled, missing,
 /// non-OpenAI-compatible, or has an empty model, all map to "not configured" so
 /// the UI shows the settings CTA rather than a hard error.
+///
+/// This is the single choke point for every embedding consumer (status, build,
+/// find-related, similarity sort, RAG retrieval), so the vault's AI feature
+/// flag is enforced here once: with the master off, building/searching report
+/// not-configured and RAG degrades to FTS-only (its caller uses `.ok()`).
 fn resolve_embedding(app: &AppHandle) -> CmdResult<ResolvedEmbedder> {
+    let vault = app
+        .state::<AppEngine>()
+        .with(|e| Ok(e.vault_path.clone()))?;
+    let ai_on = novalis_core::vault::config::try_read_preferences(&vault)
+        .map(|p| p.features.ai)
+        .unwrap_or(false); // unreadable prefs: never default-enable gated work
+    if !ai_on {
+        return Err(embed_not_configured());
+    }
     let cfg = crate::settings::load_ai_embedding(app).ok_or_else(embed_not_configured)?;
     if cfg.connection_id == LOCAL_EMBEDDING_CONNECTION_ID {
         return Ok(ResolvedEmbedder::Local {
@@ -769,6 +805,7 @@ pub async fn ai_rag_answer(
 
     // Resolve + validate the chat connection up front, so a missing provider/key
     // fails loud before any retrieval work (mirrors `ai_run_action`).
+    ensure_ai_feature(&app)?;
     let conn = find_connection(&app, &connection_id)?;
     if !conn.enabled {
         return Err(CommandError {

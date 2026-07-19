@@ -115,6 +115,18 @@ pub async fn entities_extract_note(
             e.vault_path.clone(),
         ))
     })?;
+    // Feature gate BEFORE any network call so a disabled entity graph never
+    // spends provider tokens. Same master&&sub rule as the frontend; an
+    // unreadable config never default-enables gated work.
+    let entity_graph_on = novalis_core::vault::config::try_read_preferences(&vault)
+        .map(|p| p.features.ai && p.features.entity_graph)
+        .unwrap_or(false);
+    if !entity_graph_on {
+        return Err(CommandError {
+            kind: "badRequest".to_string(),
+            message: "the entity graph feature is disabled in Settings › Features".to_string(),
+        });
+    }
     let path_read = path.clone();
     let body = tauri::async_runtime::spawn_blocking(move || read_note_body(&vault, &path_read))
         .await

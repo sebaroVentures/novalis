@@ -173,6 +173,7 @@
     "embed": {
       "title": "Recherche sémantique",
       "desc": "Crée un index local d'embeddings de notes pour faire apparaître les notes connexes. Les embeddings sont calculés une fois — sur l'appareil ou via une connexion compatible OpenAI — et les recherches restent ensuite locales.",
+      "featureOffHint": "L'assistance IA est désactivée dans Réglages › Fonctionnalités — l'index sémantique est en pause jusqu'à sa réactivation.",
       "connection": "Connexion",
       "connectionLocal": "Local (intégré)",
       "connectionNone": "Aucune (désactivé)",
