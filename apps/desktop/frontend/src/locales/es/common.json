@@ -16,6 +16,8 @@
     "missingFile": "Falta: {{file}}",
     "new": "Nuevo lienzo",
     "pickNote": "Añadir una nota al lienzo",
+    "renameCanvas": "Renombrar",
+    "renameHint": "Doble clic para renombrar",
     "saveError": "Error al guardar",
     "saved": "Guardado",
     "saving": "Guardando…",

@@ -67,6 +67,7 @@ export const api = {
   writeCanvas: (path: string, content: string) => unwrap(commands.writeCanvas(path, content)),
   createCanvas: (path: string, content: string) => unwrap(commands.createCanvas(path, content)),
   deleteCanvas: (path: string) => unwrap(commands.deleteCanvas(path)),
+  renameCanvas: (path: string, newName: string) => unwrap(commands.renameCanvas(path, newName)),
 
   createFolder: (path: string) => unwrap(commands.createFolder(path)),
   deleteFolder: (path: string) => unwrap(commands.deleteFolder(path)),

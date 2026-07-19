@@ -124,6 +124,7 @@ fn specta_builder() -> Builder<tauri::Wry> {
             commands::write_canvas,
             commands::create_canvas,
             commands::delete_canvas,
+            commands::rename_canvas,
             commands::reveal_in_file_manager,
             commands::resolve_or_create_wiki_link,
             commands::get_folder_tree,

@@ -163,6 +163,53 @@ pub fn delete(vault: &Path, relative: &str) -> CoreResult<()> {
     Ok(())
 }
 
+/// Rename a canvas to a new display name (its file stem) within the SAME folder.
+/// `new_name` is a bare name — never a path — so a rename can't move the file out
+/// of its folder or escape the vault; the `.canvas` extension is preserved.
+/// A rename to the current name is a no-op. Errors if the source is missing or
+/// the target already exists.
+pub fn rename(vault: &Path, relative: &str, new_name: &str) -> CoreResult<CanvasFile> {
+    ensure_canvas(relative)?;
+    let abs = vault_rel(vault, relative)?;
+    if !abs.exists() {
+        return Err(CoreError::NotFound(format!("Canvas not found: {relative}")));
+    }
+
+    let name = new_name.trim();
+    if name.is_empty() || name.contains(['/', '\\', ':', '\0']) || name.starts_with('.') {
+        return Err(CoreError::BadRequest(format!(
+            "Invalid canvas name: {new_name}"
+        )));
+    }
+
+    // Rebuild the path in the same parent folder with the new stem.
+    let parent = Path::new(relative).parent().and_then(|p| {
+        let s = p.to_string_lossy().replace('\\', "/");
+        (!s.is_empty()).then_some(s)
+    });
+    let new_rel = match parent {
+        Some(dir) => format!("{dir}/{name}.{CANVAS_EXT}"),
+        None => format!("{name}.{CANVAS_EXT}"),
+    };
+    if new_rel == relative {
+        return Ok(CanvasFile {
+            path: relative.to_string(),
+            name: name.to_string(),
+        });
+    }
+    let new_abs = vault_rel(vault, &new_rel)?;
+    if new_abs.exists() {
+        return Err(CoreError::AlreadyExists(format!(
+            "Canvas already exists: {new_rel}"
+        )));
+    }
+    std::fs::rename(&abs, &new_abs)?;
+    Ok(CanvasFile {
+        path: new_rel,
+        name: name.to_string(),
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -266,6 +313,43 @@ mod tests {
 
         let found: Vec<String> = list(vault).into_iter().map(|c| c.path).collect();
         assert_eq!(found, vec!["boards/plan.canvas", "top.canvas"]);
+    }
+
+    #[test]
+    fn rename_moves_within_folder_and_guards_the_name() {
+        let tmp = temp_vault();
+        let vault = tmp.path();
+        std::fs::create_dir_all(vault.join("boards")).unwrap();
+        create(vault, "boards/old.canvas", "{\"x\":1}").unwrap();
+
+        // Happy path: same folder, new stem, bytes preserved.
+        let renamed = rename(vault, "boards/old.canvas", "New Plan").unwrap();
+        assert_eq!(renamed.path, "boards/New Plan.canvas");
+        assert_eq!(renamed.name, "New Plan");
+        assert!(!vault.join("boards/old.canvas").exists());
+        assert_eq!(read(vault, "boards/New Plan.canvas").unwrap(), "{\"x\":1}");
+
+        // No-op rename to the current name succeeds.
+        assert!(rename(vault, "boards/New Plan.canvas", "New Plan").is_ok());
+
+        // A name with a path separator, drive/ADS colon, leading dot, or empty
+        // must be rejected — a rename can never move the file or escape.
+        for bad in ["a/b", "..", "", "  ", ".hidden", "c:evil"] {
+            assert!(
+                matches!(
+                    rename(vault, "boards/New Plan.canvas", bad),
+                    Err(CoreError::BadRequest(_))
+                ),
+                "rename must reject name {bad:?}"
+            );
+        }
+
+        // Colliding with an existing canvas is an error, not an overwrite.
+        create(vault, "boards/taken.canvas", "{}").unwrap();
+        assert!(matches!(
+            rename(vault, "boards/New Plan.canvas", "taken"),
+            Err(CoreError::AlreadyExists(_))
+        ));
     }
 
     #[test]

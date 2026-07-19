@@ -114,6 +114,8 @@ export const commands = {
 	createCanvas: (path: string, content: string) => typedError<CanvasFile, CommandError>(__TAURI_INVOKE("create_canvas", { path, content })),
 	/**  Permanently delete a canvas file. */
 	deleteCanvas: (path: string) => typedError<null, CommandError>(__TAURI_INVOKE("delete_canvas", { path })),
+	/**  Rename a canvas to `new_name` (a bare display name) within its folder. */
+	renameCanvas: (path: string, newName: string) => typedError<CanvasFile, CommandError>(__TAURI_INVOKE("rename_canvas", { path, newName })),
 	/**
 	 *  Reveal a note file or folder in the OS file manager (Finder/Explorer/file
 	 *  manager), selecting the item. `path` is vault-relative (forward-slashed); an

@@ -159,6 +159,9 @@ fn index_progress_emitter(app: &AppHandle) -> impl FnMut(usize, usize) + '_ {
         let step = (total / 50).max(1);
         if done == 1 || done == total || done.saturating_sub(last) >= step {
             last = done;
+            if done == 1 || done == total {
+                log::info!("index-progress emit {done}/{total}");
+            }
             let _ = app.emit("index-progress", IndexProgress { done, total });
         }
     }
@@ -561,6 +564,17 @@ pub fn create_canvas(
 #[specta::specta]
 pub fn delete_canvas(state: State<AppEngine>, path: String) -> CmdResult<()> {
     state.with(|e| canvas::delete(&e.vault_path, &path))
+}
+
+/// Rename a canvas to `new_name` (a bare display name) within its folder.
+#[tauri::command]
+#[specta::specta]
+pub fn rename_canvas(
+    state: State<AppEngine>,
+    path: String,
+    new_name: String,
+) -> CmdResult<canvas::CanvasFile> {
+    state.with(|e| canvas::rename(&e.vault_path, &path, &new_name))
 }
 
 /// Reveal a note file or folder in the OS file manager (Finder/Explorer/file

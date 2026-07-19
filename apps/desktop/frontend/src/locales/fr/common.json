@@ -16,6 +16,8 @@
     "missingFile": "Manquant : {{file}}",
     "new": "Nouveau canevas",
     "pickNote": "Ajouter une note au canevas",
+    "renameCanvas": "Renommer",
+    "renameHint": "Double-cliquer pour renommer",
     "saveError": "Échec de l'enregistrement",
     "saved": "Enregistré",
     "saving": "Enregistrement…",

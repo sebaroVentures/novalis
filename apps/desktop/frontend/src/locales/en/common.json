@@ -16,6 +16,8 @@
     "missingFile": "Missing: {{file}}",
     "new": "New canvas",
     "pickNote": "Add a note to the canvas",
+    "renameCanvas": "Rename",
+    "renameHint": "Double-click to rename",
     "saved": "Saved",
     "saveError": "Save failed",
     "saving": "Saving…",

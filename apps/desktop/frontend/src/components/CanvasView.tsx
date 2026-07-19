@@ -12,6 +12,7 @@ import {
   FileText,
   Loader2,
   Maximize,
+  Pencil,
   Plus,
   StickyNote,
   Trash2,
@@ -70,6 +71,9 @@ function CanvasGallery() {
   const createAndOpen = useCanvas((s) => s.createAndOpen);
   const [files, setFiles] = useState<CanvasFile[] | null>(null);
   const [pendingDelete, setPendingDelete] = useState<CanvasFile | null>(null);
+  // The canvas currently being renamed inline, and the draft name.
+  const [renaming, setRenaming] = useState<CanvasFile | null>(null);
+  const [renameDraft, setRenameDraft] = useState("");
 
   const refresh = useCallback(() => {
     void api
@@ -77,6 +81,23 @@ function CanvasGallery() {
       .then(setFiles)
       .catch(() => setFiles([]));
   }, []);
+
+  const beginRename = (f: CanvasFile) => {
+    setRenaming(f);
+    setRenameDraft(f.name);
+  };
+
+  const commitRename = () => {
+    const f = renaming;
+    if (!f) return;
+    const name = renameDraft.trim();
+    setRenaming(null);
+    if (!name || name === f.name) return;
+    void api
+      .renameCanvas(f.path, name)
+      .then(refresh)
+      .catch((e) => useVault.getState().reportError(e));
+  };
 
   useEffect(() => {
     refresh();
@@ -134,9 +155,13 @@ function CanvasGallery() {
               key={f.path}
               role="button"
               tabIndex={0}
-              onClick={() => openCanvas(f.path)}
+              onClick={() => {
+                // While renaming this card, a click belongs to the input, not open.
+                if (renaming?.path === f.path) return;
+                openCanvas(f.path);
+              }}
               onKeyDown={(e) => {
-                // Ignore keys bubbling up from the nested delete button.
+                // Ignore keys bubbling up from a nested button/input.
                 if (e.target !== e.currentTarget) return;
                 if (e.key === "Enter" || e.key === " ") {
                   e.preventDefault();
@@ -146,17 +171,54 @@ function CanvasGallery() {
               className="group relative flex h-32 cursor-pointer flex-col justify-end rounded-lg border border-border bg-surface p-3 outline-none transition-colors hover:border-border-strong hover:bg-hover focus-visible:border-border-strong focus-visible:ring-1 focus-visible:ring-inset focus-visible:ring-accent/50"
             >
               <StickyNote size={18} className="absolute left-3 top-3 text-fg-subtle" />
-              <button
-                title={t("canvas.deleteCanvas")}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setPendingDelete(f);
-                }}
-                className="absolute right-2 top-2 rounded p-1 text-fg-subtle opacity-0 transition-opacity hover:bg-active hover:text-danger group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
-              >
-                <Trash2 size={14} />
-              </button>
-              <p className="truncate text-sm font-medium text-fg">{f.name}</p>
+              <div className="absolute right-2 top-2 flex gap-0.5">
+                <button
+                  title={t("canvas.renameCanvas")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    beginRename(f);
+                  }}
+                  className="rounded p-1 text-fg-subtle opacity-0 transition-opacity hover:bg-active hover:text-fg group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                >
+                  <Pencil size={14} />
+                </button>
+                <button
+                  title={t("canvas.deleteCanvas")}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setPendingDelete(f);
+                  }}
+                  className="rounded p-1 text-fg-subtle opacity-0 transition-opacity hover:bg-active hover:text-danger group-hover:opacity-100 group-focus-within:opacity-100 focus-visible:opacity-100"
+                >
+                  <Trash2 size={14} />
+                </button>
+              </div>
+              {renaming?.path === f.path ? (
+                <input
+                  autoFocus
+                  value={renameDraft}
+                  onChange={(e) => setRenameDraft(e.target.value)}
+                  onClick={(e) => e.stopPropagation()}
+                  onBlur={commitRename}
+                  onKeyDown={(e) => {
+                    e.stopPropagation();
+                    if (e.key === "Enter") commitRename();
+                    else if (e.key === "Escape") setRenaming(null);
+                  }}
+                  className="w-full rounded border border-accent bg-app px-1 py-0.5 text-sm font-medium text-fg outline-none"
+                />
+              ) : (
+                <p
+                  className="truncate text-sm font-medium text-fg"
+                  title={t("canvas.renameHint")}
+                  onDoubleClick={(e) => {
+                    e.stopPropagation();
+                    beginRename(f);
+                  }}
+                >
+                  {f.name}
+                </p>
+              )}
               <p className="truncate text-[11px] text-fg-faint">{f.path}</p>
             </div>
           ))}
