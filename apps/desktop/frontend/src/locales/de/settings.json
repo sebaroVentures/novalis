@@ -95,6 +95,187 @@
       "label": "Reaktion beim Tippen"
     }
   },
+  "features": {
+    "ai": {
+      "aria": "KI-Unterstützung umschalten",
+      "desc": "Hauptschalter: Editor-Aktionen (Zusammenfassen, Verfassen, Umschreiben) plus alle KI-Unterfunktionen darunter.",
+      "label": "KI-Unterstützung"
+    },
+    "aiMetaSuggestions": {
+      "aria": "Metadaten-Vorschläge umschalten",
+      "desc": "Der Button „Metadaten vorschlagen“ in der Metadaten-Leiste einer Notiz.",
+      "label": "Metadaten-Vorschläge"
+    },
+    "aiTemplates": {
+      "aria": "Eigene KI-Aktionen umschalten",
+      "desc": "Deine eigenen Prompt-Vorlagen im KI-Menü.",
+      "label": "Eigene KI-Aktionen"
+    },
+    "ambient": {
+      "aria": "Ambient-Vorschläge umschalten",
+      "desc": "Schlägt nach einer Bearbeitung im Hintergrund Links und Metadaten vor. Kostet Tokens und ist deshalb ein separates Opt-in.",
+      "label": "Ambient-Vorschläge"
+    },
+    "backlinks": {
+      "aria": "Backlinks umschalten",
+      "desc": "Das Links-Panel mit Backlinks und unverlinkten Erwähnungen.",
+      "label": "Backlinks"
+    },
+    "blockRefs": {
+      "aria": "Block-Referenzen umschalten",
+      "desc": "Gib einem Block eine ^id und bette ihn mit ((^id)) anderswo ein.",
+      "label": "Block-Referenzen"
+    },
+    "calendar": {
+      "aria": "Kalender-Ansicht umschalten",
+      "desc": "Der Kalender mit deinen eigenen Terminen.",
+      "label": "Kalender-Ansicht"
+    },
+    "calendarSync": {
+      "aria": "Kalender-Konten umschalten",
+      "desc": "Verbindet Google- oder Outlook-Kalender.",
+      "label": "Kalender-Konten"
+    },
+    "callouts": {
+      "aria": "Callouts umschalten",
+      "desc": "Rendert > [!NOTE]-Zitate als gestaltete Callouts.",
+      "label": "Callouts"
+    },
+    "canvas": {
+      "aria": "Canvas umschalten",
+      "desc": "Freie Boards für Notizen und Ideen.",
+      "label": "Canvas"
+    },
+    "codeHighlight": {
+      "aria": "Code-Hervorhebung umschalten",
+      "desc": "Syntaxfarben in Codeblöcken; Grammatiken laden nur bei Bedarf.",
+      "label": "Code-Hervorhebung"
+    },
+    "dailyNotes": {
+      "aria": "Tagesnotizen umschalten",
+      "desc": "Eine Journal-Notiz pro Tag, angelegt bei Bedarf.",
+      "label": "Tagesnotizen"
+    },
+    "entityGraph": {
+      "aria": "Entitäten-Graph umschalten",
+      "desc": "Extrahiert Personen, Orte und Themen aus Notizen in einen durchsuchbaren Graphen. Die Extraktion kostet Tokens.",
+      "label": "Entitäten-Graph"
+    },
+    "git": {
+      "aria": "Git-Sync umschalten",
+      "desc": "Versioniert den Vault mit Git — derselbe Schalter wie Einstellungen › Sync.",
+      "label": "Git-Sync"
+    },
+    "graphView": {
+      "aria": "Graph-Ansicht umschalten",
+      "desc": "Die interaktive Karte der Verknüpfungen zwischen Notizen.",
+      "label": "Graph-Ansicht"
+    },
+    "icsSubscriptions": {
+      "aria": "Kalender-Abos umschalten",
+      "desc": "Folgt schreibgeschützten .ics-Kalender-Feeds.",
+      "label": "Kalender-Abos"
+    },
+    "math": {
+      "aria": "Mathe-Rendering umschalten",
+      "desc": "Rendert $Inline$- und $$Block$$-Formeln.",
+      "label": "Mathe (KaTeX)"
+    },
+    "mermaid": {
+      "aria": "Mermaid-Diagramme umschalten",
+      "desc": "Rendert Mermaid-Codeblöcke als Diagramme.",
+      "label": "Mermaid-Diagramme"
+    },
+    "outline": {
+      "aria": "Gliederungs-Panel umschalten",
+      "desc": "Die Überschriften-Gliederung in der rechten Leiste des Editors.",
+      "label": "Gliederungs-Panel"
+    },
+    "p2pSync": {
+      "aria": "Geräte-Sync umschalten",
+      "desc": "Ende-zu-Ende-verschlüsselter Sync direkt zwischen deinen Geräten.",
+      "label": "Geräte-Sync (P2P)"
+    },
+    "pdfAnnotate": {
+      "aria": "PDF-Annotation umschalten",
+      "desc": "Öffnet PDFs und verknüpft Markierungen mit Notizen.",
+      "label": "PDF-Annotation"
+    },
+    "plugins": {
+      "aria": "Plugins umschalten",
+      "desc": "Führt Vault-lokale Plugins aus, die Befehle hinzufügen können.",
+      "label": "Plugins"
+    },
+    "properties": {
+      "aria": "Typisierte Eigenschaften umschalten",
+      "desc": "Strukturierte Frontmatter-Eigenschaften und Relationen samt Panel.",
+      "label": "Typisierte Eigenschaften"
+    },
+    "queryEngine": {
+      "aria": "Query-Ansichten umschalten",
+      "desc": "Gespeicherte datenbankartige Abfragen über Notizen und Aufgaben.",
+      "label": "Query-Ansichten"
+    },
+    "relatedNotes": {
+      "aria": "Ähnliche Notizen umschalten",
+      "desc": "Ein Panel mit semantisch ähnlichen Notizen. Benötigt den Embeddings-Index aus Einstellungen › KI.",
+      "label": "Ähnliche Notizen"
+    },
+    "reminders": {
+      "aria": "Erinnerungen umschalten",
+      "desc": "Systembenachrichtigungen für fällige Aufgaben und anstehende Termine.",
+      "label": "Erinnerungen"
+    },
+    "sectionAi": "KI",
+    "sectionAiDesc": "Alles hier benötigt einen konfigurierten KI-Anbieter und läuft nur, solange der Hauptschalter an ist.",
+    "sectionEditor": "Editor-Extras",
+    "sectionGraph": "Wissensgraph",
+    "sectionMedia": "Canvas & Medien",
+    "sectionPower": "Power-User",
+    "sectionSync": "Sync & Integrationen",
+    "sectionWorkspace": "Arbeitsbereich",
+    "sectionWorkspaceDesc": "Blendet ganze Ansichten für eine schlankere App aus — Notizen bleiben immer.",
+    "tagAutocomplete": {
+      "aria": "Tag-Autovervollständigung umschalten",
+      "desc": "Schlägt beim Tippen von # bestehende Tags vor.",
+      "label": "Tag-Autovervollständigung"
+    },
+    "taskExtract": {
+      "aria": "Aufgaben-Extraktion umschalten",
+      "desc": "Macht aus dem Inhalt einer Notiz mit einer Aktion Aufgaben.",
+      "label": "Aufgaben-Extraktion"
+    },
+    "tasks": {
+      "aria": "Aufgaben-Ansicht umschalten",
+      "desc": "Aufgabenliste und Kanban-Board. Aufgaben in Notizen funktionieren so oder so weiter.",
+      "label": "Aufgaben-Ansicht"
+    },
+    "todayView": {
+      "aria": "Heute-Ansicht umschalten",
+      "desc": "Die Tagesagenda mit fälligen Aufgaben und Terminen.",
+      "label": "Heute-Ansicht"
+    },
+    "transclusion": {
+      "aria": "Eingebettete Notizen umschalten",
+      "desc": "Rendert ![[Notiz]]-Einbettungen inline, bis zu drei Ebenen tief.",
+      "label": "Eingebettete Notizen"
+    },
+    "vaultChat": {
+      "aria": "Vault-Chat umschalten",
+      "desc": "Chatte mit deinen Notizen — Antworten zitieren die Notizen, aus denen sie stammen.",
+      "label": "Vault-Chat"
+    },
+    "voice": {
+      "aria": "Sprachnotizen umschalten",
+      "desc": "Nimmt Meetings auf und transkribiert sie auf diesem Gerät (lädt beim ersten Einsatz ein ~142-MB-Modell).",
+      "label": "Sprachnotizen"
+    },
+    "weeklyReview": {
+      "aria": "KI-Wochenrückblick umschalten",
+      "desc": "Ein von der KI geschriebener Rückblick auf deine Woche; der einfache Digest bleibt auch ohne verfügbar.",
+      "label": "KI-Wochenrückblick"
+    }
+  },
   "general": {
     "defaultTaskView": {
       "desc": "Liste, Board oder Agenda beim Öffnen der Aufgaben.",
@@ -184,6 +365,7 @@
     "appearance": "Darstellung",
     "calendar": "Kalender",
     "editor": "Editor",
+    "features": "Funktionen",
     "general": "Allgemein",
     "heading": "Einstellungen",
     "import": "Import",

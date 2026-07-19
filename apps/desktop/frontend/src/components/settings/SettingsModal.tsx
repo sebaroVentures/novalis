@@ -11,6 +11,7 @@ import { AiPanel } from "./panels/AiPanel";
 import { AppearancePanel } from "./panels/AppearancePanel";
 import { CalendarPanel } from "./panels/CalendarPanel";
 import { EditorPanel } from "./panels/EditorPanel";
+import { FeaturesPanel } from "./panels/FeaturesPanel";
 import { GeneralPanel } from "./panels/GeneralPanel";
 import { ImportPanel } from "./panels/ImportPanel";
 import { KeybindingsPanel } from "./panels/KeybindingsPanel";
@@ -93,6 +94,7 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
           className="nv-panel-enter min-w-0 flex-1 overflow-y-auto p-6 outline-none"
         >
           {active === "general" && <GeneralPanel />}
+          {active === "features" && <FeaturesPanel />}
           {active === "vault" && <VaultPanel onSwitched={() => void close()} />}
           {active === "sync" && <SyncPanel />}
           {active === "appearance" && <AppearancePanel />}

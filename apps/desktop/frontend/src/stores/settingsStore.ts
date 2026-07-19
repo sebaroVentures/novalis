@@ -1,6 +1,6 @@
 // Central store for vault-synced Preferences edited in the Settings dialog.
-// Owns the `taskView`, `appearance`, `editor`, `calendar`, `general`, and
-// `git` blocks.
+// Owns the `taskView`, `appearance`, `editor`, `calendar`, `general`, `git`,
+// and `features` blocks.
 // `fileTree` is owned by vaultStore — we never write it (we re-read fresh and
 // carry it over) to avoid clobbering folder colors / manual order.
 //
@@ -16,6 +16,7 @@ import {
   type AppearancePrefs,
   type CalendarPrefs,
   type EditorPrefs,
+  type FeaturePrefs,
   type GeneralPrefs,
   type GitPrefs,
   type Preferences,
@@ -36,6 +37,7 @@ interface SettingsState {
   setGeneral: (patch: Partial<GeneralPrefs>) => void;
   setTaskView: (patch: Partial<TaskViewPrefs>) => void;
   setGit: (patch: Partial<GitPrefs>) => void;
+  setFeatures: (patch: Partial<FeaturePrefs>) => void;
   setSavedQueries: (queries: SavedQuery[]) => void;
   flush: () => Promise<void>;
   /** Immediately write any pending debounced persist (and await it), so a quit
@@ -53,6 +55,49 @@ export function resolveGitPrefs(g: GitPrefs | undefined): Required<GitPrefs> {
     authorName: g?.authorName ?? "Novalis",
     authorEmail: g?.authorEmail ?? "novalis@localhost",
     autoCommitSecs: g?.autoCommitSecs ?? 300,
+  };
+}
+
+// Mirrors the Rust-side serde defaults in FeaturePrefs (preferences.rs) — keep
+// the two lists identical or the two sides disagree on unset flags. The AI
+// master/sub nesting is applied by lib/features.ts, not here: this is the raw
+// flag state as stored.
+export function resolveFeaturePrefs(
+  f: FeaturePrefs | undefined,
+): Required<FeaturePrefs> {
+  return {
+    ai: f?.ai ?? false,
+    aiMetaSuggestions: f?.aiMetaSuggestions ?? true,
+    aiTemplates: f?.aiTemplates ?? true,
+    taskExtract: f?.taskExtract ?? true,
+    weeklyReview: f?.weeklyReview ?? true,
+    vaultChat: f?.vaultChat ?? true,
+    relatedNotes: f?.relatedNotes ?? true,
+    entityGraph: f?.entityGraph ?? false,
+    blockRefs: f?.blockRefs ?? false,
+    transclusion: f?.transclusion ?? false,
+    mermaid: f?.mermaid ?? false,
+    math: f?.math ?? false,
+    codeHighlight: f?.codeHighlight ?? true,
+    callouts: f?.callouts ?? true,
+    tagAutocomplete: f?.tagAutocomplete ?? true,
+    outline: f?.outline ?? true,
+    todayView: f?.todayView ?? true,
+    tasks: f?.tasks ?? true,
+    calendar: f?.calendar ?? true,
+    plugins: f?.plugins ?? false,
+    queryEngine: f?.queryEngine ?? false,
+    dailyNotes: f?.dailyNotes ?? false,
+    reminders: f?.reminders ?? true,
+    graphView: f?.graphView ?? false,
+    properties: f?.properties ?? false,
+    backlinks: f?.backlinks ?? true,
+    p2pSync: f?.p2pSync ?? false,
+    calendarSync: f?.calendarSync ?? false,
+    icsSubscriptions: f?.icsSubscriptions ?? false,
+    canvas: f?.canvas ?? false,
+    pdfAnnotate: f?.pdfAnnotate ?? false,
+    voice: f?.voice ?? false,
   };
 }
 
@@ -74,6 +119,7 @@ async function persist(get: () => SettingsState): Promise<void> {
       calendar: p.calendar,
       general: p.general,
       git: p.git ?? fresh.git,
+      features: p.features ?? fresh.features,
       savedQueries: p.savedQueries ?? fresh.savedQueries,
     });
   } catch (e) {
@@ -145,6 +191,18 @@ export const useSettings = create<SettingsState>((set, get) => ({
     const p = get().prefs;
     if (!p) return;
     set({ prefs: { ...p, git: { ...resolveGitPrefs(p.git), ...patch } } });
+    schedulePersist(get);
+  },
+
+  setFeatures: (patch) => {
+    const p = get().prefs;
+    if (!p) return;
+    set({
+      prefs: {
+        ...p,
+        features: { ...resolveFeaturePrefs(p.features), ...patch },
+      },
+    });
     schedulePersist(get);
   },
 

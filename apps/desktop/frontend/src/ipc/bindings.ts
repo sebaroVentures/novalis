@@ -1134,6 +1134,58 @@ export type EventInput = {
 	attendees?: string[],
 };
 
+/**
+ *  Feature availability, synced with the vault like every block here. Each
+ *  flag decides whether a specialized feature's surfaces (rail views, palette
+ *  commands, panels, editor extensions) exist and whether its background work
+ *  runs — turning a flag off never deletes data, it only stops the feature.
+ * 
+ *  The AI family is nested: `ai` is the master switch and a sub-feature is
+ *  active only when BOTH `ai` and its own flag are true. Three existing gates
+ *  stay canonical and are deliberately NOT duplicated as flags:
+ *  [`EditorPrefs::ambient_ai`] (ambient suggestions, under the `ai` master),
+ *  [`GitPrefs::enabled`] (git sync), and the app-global embedding config
+ *  (semantic-index enablement).
+ */
+export type FeaturePrefs = {
+	ai?: boolean,
+	aiMetaSuggestions?: boolean,
+	aiTemplates?: boolean,
+	taskExtract?: boolean,
+	weeklyReview?: boolean,
+	vaultChat?: boolean,
+	relatedNotes?: boolean,
+	/**
+	 *  Entity extraction spends LLM tokens on ingest, so unlike the other AI
+	 *  subs it stays an explicit opt-in even once the master is on.
+	 */
+	entityGraph?: boolean,
+	blockRefs?: boolean,
+	transclusion?: boolean,
+	mermaid?: boolean,
+	math?: boolean,
+	codeHighlight?: boolean,
+	callouts?: boolean,
+	tagAutocomplete?: boolean,
+	outline?: boolean,
+	todayView?: boolean,
+	tasks?: boolean,
+	calendar?: boolean,
+	plugins?: boolean,
+	queryEngine?: boolean,
+	dailyNotes?: boolean,
+	reminders?: boolean,
+	graphView?: boolean,
+	properties?: boolean,
+	backlinks?: boolean,
+	p2pSync?: boolean,
+	calendarSync?: boolean,
+	icsSubscriptions?: boolean,
+	canvas?: boolean,
+	pdfAnnotate?: boolean,
+	voice?: boolean,
+};
+
 export type FileTreePrefs = {
 	/**  `"name"` | `"modified"` | `"created"` | `"manual"`. */
 	sortBy?: string,
@@ -1582,6 +1634,7 @@ export type Preferences = {
 	calendar?: CalendarPrefs,
 	general?: GeneralPrefs,
 	git?: GitPrefs,
+	features?: FeaturePrefs,
 	/**
 	 *  User-named saved queries for the query view. A preference (JSON), synced
 	 *  with the vault like every block here — never a DB table.

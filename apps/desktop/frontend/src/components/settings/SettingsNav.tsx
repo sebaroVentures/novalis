@@ -16,11 +16,13 @@ import {
   Puzzle,
   SlidersHorizontal,
   Sparkles,
+  ToggleLeft,
 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 export type CategoryId =
   | "general"
+  | "features"
   | "vault"
   | "sync"
   | "appearance"
@@ -40,6 +42,7 @@ type IconType = ComponentType<{ size?: number | string; className?: string }>;
 
 export const CATEGORIES: { id: CategoryId; icon: IconType }[] = [
   { id: "general", icon: SlidersHorizontal },
+  { id: "features", icon: ToggleLeft },
   { id: "vault", icon: FolderOpen },
   { id: "sync", icon: GitBranch },
   { id: "appearance", icon: Palette },
@@ -62,6 +65,7 @@ export function useCategoryLabels(): Record<CategoryId, string> {
   const { t } = useTranslation("settings");
   return {
     general: t("nav.general"),
+    features: t("nav.features"),
     vault: t("nav.vault"),
     sync: t("nav.sync"),
     appearance: t("nav.appearance"),

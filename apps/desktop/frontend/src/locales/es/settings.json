@@ -95,6 +95,187 @@
       "label": "Respuesta al escribir"
     }
   },
+  "features": {
+    "ai": {
+      "aria": "Alternar asistencia de IA",
+      "desc": "Interruptor principal: acciones del editor (resumir, redactar, reescribir) y todas las subfunciones de IA de abajo.",
+      "label": "Asistencia de IA"
+    },
+    "aiMetaSuggestions": {
+      "aria": "Alternar sugerencias de metadatos",
+      "desc": "El botón «Sugerir metadatos» en la franja de metadatos de una nota.",
+      "label": "Sugerencias de metadatos"
+    },
+    "aiTemplates": {
+      "aria": "Alternar acciones de IA personalizadas",
+      "desc": "Tus propias plantillas de prompts en el menú de IA.",
+      "label": "Acciones de IA personalizadas"
+    },
+    "ambient": {
+      "aria": "Alternar sugerencias ambientales",
+      "desc": "Sugiere enlaces y metadatos en segundo plano tras una edición. Consume tokens, por eso es una activación aparte.",
+      "label": "Sugerencias ambientales"
+    },
+    "backlinks": {
+      "aria": "Alternar retroenlaces",
+      "desc": "El panel de enlaces con retroenlaces y menciones sin enlazar.",
+      "label": "Retroenlaces"
+    },
+    "blockRefs": {
+      "aria": "Alternar referencias de bloque",
+      "desc": "Da a un bloque un ^id e insértalo en otro lugar con ((^id)).",
+      "label": "Referencias de bloque"
+    },
+    "calendar": {
+      "aria": "Alternar vista de calendario",
+      "desc": "El calendario con tus propios eventos.",
+      "label": "Vista de calendario"
+    },
+    "calendarSync": {
+      "aria": "Alternar cuentas de calendario",
+      "desc": "Conecta calendarios de Google u Outlook.",
+      "label": "Cuentas de calendario"
+    },
+    "callouts": {
+      "aria": "Alternar avisos",
+      "desc": "Muestra las citas > [!NOTE] como avisos con estilo.",
+      "label": "Avisos (callouts)"
+    },
+    "canvas": {
+      "aria": "Alternar lienzo",
+      "desc": "Tableros libres para notas e ideas.",
+      "label": "Lienzo"
+    },
+    "codeHighlight": {
+      "aria": "Alternar resaltado de código",
+      "desc": "Colores de sintaxis en bloques de código; las gramáticas se cargan solo cuando hacen falta.",
+      "label": "Resaltado de código"
+    },
+    "dailyNotes": {
+      "aria": "Alternar notas diarias",
+      "desc": "Una nota de diario por día, creada bajo demanda.",
+      "label": "Notas diarias"
+    },
+    "entityGraph": {
+      "aria": "Alternar grafo de entidades",
+      "desc": "Extrae personas, lugares y temas de las notas a un grafo navegable. La extracción consume tokens.",
+      "label": "Grafo de entidades"
+    },
+    "git": {
+      "aria": "Alternar sincronización git",
+      "desc": "Versiona el baúl con git; es el mismo interruptor que Ajustes › Sincronización.",
+      "label": "Sincronización git"
+    },
+    "graphView": {
+      "aria": "Alternar vista de grafo",
+      "desc": "El mapa interactivo de enlaces entre notas.",
+      "label": "Vista de grafo"
+    },
+    "icsSubscriptions": {
+      "aria": "Alternar suscripciones de calendario",
+      "desc": "Sigue fuentes de calendario .ics de solo lectura.",
+      "label": "Suscripciones de calendario"
+    },
+    "math": {
+      "aria": "Alternar renderizado de matemáticas",
+      "desc": "Muestra fórmulas $en línea$ y de $$bloque$$.",
+      "label": "Matemáticas (KaTeX)"
+    },
+    "mermaid": {
+      "aria": "Alternar diagramas Mermaid",
+      "desc": "Muestra los bloques de código mermaid como diagramas.",
+      "label": "Diagramas Mermaid"
+    },
+    "outline": {
+      "aria": "Alternar panel de esquema",
+      "desc": "El esquema de encabezados en la barra derecha del editor.",
+      "label": "Panel de esquema"
+    },
+    "p2pSync": {
+      "aria": "Alternar sincronización entre dispositivos",
+      "desc": "Sincronización cifrada de extremo a extremo directamente entre tus dispositivos.",
+      "label": "Sincronización entre dispositivos (P2P)"
+    },
+    "pdfAnnotate": {
+      "aria": "Alternar anotación de PDF",
+      "desc": "Abre PDF y enlaza los resaltados con notas.",
+      "label": "Anotación de PDF"
+    },
+    "plugins": {
+      "aria": "Alternar plugins",
+      "desc": "Ejecuta plugins locales del baúl que pueden añadir comandos.",
+      "label": "Plugins"
+    },
+    "properties": {
+      "aria": "Alternar propiedades tipadas",
+      "desc": "Propiedades y relaciones estructuradas del frontmatter con su panel.",
+      "label": "Propiedades tipadas"
+    },
+    "queryEngine": {
+      "aria": "Alternar vistas de consulta",
+      "desc": "Consultas guardadas estilo base de datos sobre tus notas y tareas.",
+      "label": "Vistas de consulta"
+    },
+    "relatedNotes": {
+      "aria": "Alternar notas relacionadas",
+      "desc": "Un panel con notas semánticamente similares. Requiere el índice de embeddings de Ajustes › IA.",
+      "label": "Notas relacionadas"
+    },
+    "reminders": {
+      "aria": "Alternar recordatorios",
+      "desc": "Notificaciones del sistema para tareas vencidas y eventos próximos.",
+      "label": "Recordatorios"
+    },
+    "sectionAi": "IA",
+    "sectionAiDesc": "Todo lo de aquí necesita un proveedor de IA configurado y solo funciona con el interruptor principal activado.",
+    "sectionEditor": "Extras del editor",
+    "sectionGraph": "Grafo de conocimiento",
+    "sectionMedia": "Lienzo y medios",
+    "sectionPower": "Usuario avanzado",
+    "sectionSync": "Sincronización e integraciones",
+    "sectionWorkspace": "Espacio de trabajo",
+    "sectionWorkspaceDesc": "Oculta vistas completas para una app más ligera; las notas siempre se quedan.",
+    "tagAutocomplete": {
+      "aria": "Alternar autocompletado de etiquetas",
+      "desc": "Sugiere etiquetas existentes al escribir #.",
+      "label": "Autocompletado de etiquetas"
+    },
+    "taskExtract": {
+      "aria": "Alternar extracción de tareas",
+      "desc": "Convierte el contenido de una nota en tareas con una sola acción.",
+      "label": "Extracción de tareas"
+    },
+    "tasks": {
+      "aria": "Alternar vista de tareas",
+      "desc": "La lista de tareas y el tablero kanban. Las tareas dentro de las notas siguen funcionando igual.",
+      "label": "Vista de tareas"
+    },
+    "todayView": {
+      "aria": "Alternar vista Hoy",
+      "desc": "La agenda diaria que combina tareas pendientes y eventos.",
+      "label": "Vista Hoy"
+    },
+    "transclusion": {
+      "aria": "Alternar notas incrustadas",
+      "desc": "Muestra las incrustaciones ![[nota]] en línea, hasta tres niveles de profundidad.",
+      "label": "Notas incrustadas"
+    },
+    "vaultChat": {
+      "aria": "Alternar chat del baúl",
+      "desc": "Chatea con tus notas: las respuestas citan las notas de las que provienen.",
+      "label": "Chat del baúl"
+    },
+    "voice": {
+      "aria": "Alternar notas de voz",
+      "desc": "Graba reuniones y las transcribe en este dispositivo (descarga un modelo de ~142 MB en el primer uso).",
+      "label": "Notas de voz"
+    },
+    "weeklyReview": {
+      "aria": "Alternar revisión semanal con IA",
+      "desc": "Un repaso de tu semana escrito por la IA; el resumen simple sigue disponible sin ella.",
+      "label": "Revisión semanal con IA"
+    }
+  },
   "general": {
     "defaultTaskView": {
       "desc": "Lista, tablero o agenda al abrir Tareas.",
@@ -184,6 +365,7 @@
     "appearance": "Apariencia",
     "calendar": "Calendario",
     "editor": "Editor",
+    "features": "Funciones",
     "general": "General",
     "heading": "Ajustes",
     "import": "Importar",

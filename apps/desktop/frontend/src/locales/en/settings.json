@@ -95,6 +95,187 @@
       "label": "Typing responsiveness"
     }
   },
+  "features": {
+    "ai": {
+      "aria": "Toggle AI assistance",
+      "desc": "Master switch: editor actions (summarize, compose, rewrite) plus every AI sub-feature below.",
+      "label": "AI assistance"
+    },
+    "aiMetaSuggestions": {
+      "aria": "Toggle metadata suggestions",
+      "desc": "The “Suggest metadata” button in a note's metadata strip.",
+      "label": "Metadata suggestions"
+    },
+    "aiTemplates": {
+      "aria": "Toggle custom AI actions",
+      "desc": "Your own prompt templates in the AI menu.",
+      "label": "Custom AI actions"
+    },
+    "ambient": {
+      "aria": "Toggle ambient suggestions",
+      "desc": "Suggest links and metadata in the background after an edit settles. Costs tokens, so it is a separate opt-in.",
+      "label": "Ambient suggestions"
+    },
+    "backlinks": {
+      "aria": "Toggle backlinks",
+      "desc": "The links panel with backlinks and unlinked mentions.",
+      "label": "Backlinks"
+    },
+    "blockRefs": {
+      "aria": "Toggle block references",
+      "desc": "Give a block an ^id and embed it elsewhere with ((^id)).",
+      "label": "Block references"
+    },
+    "calendar": {
+      "aria": "Toggle Calendar view",
+      "desc": "The calendar with your own events.",
+      "label": "Calendar view"
+    },
+    "calendarSync": {
+      "aria": "Toggle calendar accounts",
+      "desc": "Connect Google or Outlook calendars.",
+      "label": "Calendar accounts"
+    },
+    "callouts": {
+      "aria": "Toggle callouts",
+      "desc": "Render > [!NOTE] blockquotes as styled callouts.",
+      "label": "Callouts"
+    },
+    "canvas": {
+      "aria": "Toggle canvas",
+      "desc": "Freeform boards for notes and ideas.",
+      "label": "Canvas"
+    },
+    "codeHighlight": {
+      "aria": "Toggle code highlighting",
+      "desc": "Syntax colors in code blocks; grammars load only when needed.",
+      "label": "Code highlighting"
+    },
+    "dailyNotes": {
+      "aria": "Toggle daily notes",
+      "desc": "One journal note per day, created on demand.",
+      "label": "Daily notes"
+    },
+    "entityGraph": {
+      "aria": "Toggle entity graph",
+      "desc": "Extract people, places, and topics from notes into a browsable graph. Extraction costs tokens.",
+      "label": "Entity graph"
+    },
+    "git": {
+      "aria": "Toggle git sync",
+      "desc": "Version the vault with git — same switch as Settings › Sync.",
+      "label": "Git sync"
+    },
+    "graphView": {
+      "aria": "Toggle graph view",
+      "desc": "The interactive map of links between notes.",
+      "label": "Graph view"
+    },
+    "icsSubscriptions": {
+      "aria": "Toggle calendar subscriptions",
+      "desc": "Follow read-only .ics calendar feeds.",
+      "label": "Calendar subscriptions"
+    },
+    "math": {
+      "aria": "Toggle math rendering",
+      "desc": "Render $inline$ and $$block$$ math.",
+      "label": "Math (KaTeX)"
+    },
+    "mermaid": {
+      "aria": "Toggle Mermaid diagrams",
+      "desc": "Render mermaid code blocks as diagrams.",
+      "label": "Mermaid diagrams"
+    },
+    "outline": {
+      "aria": "Toggle outline panel",
+      "desc": "The headings outline in the editor's right rail.",
+      "label": "Outline panel"
+    },
+    "p2pSync": {
+      "aria": "Toggle device sync",
+      "desc": "End-to-end encrypted sync directly between your devices.",
+      "label": "Device sync (P2P)"
+    },
+    "pdfAnnotate": {
+      "aria": "Toggle PDF annotation",
+      "desc": "Open PDFs and link highlights to notes.",
+      "label": "PDF annotation"
+    },
+    "plugins": {
+      "aria": "Toggle plugins",
+      "desc": "Run vault-local plugins that can add commands.",
+      "label": "Plugins"
+    },
+    "properties": {
+      "aria": "Toggle typed properties",
+      "desc": "Structured frontmatter properties and relations with their panel.",
+      "label": "Typed properties"
+    },
+    "queryEngine": {
+      "aria": "Toggle query views",
+      "desc": "Saved database-style queries over your notes and tasks.",
+      "label": "Query views"
+    },
+    "relatedNotes": {
+      "aria": "Toggle related notes",
+      "desc": "A panel of semantically similar notes. Needs the embeddings index from Settings › AI.",
+      "label": "Related notes"
+    },
+    "reminders": {
+      "aria": "Toggle reminders",
+      "desc": "System notifications for due tasks and upcoming events.",
+      "label": "Reminders"
+    },
+    "sectionAi": "AI",
+    "sectionAiDesc": "Everything here needs a configured AI provider and only runs while the master switch is on.",
+    "sectionEditor": "Editor extras",
+    "sectionGraph": "Knowledge graph",
+    "sectionMedia": "Canvas & media",
+    "sectionPower": "Power user",
+    "sectionSync": "Sync & integrations",
+    "sectionWorkspace": "Workspace",
+    "sectionWorkspaceDesc": "Hide whole views for a leaner app — notes always stay.",
+    "tagAutocomplete": {
+      "aria": "Toggle tag autocomplete",
+      "desc": "Suggest existing tags while typing #.",
+      "label": "Tag autocomplete"
+    },
+    "taskExtract": {
+      "aria": "Toggle task extraction",
+      "desc": "Turn a note's contents into tasks with one action.",
+      "label": "Task extraction"
+    },
+    "tasks": {
+      "aria": "Toggle Tasks view",
+      "desc": "The task list and kanban board. Tasks in notes keep working either way.",
+      "label": "Tasks view"
+    },
+    "todayView": {
+      "aria": "Toggle Today view",
+      "desc": "The daily agenda combining due tasks and events.",
+      "label": "Today view"
+    },
+    "transclusion": {
+      "aria": "Toggle embedded notes",
+      "desc": "Render ![[note]] embeds inline, up to three levels deep.",
+      "label": "Embedded notes"
+    },
+    "vaultChat": {
+      "aria": "Toggle vault chat",
+      "desc": "Chat with your notes — answers cite the notes they come from.",
+      "label": "Vault chat"
+    },
+    "voice": {
+      "aria": "Toggle voice notes",
+      "desc": "Record meetings and transcribe them on this device (downloads a ~142 MB model on first use).",
+      "label": "Voice notes"
+    },
+    "weeklyReview": {
+      "aria": "Toggle AI weekly review",
+      "desc": "An AI-written look back over your week; the plain digest stays available without it.",
+      "label": "AI weekly review"
+    }
+  },
   "general": {
     "defaultTaskView": {
       "desc": "List, board, or agenda when opening Tasks.",
@@ -184,6 +365,7 @@
     "appearance": "Appearance",
     "calendar": "Calendar",
     "editor": "Editor",
+    "features": "Features",
     "general": "General",
     "heading": "Settings",
     "import": "Import",

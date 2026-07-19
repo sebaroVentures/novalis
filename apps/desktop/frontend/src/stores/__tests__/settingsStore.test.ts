@@ -45,6 +45,30 @@ describe("settingsStore.flushPending", () => {
   });
 });
 
+describe("settingsStore.setFeatures", () => {
+  it("persists the features block (resolved against the serde defaults)", async () => {
+    useSettings.getState().setFeatures({ canvas: true, outline: false });
+    await useSettings.getState().flushPending();
+
+    expect(mocks.setPreferences).toHaveBeenCalledTimes(1);
+    const written = mocks.setPreferences.mock.calls[0][0].features;
+    expect(written.canvas).toBe(true);
+    expect(written.outline).toBe(false);
+    // Untouched flags are written at their resolved defaults.
+    expect(written.ai).toBe(false);
+    expect(written.tasks).toBe(true);
+  });
+
+  it("carries a fresh-read features block through when this store never touched it", async () => {
+    mocks.getPreferences.mockResolvedValue({ features: { canvas: true } });
+
+    useSettings.getState().setSavedQueries([{ name: "q", query: "type:note" }]);
+    await useSettings.getState().flushPending();
+
+    expect(mocks.setPreferences.mock.calls[0][0].features).toEqual({ canvas: true });
+  });
+});
+
 describe("settingsStore persist failure", () => {
   it("routes a failed write through the global error toast instead of swallowing it", async () => {
     mocks.setPreferences.mockRejectedValue(new Error("disk full"));

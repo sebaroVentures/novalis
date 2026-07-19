@@ -20,6 +20,8 @@ pub struct Preferences {
     pub general: GeneralPrefs,
     #[serde(default)]
     pub git: GitPrefs,
+    #[serde(default)]
+    pub features: FeaturePrefs,
     /// User-named saved queries for the query view. A preference (JSON), synced
     /// with the vault like every block here — never a DB table.
     #[serde(default)]
@@ -188,6 +190,95 @@ pub struct GitPrefs {
     pub auto_commit_secs: u32,
 }
 
+/// Feature availability, synced with the vault like every block here. Each
+/// flag decides whether a specialized feature's surfaces (rail views, palette
+/// commands, panels, editor extensions) exist and whether its background work
+/// runs — turning a flag off never deletes data, it only stops the feature.
+///
+/// The AI family is nested: `ai` is the master switch and a sub-feature is
+/// active only when BOTH `ai` and its own flag are true. Three existing gates
+/// stay canonical and are deliberately NOT duplicated as flags:
+/// [`EditorPrefs::ambient_ai`] (ambient suggestions, under the `ai` master),
+/// [`GitPrefs::enabled`] (git sync), and the app-global embedding config
+/// (semantic-index enablement).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[serde(rename_all = "camelCase")]
+pub struct FeaturePrefs {
+    // --- AI family (`ai` is the master; subs require `ai` too) ---
+    #[serde(default)]
+    pub ai: bool,
+    #[serde(default = "default_on")]
+    pub ai_meta_suggestions: bool,
+    #[serde(default = "default_on")]
+    pub ai_templates: bool,
+    #[serde(default = "default_on")]
+    pub task_extract: bool,
+    #[serde(default = "default_on")]
+    pub weekly_review: bool,
+    #[serde(default = "default_on")]
+    pub vault_chat: bool,
+    #[serde(default = "default_on")]
+    pub related_notes: bool,
+    /// Entity extraction spends LLM tokens on ingest, so unlike the other AI
+    /// subs it stays an explicit opt-in even once the master is on.
+    #[serde(default)]
+    pub entity_graph: bool,
+    // --- Editor extras ---
+    #[serde(default)]
+    pub block_refs: bool,
+    #[serde(default)]
+    pub transclusion: bool,
+    #[serde(default)]
+    pub mermaid: bool,
+    #[serde(default)]
+    pub math: bool,
+    #[serde(default = "default_on")]
+    pub code_highlight: bool,
+    #[serde(default = "default_on")]
+    pub callouts: bool,
+    #[serde(default = "default_on")]
+    pub tag_autocomplete: bool,
+    #[serde(default = "default_on")]
+    pub outline: bool,
+    // --- Workspace views (hideable for a notes-only profile, default on) ---
+    #[serde(default = "default_on")]
+    pub today_view: bool,
+    #[serde(default = "default_on")]
+    pub tasks: bool,
+    #[serde(default = "default_on")]
+    pub calendar: bool,
+    // --- Power user ---
+    #[serde(default)]
+    pub plugins: bool,
+    #[serde(default)]
+    pub query_engine: bool,
+    #[serde(default)]
+    pub daily_notes: bool,
+    #[serde(default = "default_on")]
+    pub reminders: bool,
+    // --- Knowledge graph ---
+    #[serde(default)]
+    pub graph_view: bool,
+    #[serde(default)]
+    pub properties: bool,
+    #[serde(default = "default_on")]
+    pub backlinks: bool,
+    // --- Sync (git sync is gated by `GitPrefs::enabled`) ---
+    #[serde(default)]
+    pub p2p_sync: bool,
+    #[serde(default)]
+    pub calendar_sync: bool,
+    #[serde(default)]
+    pub ics_subscriptions: bool,
+    // --- Spatial & media ---
+    #[serde(default)]
+    pub canvas: bool,
+    #[serde(default)]
+    pub pdf_annotate: bool,
+    #[serde(default)]
+    pub voice: bool,
+}
+
 fn default_task_mode() -> String {
     "list".to_string()
 }
@@ -270,6 +361,11 @@ fn default_git_author_email() -> String {
 
 fn default_git_interval_secs() -> u32 {
     300
+}
+
+/// Shared default for the feature flags that ship enabled.
+fn default_on() -> bool {
+    true
 }
 
 fn default_kanban_columns() -> Vec<KanbanColumnDef> {
@@ -381,6 +477,45 @@ impl Default for GitPrefs {
     }
 }
 
+impl Default for FeaturePrefs {
+    fn default() -> Self {
+        Self {
+            ai: false,
+            ai_meta_suggestions: true,
+            ai_templates: true,
+            task_extract: true,
+            weekly_review: true,
+            vault_chat: true,
+            related_notes: true,
+            entity_graph: false,
+            block_refs: false,
+            transclusion: false,
+            mermaid: false,
+            math: false,
+            code_highlight: true,
+            callouts: true,
+            tag_autocomplete: true,
+            outline: true,
+            today_view: true,
+            tasks: true,
+            calendar: true,
+            plugins: false,
+            query_engine: false,
+            daily_notes: false,
+            reminders: true,
+            graph_view: false,
+            properties: false,
+            backlinks: true,
+            p2p_sync: false,
+            calendar_sync: false,
+            ics_subscriptions: false,
+            canvas: false,
+            pdf_annotate: false,
+            voice: false,
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -482,6 +617,85 @@ mod tests {
         assert_eq!(prefs.appearance.theme, "dark");
         assert_eq!(prefs.calendar.week_start, "monday");
         assert_eq!(prefs.general.default_app_view, "notes");
+    }
+
+    #[test]
+    fn feature_prefs_defaults_match_the_optionality_plan() {
+        let f = Preferences::default().features;
+        // Specialized features ship off…
+        assert!(!f.ai);
+        assert!(!f.entity_graph);
+        assert!(!f.block_refs);
+        assert!(!f.transclusion);
+        assert!(!f.mermaid);
+        assert!(!f.math);
+        assert!(!f.plugins);
+        assert!(!f.query_engine);
+        assert!(!f.daily_notes);
+        assert!(!f.graph_view);
+        assert!(!f.properties);
+        assert!(!f.p2p_sync);
+        assert!(!f.calendar_sync);
+        assert!(!f.ics_subscriptions);
+        assert!(!f.canvas);
+        assert!(!f.pdf_annotate);
+        assert!(!f.voice);
+        // …lightweight extras and the pillars ship on. The AI subs are also on:
+        // they only take effect once the `ai` master is enabled.
+        assert!(f.ai_meta_suggestions);
+        assert!(f.ai_templates);
+        assert!(f.task_extract);
+        assert!(f.weekly_review);
+        assert!(f.vault_chat);
+        assert!(f.related_notes);
+        assert!(f.code_highlight);
+        assert!(f.callouts);
+        assert!(f.tag_autocomplete);
+        assert!(f.outline);
+        assert!(f.today_view);
+        assert!(f.tasks);
+        assert!(f.calendar);
+        assert!(f.reminders);
+        assert!(f.backlinks);
+    }
+
+    #[test]
+    fn legacy_config_backfills_feature_prefs() {
+        // A config.json written before the features block existed must
+        // backfill it with the defaults above.
+        let legacy: Preferences =
+            serde_json::from_str(r#"{ "general": { "defaultAppView": "tasks" } }"#).unwrap();
+        assert!(!legacy.features.ai);
+        assert!(!legacy.features.canvas);
+        assert!(legacy.features.tasks);
+        assert!(legacy.features.outline);
+        // A partial features block backfills only the missing flags.
+        let partial: Preferences =
+            serde_json::from_str(r#"{ "features": { "canvas": true, "outline": false } }"#)
+                .unwrap();
+        assert!(partial.features.canvas);
+        assert!(!partial.features.outline);
+        assert!(!partial.features.ai);
+        assert!(partial.features.calendar);
+    }
+
+    #[test]
+    fn feature_prefs_roundtrip_through_json() {
+        let mut p = Preferences::default();
+        p.features.ai = true;
+        p.features.vault_chat = false;
+        p.features.canvas = true;
+        p.features.tasks = false;
+        let json = serde_json::to_string(&p).unwrap();
+        // Wire names are camelCase like every other block.
+        assert!(json.contains("\"aiMetaSuggestions\""));
+        assert!(json.contains("\"pdfAnnotate\""));
+        let back: Preferences = serde_json::from_str(&json).unwrap();
+        assert!(back.features.ai);
+        assert!(!back.features.vault_chat);
+        assert!(back.features.canvas);
+        assert!(!back.features.tasks);
+        assert!(back.features.reminders);
     }
 
     #[test]

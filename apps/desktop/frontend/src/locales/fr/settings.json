@@ -95,6 +95,187 @@
       "label": "Réactivité de la saisie"
     }
   },
+  "features": {
+    "ai": {
+      "aria": "Basculer l'assistance IA",
+      "desc": "Interrupteur principal : actions de l'éditeur (résumer, rédiger, réécrire) et toutes les sous-fonctions IA ci-dessous.",
+      "label": "Assistance IA"
+    },
+    "aiMetaSuggestions": {
+      "aria": "Basculer les suggestions de métadonnées",
+      "desc": "Le bouton « Suggérer des métadonnées » dans la bande de métadonnées d'une note.",
+      "label": "Suggestions de métadonnées"
+    },
+    "aiTemplates": {
+      "aria": "Basculer les actions IA personnalisées",
+      "desc": "Vos propres modèles de prompts dans le menu IA.",
+      "label": "Actions IA personnalisées"
+    },
+    "ambient": {
+      "aria": "Basculer les suggestions ambiantes",
+      "desc": "Suggère des liens et des métadonnées en arrière-plan après une modification. Consomme des jetons, d'où une activation séparée.",
+      "label": "Suggestions ambiantes"
+    },
+    "backlinks": {
+      "aria": "Basculer les rétroliens",
+      "desc": "Le panneau de liens avec rétroliens et mentions non liées.",
+      "label": "Rétroliens"
+    },
+    "blockRefs": {
+      "aria": "Basculer les références de bloc",
+      "desc": "Donnez un ^id à un bloc et intégrez-le ailleurs avec ((^id)).",
+      "label": "Références de bloc"
+    },
+    "calendar": {
+      "aria": "Basculer la vue calendrier",
+      "desc": "Le calendrier avec vos propres événements.",
+      "label": "Vue calendrier"
+    },
+    "calendarSync": {
+      "aria": "Basculer les comptes de calendrier",
+      "desc": "Connecte des calendriers Google ou Outlook.",
+      "label": "Comptes de calendrier"
+    },
+    "callouts": {
+      "aria": "Basculer les encadrés",
+      "desc": "Affiche les citations > [!NOTE] comme des encadrés stylisés.",
+      "label": "Encadrés (callouts)"
+    },
+    "canvas": {
+      "aria": "Basculer le canevas",
+      "desc": "Tableaux libres pour notes et idées.",
+      "label": "Canevas"
+    },
+    "codeHighlight": {
+      "aria": "Basculer la coloration du code",
+      "desc": "Couleurs syntaxiques dans les blocs de code ; les grammaires ne se chargent qu'au besoin.",
+      "label": "Coloration du code"
+    },
+    "dailyNotes": {
+      "aria": "Basculer les notes quotidiennes",
+      "desc": "Une note de journal par jour, créée à la demande.",
+      "label": "Notes quotidiennes"
+    },
+    "entityGraph": {
+      "aria": "Basculer le graphe d'entités",
+      "desc": "Extrait des personnes, lieux et sujets des notes vers un graphe navigable. L'extraction consomme des jetons.",
+      "label": "Graphe d'entités"
+    },
+    "git": {
+      "aria": "Basculer la synchro git",
+      "desc": "Versionne le coffre avec git — même interrupteur que Réglages › Synchro.",
+      "label": "Synchro git"
+    },
+    "graphView": {
+      "aria": "Basculer la vue graphe",
+      "desc": "La carte interactive des liens entre notes.",
+      "label": "Vue graphe"
+    },
+    "icsSubscriptions": {
+      "aria": "Basculer les abonnements de calendrier",
+      "desc": "Suit des flux de calendrier .ics en lecture seule.",
+      "label": "Abonnements de calendrier"
+    },
+    "math": {
+      "aria": "Basculer le rendu des maths",
+      "desc": "Affiche les formules $en ligne$ et $$bloc$$.",
+      "label": "Maths (KaTeX)"
+    },
+    "mermaid": {
+      "aria": "Basculer les diagrammes Mermaid",
+      "desc": "Affiche les blocs de code mermaid sous forme de diagrammes.",
+      "label": "Diagrammes Mermaid"
+    },
+    "outline": {
+      "aria": "Basculer le panneau de plan",
+      "desc": "Le plan des titres dans la barre droite de l'éditeur.",
+      "label": "Panneau de plan"
+    },
+    "p2pSync": {
+      "aria": "Basculer la synchro d'appareils",
+      "desc": "Synchronisation chiffrée de bout en bout directement entre vos appareils.",
+      "label": "Synchro d'appareils (P2P)"
+    },
+    "pdfAnnotate": {
+      "aria": "Basculer l'annotation PDF",
+      "desc": "Ouvre des PDF et relie les surlignages aux notes.",
+      "label": "Annotation PDF"
+    },
+    "plugins": {
+      "aria": "Basculer les plugins",
+      "desc": "Exécute des plugins locaux au coffre pouvant ajouter des commandes.",
+      "label": "Plugins"
+    },
+    "properties": {
+      "aria": "Basculer les propriétés typées",
+      "desc": "Propriétés et relations structurées du frontmatter avec leur panneau.",
+      "label": "Propriétés typées"
+    },
+    "queryEngine": {
+      "aria": "Basculer les vues de requête",
+      "desc": "Requêtes enregistrées façon base de données sur vos notes et tâches.",
+      "label": "Vues de requête"
+    },
+    "relatedNotes": {
+      "aria": "Basculer les notes associées",
+      "desc": "Un panneau de notes sémantiquement proches. Nécessite l'index d'embeddings de Réglages › IA.",
+      "label": "Notes associées"
+    },
+    "reminders": {
+      "aria": "Basculer les rappels",
+      "desc": "Notifications système pour les tâches à échéance et les événements à venir.",
+      "label": "Rappels"
+    },
+    "sectionAi": "IA",
+    "sectionAiDesc": "Tout ceci nécessite un fournisseur d'IA configuré et ne fonctionne que si l'interrupteur principal est activé.",
+    "sectionEditor": "Extras de l'éditeur",
+    "sectionGraph": "Graphe de connaissances",
+    "sectionMedia": "Canevas et médias",
+    "sectionPower": "Utilisateur avancé",
+    "sectionSync": "Synchro et intégrations",
+    "sectionWorkspace": "Espace de travail",
+    "sectionWorkspaceDesc": "Masque des vues entières pour une app plus légère — les notes restent toujours.",
+    "tagAutocomplete": {
+      "aria": "Basculer l'autocomplétion des tags",
+      "desc": "Suggère les tags existants pendant la saisie de #.",
+      "label": "Autocomplétion des tags"
+    },
+    "taskExtract": {
+      "aria": "Basculer l'extraction de tâches",
+      "desc": "Transforme le contenu d'une note en tâches en une seule action.",
+      "label": "Extraction de tâches"
+    },
+    "tasks": {
+      "aria": "Basculer la vue des tâches",
+      "desc": "La liste de tâches et le tableau kanban. Les tâches dans les notes continuent de fonctionner.",
+      "label": "Vue des tâches"
+    },
+    "todayView": {
+      "aria": "Basculer la vue Aujourd'hui",
+      "desc": "L'agenda du jour combinant tâches à échéance et événements.",
+      "label": "Vue Aujourd'hui"
+    },
+    "transclusion": {
+      "aria": "Basculer les notes intégrées",
+      "desc": "Affiche les intégrations ![[note]] en ligne, jusqu'à trois niveaux de profondeur.",
+      "label": "Notes intégrées"
+    },
+    "vaultChat": {
+      "aria": "Basculer le chat du coffre",
+      "desc": "Discutez avec vos notes — les réponses citent les notes dont elles proviennent.",
+      "label": "Chat du coffre"
+    },
+    "voice": {
+      "aria": "Basculer les notes vocales",
+      "desc": "Enregistre les réunions et les transcrit sur cet appareil (télécharge un modèle d'environ 142 Mo au premier usage).",
+      "label": "Notes vocales"
+    },
+    "weeklyReview": {
+      "aria": "Basculer le bilan hebdomadaire IA",
+      "desc": "Un retour sur votre semaine rédigé par l'IA ; le résumé simple reste disponible sans elle.",
+      "label": "Bilan hebdomadaire IA"
+    }
+  },
   "general": {
     "defaultTaskView": {
       "desc": "Liste, tableau ou agenda à l'ouverture des tâches.",
@@ -184,6 +365,7 @@
     "appearance": "Apparence",
     "calendar": "Calendrier",
     "editor": "Éditeur",
+    "features": "Fonctionnalités",
     "general": "Général",
     "heading": "Paramètres",
     "import": "Importer",
