@@ -1,5 +1,30 @@
 {
   "close": "Cerrar",
+  "choose": {
+    "ai": {
+      "desc": "Acciones del editor, chat del baúl, extracción de tareas y más; requiere un proveedor de IA.",
+      "title": "Asistencia de IA"
+    },
+    "editorExtras": {
+      "desc": "Matemáticas, diagramas Mermaid, notas incrustadas y referencias de bloque.",
+      "title": "Extras del editor"
+    },
+    "graph": {
+      "desc": "El grafo interactivo de enlaces y propiedades tipadas de notas.",
+      "title": "Grafo de conocimiento"
+    },
+    "hint": "Puedes ajustar cada función más tarde en Ajustes › Funciones.",
+    "media": {
+      "desc": "Tableros de lienzo libres, anotación de PDF y notas de voz.",
+      "title": "Lienzo y medios"
+    },
+    "subtitle": "Con todo apagado, Novalis es una app de notas sencilla. Elige una familia para activar sus funciones en este baúl.",
+    "sync": {
+      "desc": "Sincronización entre dispositivos más calendarios de Google, Outlook e .ics.",
+      "title": "Sincronización y calendarios"
+    },
+    "title": "Elige lo que necesitas"
+  },
   "createNote": "Crear una nota inicial",
   "creating": "Creando…",
   "features": {
@@ -28,5 +53,6 @@
   "startingTour": "Creando el recorrido…",
   "subtitle": "Notas, tareas y calendario locales, todo en archivos simples que te pertenecen. Aquí tienes un recorrido rápido.",
   "takeTour": "Hacer el recorrido",
-  "title": "Te damos la bienvenida a Novalis"
+  "title": "Te damos la bienvenida a Novalis",
+  "continue": "Continuar"
 }

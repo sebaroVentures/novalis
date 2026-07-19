@@ -1,5 +1,31 @@
 {
+  "choose": {
+    "ai": {
+      "desc": "Editor actions, vault chat, task extraction and more — needs an AI provider.",
+      "title": "AI assistance"
+    },
+    "editorExtras": {
+      "desc": "Math, Mermaid diagrams, embedded notes and block references.",
+      "title": "Editor extras"
+    },
+    "graph": {
+      "desc": "The interactive link graph and typed note properties.",
+      "title": "Knowledge graph"
+    },
+    "hint": "You can fine-tune every feature later in Settings › Features.",
+    "media": {
+      "desc": "Freeform canvas boards, PDF annotation and voice notes.",
+      "title": "Canvas & media"
+    },
+    "subtitle": "Everything off keeps Novalis a clean notes app. Pick a family to light up its features in this vault.",
+    "sync": {
+      "desc": "Device-to-device sync plus Google, Outlook and .ics calendars.",
+      "title": "Sync & calendars"
+    },
+    "title": "Choose what you need"
+  },
   "close": "Close",
+  "continue": "Continue",
   "createNote": "Create a starter note",
   "creating": "Creating…",
   "features": {

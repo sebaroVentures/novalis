@@ -1,5 +1,30 @@
 {
   "close": "Schließen",
+  "choose": {
+    "ai": {
+      "desc": "Editor-Aktionen, Vault-Chat, Aufgaben-Extraktion und mehr — benötigt einen KI-Anbieter.",
+      "title": "KI-Unterstützung"
+    },
+    "editorExtras": {
+      "desc": "Mathe, Mermaid-Diagramme, eingebettete Notizen und Block-Referenzen.",
+      "title": "Editor-Extras"
+    },
+    "graph": {
+      "desc": "Der interaktive Link-Graph und typisierte Notiz-Eigenschaften.",
+      "title": "Wissensgraph"
+    },
+    "hint": "Jede Funktion lässt sich später unter Einstellungen › Funktionen feinjustieren.",
+    "media": {
+      "desc": "Freie Canvas-Boards, PDF-Annotation und Sprachnotizen.",
+      "title": "Canvas & Medien"
+    },
+    "subtitle": "Alles aus hält Novalis als schlanke Notiz-App. Wähle eine Familie, um ihre Funktionen in diesem Vault freizuschalten.",
+    "sync": {
+      "desc": "Geräte-zu-Geräte-Sync plus Google-, Outlook- und .ics-Kalender.",
+      "title": "Sync & Kalender"
+    },
+    "title": "Wähle, was du brauchst"
+  },
   "createNote": "Startnotiz erstellen",
   "creating": "Wird erstellt …",
   "features": {
@@ -28,5 +53,6 @@
   "startingTour": "Rundgang wird erstellt…",
   "subtitle": "Local-first Notizen, Aufgaben und Kalender – alles in einfachen Dateien, die dir gehören. Hier der kurze Rundgang.",
   "takeTour": "Rundgang starten",
-  "title": "Willkommen bei Novalis"
+  "title": "Willkommen bei Novalis",
+  "continue": "Weiter"
 }

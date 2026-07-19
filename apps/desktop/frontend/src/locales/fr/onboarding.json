@@ -1,5 +1,30 @@
 {
   "close": "Fermer",
+  "choose": {
+    "ai": {
+      "desc": "Actions d'éditeur, chat du coffre, extraction de tâches et plus — nécessite un fournisseur d'IA.",
+      "title": "Assistance IA"
+    },
+    "editorExtras": {
+      "desc": "Maths, diagrammes Mermaid, notes intégrées et références de bloc.",
+      "title": "Extras de l'éditeur"
+    },
+    "graph": {
+      "desc": "Le graphe de liens interactif et les propriétés typées des notes.",
+      "title": "Graphe de connaissances"
+    },
+    "hint": "Vous pourrez affiner chaque fonction plus tard dans Réglages › Fonctionnalités.",
+    "media": {
+      "desc": "Tableaux de canevas libres, annotation PDF et notes vocales.",
+      "title": "Canevas et médias"
+    },
+    "subtitle": "Tout désactivé, Novalis reste une app de notes épurée. Choisissez une famille pour activer ses fonctions dans ce coffre.",
+    "sync": {
+      "desc": "Synchro d'appareil à appareil plus calendriers Google, Outlook et .ics.",
+      "title": "Synchro et calendriers"
+    },
+    "title": "Choisissez ce qu'il vous faut"
+  },
   "createNote": "Créer une note de départ",
   "creating": "Création…",
   "features": {
@@ -28,5 +53,6 @@
   "startingTour": "Création de la visite…",
   "subtitle": "Des notes, des tâches et un calendrier local-first — le tout dans des fichiers simples qui vous appartiennent. Voici le tour rapide.",
   "takeTour": "Faire la visite",
-  "title": "Bienvenue dans Novalis"
+  "title": "Bienvenue dans Novalis",
+  "continue": "Continuer"
 }
