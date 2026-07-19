@@ -73,9 +73,11 @@ fn frontmatter_value(data: &Option<gray_matter::Pod>) -> Option<serde_json::Valu
                     }
                 }
             }
-            Some(v @ (serde_json::Value::String(_)
-            | serde_json::Value::Number(_)
-            | serde_json::Value::Bool(_))) => {
+            Some(
+                v @ (serde_json::Value::String(_)
+                | serde_json::Value::Number(_)
+                | serde_json::Value::Bool(_)),
+            ) => {
                 *v = serde_json::Value::Array(vec![serde_json::Value::String(scalar_to_string(v))]);
             }
             Some(v @ serde_json::Value::Null) => {

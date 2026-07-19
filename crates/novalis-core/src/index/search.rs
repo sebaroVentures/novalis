@@ -771,7 +771,10 @@ mod tests {
         build_index_with_progress(&db, &vault, &mut |done, total| calls.push((done, total)))
             .unwrap();
         assert_eq!(calls.len(), 5, "one progress tick per note");
-        assert!(calls.iter().all(|&(_, total)| total == 5), "total is stable");
+        assert!(
+            calls.iter().all(|&(_, total)| total == 5),
+            "total is stable"
+        );
         assert_eq!(*calls.last().unwrap(), (5, 5), "ends at 100%");
         // done is monotonically increasing 1..=5.
         assert!(calls.iter().map(|&(d, _)| d).eq(1..=5));
