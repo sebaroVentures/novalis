@@ -171,6 +171,21 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
     let vault_path = PathBuf::from(path);
     config::ensure_vault_dir(&vault_path).map_err(CoreError::Io)?;
 
+    // One-time feature-flags migration, BEFORE the index scan below so
+    // IndexOptions already sees the stamped flags on this very open. A vault
+    // that predates the flags keeps every surface it had (all-on); a fresh
+    // vault is stamped with the lean defaults. Failure (e.g. a malformed
+    // config.json) must not block opening the vault — warn and continue, the
+    // per-feature gates then fall back to their never-default-enable reads.
+    let stamp = config::ensure_features_stamp(&vault_path);
+    if let Err(e) = &stamp {
+        log::warn!("feature-flags migration skipped: {e}");
+    }
+    // A legacy migration needs a FULL rebuild: ingest passes skipped while
+    // the vault ran on the lean defaults (block refs) left the index wiped or
+    // stale, and the incremental mtime scan below would never repair it.
+    let legacy_rebuild = matches!(stamp, Ok(config::FeaturesStamp::StampedLegacy));
+
     // Let the webview load images from the vault via the asset protocol.
     let _ = app
         .asset_protocol_scope()
@@ -198,7 +213,11 @@ pub fn open_vault_impl(app: &AppHandle, path: &str) -> CmdResult<VaultInfo> {
     // an upgrade reindexes everything (empty index ⇒ every note is "new"); the
     // explicit rebuild path (`reindex_vault`) still does a full `build_index`.
     let mut on_progress = index_progress_emitter(app);
-    search::incremental_index_with_progress(&db, &vault_path, &mut on_progress)?;
+    if legacy_rebuild {
+        search::build_index_with_progress(&db, &vault_path, &mut on_progress)?;
+    } else {
+        search::incremental_index_with_progress(&db, &vault_path, &mut on_progress)?;
+    }
 
     let info = stats::vault_info(&vault_path);
 

@@ -1675,6 +1675,13 @@ export type PluginManifest = {
 };
 
 export type Preferences = {
+	/**
+	 *  Config-format version for one-time migrations. The serde default 0
+	 *  marks a config written before the feature flags existed (or before the
+	 *  migration ran); [`crate::vault::config::ensure_features_stamp`] bumps
+	 *  it. Distinct from the DB SCHEMA_VERSION — this one is vault-synced.
+	 */
+	prefsVersion?: number,
 	taskView?: TaskViewPrefs,
 	fileTree?: FileTreePrefs,
 	appearance?: AppearancePrefs,

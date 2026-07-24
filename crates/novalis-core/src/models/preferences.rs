@@ -6,6 +6,12 @@ use specta::Type;
 #[derive(Debug, Clone, Default, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct Preferences {
+    /// Config-format version for one-time migrations. The serde default 0
+    /// marks a config written before the feature flags existed (or before the
+    /// migration ran); [`crate::vault::config::ensure_features_stamp`] bumps
+    /// it. Distinct from the DB SCHEMA_VERSION — this one is vault-synced.
+    #[serde(default)]
+    pub prefs_version: u32,
     #[serde(default)]
     pub task_view: TaskViewPrefs,
     #[serde(default)]
@@ -201,7 +207,7 @@ pub struct GitPrefs {
 /// [`EditorPrefs::ambient_ai`] (ambient suggestions, under the `ai` master),
 /// [`GitPrefs::enabled`] (git sync), and the app-global embedding config
 /// (semantic-index enablement).
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "camelCase")]
 pub struct FeaturePrefs {
     // --- AI family (`ai` is the master; subs require `ai` too) ---
@@ -473,6 +479,48 @@ impl Default for GitPrefs {
             author_name: default_git_author_name(),
             author_email: default_git_author_email(),
             auto_commit_secs: default_git_interval_secs(),
+        }
+    }
+}
+
+impl FeaturePrefs {
+    /// Every feature enabled — the legacy profile
+    /// [`crate::vault::config::ensure_features_stamp`] writes for vaults that
+    /// predate the feature flags, where all of these surfaces were visible.
+    pub fn all_on() -> Self {
+        Self {
+            ai: true,
+            ai_meta_suggestions: true,
+            ai_templates: true,
+            task_extract: true,
+            weekly_review: true,
+            vault_chat: true,
+            related_notes: true,
+            entity_graph: true,
+            block_refs: true,
+            transclusion: true,
+            mermaid: true,
+            math: true,
+            code_highlight: true,
+            callouts: true,
+            tag_autocomplete: true,
+            outline: true,
+            today_view: true,
+            tasks: true,
+            calendar: true,
+            plugins: true,
+            query_engine: true,
+            daily_notes: true,
+            reminders: true,
+            graph_view: true,
+            properties: true,
+            backlinks: true,
+            p2p_sync: true,
+            calendar_sync: true,
+            ics_subscriptions: true,
+            canvas: true,
+            pdf_annotate: true,
+            voice: true,
         }
     }
 }
