@@ -149,6 +149,13 @@ import {
 import type { FeatureKey } from "../lib/features";
 import type { ActionId } from "../lib/keybindings";
 import type { CategoryId } from "../components/settings/SettingsNav";
+// Type-only (erased): the generated DEMO_TOPICS tuple is the backend's list of
+// insertable examples, used as the `demoTopic` type below.
+import type { DEMO_TOPICS } from "../ipc/bindings";
+import { QUERY_SYNTAX } from "./querySyntax";
+
+/** A topic `create_demo_note` can insert an example file for. */
+export type DemoTopic = (typeof DEMO_TOPICS)[number];
 
 /** The guide's sections, mirroring Settings › Features (FeaturesPanel.tsx)
  *  plus a leading `basics` group for the always-on core. */
@@ -238,8 +245,11 @@ export interface HelpTopic {
   /** True when using the feature spends AI tokens in the background. */
   tokenCost?: boolean;
   /** Set iff a demo note exists for this topic (the id doubles as the demo
-   *  lookup key). Unique across the registry. */
-  demoTopic?: string;
+   *  lookup key). Unique across the registry, and typed against the list
+   *  `create_demo_note` actually serves (help_demo::DEMO_TOPICS, exported into
+   *  bindings.ts) — a topic the backend doesn't know is now a compile error
+   *  rather than a `badRequest` when the user clicks "Create example note". */
+  demoTopic?: DemoTopic;
   /** Key base into the `help` namespace: `topics.<id>`. Subkeys: `.what`,
    *  `.where`, optional `.setup` / `.cost` (probe with i18n.exists). */
   keyBase: string;
@@ -607,30 +617,9 @@ export const HELP_TOPICS: readonly HelpTopic[] = [
     demoTopic: "queryEngine",
     keyBase: "topics.queryEngine",
     titleKey: "settings:features.queryEngine.label",
-    // Source: crates/novalis-core/src/index/query.rs lines 1-35 — the full
-    // query DSL table, mirrored COMPLETELY (one row per term kind + negation).
-    syntax: [
-      { code: "word \"a phrase\"", descKey: "topics.queryEngine.syntax.fulltext" },
-      { code: "tag:urgent", descKey: "topics.queryEngine.syntax.tag" },
-      { code: "folder:Projects", descKey: "topics.queryEngine.syntax.folder" },
-      { code: "title:launch", descKey: "topics.queryEngine.syntax.title" },
-      { code: "path:2026/", descKey: "topics.queryEngine.syntax.path" },
-      { code: "alias:acme", descKey: "topics.queryEngine.syntax.alias" },
-      { code: "type:meeting", descKey: "topics.queryEngine.syntax.propEquals" },
-      { code: "rating>=4", descKey: "topics.queryEngine.syntax.propCompare" },
-      { code: "status!=done", descKey: "topics.queryEngine.syntax.propNotEquals" },
-      { code: "project:[[Launch]]", descKey: "topics.queryEngine.syntax.relation" },
-      { code: "has:task", descKey: "topics.queryEngine.syntax.hasFacet" },
-      { code: "has:deadline", descKey: "topics.queryEngine.syntax.hasProp" },
-      { code: "task.status:done", descKey: "topics.queryEngine.syntax.taskStatus" },
-      { code: "task.priority:high", descKey: "topics.queryEngine.syntax.taskPriority" },
-      { code: "task.due<2026-08-01", descKey: "topics.queryEngine.syntax.taskDue" },
-      { code: "task.done:true", descKey: "topics.queryEngine.syntax.taskDone" },
-      { code: "sort:modified:desc", descKey: "topics.queryEngine.syntax.sort" },
-      { code: "sort:similarity:\"launch\"", descKey: "topics.queryEngine.syntax.sortSimilarity" },
-      { code: "view:kanban", descKey: "topics.queryEngine.syntax.view" },
-      { code: "-tag:archived", descKey: "topics.queryEngine.syntax.negate" },
-    ],
+    // Shared with QueryView's empty state; see help/querySyntax.ts for why the
+    // rows live outside this module.
+    syntax: QUERY_SYNTAX,
   },
   {
     id: "dailyNotes",

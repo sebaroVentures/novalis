@@ -263,6 +263,12 @@ fn specta_builder() -> Builder<tauri::Wry> {
             AiStreamError,
             AiEmbedProgress
         ])
+        // Not IPC: a compile-time contract shipped to TS. The Feature Guide's
+        // registry names a `demoTopic` per topic and `create_demo_note` only
+        // knows the ones in this list — exporting it lets the frontend's
+        // registry test gate the two against each other instead of finding a
+        // drifted id at click time.
+        .constant("DEMO_TOPICS", novalis_core::help_demo::DEMO_TOPICS)
         // Counts/sizes are small; render Rust integer types as TS `number`.
         .dangerously_cast_bigints_to_number()
 }

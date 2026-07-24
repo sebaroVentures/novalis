@@ -4,7 +4,7 @@ import { ArrowUpRight, Bookmark, ChevronLeft, ChevronRight, Play, X } from "luci
 import { useTranslation } from "react-i18next";
 
 import { useHelpLoaded } from "../help/loadHelp";
-import { HELP_TOPIC_BY_ID } from "../help/registry";
+import { QUERY_SYNTAX } from "../help/querySyntax";
 import type { PropertyValue, QueryResult, QueryViewKind, SavedQuery, Task } from "../ipc/api";
 import { api, NovalisError } from "../ipc/api";
 import { displayText, noteTitleFromPath } from "../lib/taskDisplay";
@@ -198,15 +198,18 @@ export function QueryView() {
 }
 
 /** Pre-first-run empty state: the prompt hint, a Feature Guide link, and — once
- *  the lazy help catalogs are in — the query DSL syntax table straight from the
- *  guide's queryEngine topic (no spinner: the table just appends when ready).
- *  useHelpLoaded kicks off ensureHelpLoaded on mount, so the catalogs load only
- *  when this empty state actually renders. The dynamic `help:` desc keys are
- *  kept alive by the enumeration in help/registry.ts. */
+ *  the lazy help catalogs are in — the query DSL syntax table, the same rows
+ *  the guide's queryEngine topic renders (no spinner: the table just appends
+ *  when ready). useHelpLoaded kicks off ensureHelpLoaded on mount, so the
+ *  catalogs load only when this empty state actually renders. The rows come
+ *  from help/querySyntax.ts rather than the registry so this eagerly-imported
+ *  view doesn't drag the whole guide registry into the main bundle; the
+ *  dynamic `help:` desc keys are kept alive by the enumeration in
+ *  help/registry.ts. */
 function QueryEmptyState() {
   const { t, i18n } = useTranslation(["common", "help"]);
   const helpLoaded = useHelpLoaded();
-  const syntax = HELP_TOPIC_BY_ID.get("queryEngine")?.syntax ?? [];
+  const syntax = QUERY_SYNTAX;
   // descKey is a runtime string (registry data), so the lookup needs an escape
   // hatch from the typed key union; help/registry.ts enumerates the keys for
   // i18next-parser and its test proves they exist.

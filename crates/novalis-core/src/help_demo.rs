@@ -25,6 +25,31 @@ use chrono::{Duration, Local, Utc};
 /// The vault folder every example file lands in.
 const FOLDER: &str = "Help examples";
 
+/// Every topic [`demo_note`] knows, in guide (registry) order.
+///
+/// This is the single source of truth for a contract that spans languages: the
+/// frontend's `help/registry.ts` carries a `demoTopic` per topic, and the
+/// guide shows its "Create example note" button off that field alone. Nothing
+/// in the type system connects the two, so a renamed or misspelled id would
+/// only surface as a runtime `badRequest` on click. The list is therefore
+/// exported to TypeScript as a specta constant (`DEMO_TOPICS` in
+/// `ipc/bindings.ts`, which CI already gates against drift) and
+/// `src/help/__tests__/registry.test.ts` asserts set-equality against the
+/// registry. Adding a topic means: an arm in [`demo_note`], an entry here, a
+/// `demoTopic` in the registry.
+pub const DEMO_TOPICS: [&str; 10] = [
+    "wikilinks",
+    "taskTokens",
+    "blockRefs",
+    "transclusion",
+    "mermaid",
+    "math",
+    "callouts",
+    "properties",
+    "queryEngine",
+    "canvas",
+];
+
 /// The `(vault-relative path, full file content)` for a Feature Guide topic,
 /// or `None` for an unknown topic.
 ///
@@ -317,19 +342,6 @@ mod tests {
     use crate::index::{schema, search};
     use crate::models::NoteSummary;
 
-    /// Every markdown topic the guide can insert.
-    const MD_TOPICS: [&str; 9] = [
-        "wikilinks",
-        "blockRefs",
-        "transclusion",
-        "math",
-        "mermaid",
-        "callouts",
-        "taskTokens",
-        "queryEngine",
-        "properties",
-    ];
-
     fn summary(path: &str, title: &str) -> NoteSummary {
         NoteSummary {
             path: path.to_string(),
@@ -349,12 +361,16 @@ mod tests {
 
     #[test]
     fn every_topic_returns_content_under_the_examples_folder() {
-        for topic in MD_TOPICS {
+        // DEMO_TOPICS is the exported contract (see its docs) — iterating it
+        // here is what makes it exhaustive rather than a second hand-kept list.
+        for topic in DEMO_TOPICS {
             let (rel, content) = demo_note(topic).unwrap_or_else(|| panic!("topic {topic}"));
-            assert!(
-                rel.starts_with("Help examples/") && rel.ends_with(".md"),
-                "{topic} path: {rel}"
-            );
+            assert!(rel.starts_with("Help examples/"), "{topic} path: {rel}");
+            if rel.ends_with(".canvas") {
+                serde_json::from_str::<serde_json::Value>(&content).unwrap();
+                continue;
+            }
+            assert!(rel.ends_with(".md"), "{topic} path: {rel}");
             // Valid frontmatter in the shape the indexer parses, plus a body.
             assert!(content.starts_with("---"), "{topic} has frontmatter");
             let (fm, body) = crate::vault::frontmatter::parse_frontmatter(&content);
@@ -362,9 +378,11 @@ mod tests {
             assert!(!body.trim().is_empty(), "{topic} has a body");
         }
 
-        let (rel, content) = demo_note("canvas").unwrap();
-        assert_eq!(rel, "Help examples/Example Board.canvas");
-        serde_json::from_str::<serde_json::Value>(&content).unwrap();
+        // The one non-markdown topic, pinned by name.
+        assert_eq!(
+            demo_note("canvas").unwrap().0,
+            "Help examples/Example Board.canvas"
+        );
 
         // Unknown topic → None (the command turns this into a bad request).
         assert!(demo_note("teleportation").is_none());

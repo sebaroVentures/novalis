@@ -12,6 +12,7 @@ vi.mock("../../ipc/api", () => ({
   api: { getPreferences: vi.fn(), setPreferences: vi.fn() },
 }));
 
+import { DEMO_TOPICS } from "../../ipc/bindings";
 import en from "../../locales/en/help.json";
 import { resolveFeaturePrefs } from "../../stores/settingsStore";
 import { GROUP_LABEL_KEYS, HELP_GROUPS, HELP_TOPICS } from "../registry";
@@ -125,6 +126,17 @@ describe("help registry ↔ en catalog", () => {
   it("demoTopic values are unique", () => {
     const demos = HELP_TOPICS.filter((t) => t.demoTopic).map((t) => t.demoTopic);
     expect(new Set(demos).size).toBe(demos.length);
+  });
+
+  // The cross-language half of the contract. `demoTopic` is TYPED against the
+  // generated DEMO_TOPICS tuple, so an id the backend doesn't serve is already
+  // a compile error; this covers the other direction — a demo authored in
+  // help_demo.rs that no topic ever offers is dead code the guide can't reach.
+  // (CI regenerates bindings.ts and fails on drift, so this really does read
+  // the Rust list.)
+  it("offers every demo topic create_demo_note serves", () => {
+    const offered = new Set(HELP_TOPICS.map((t) => t.demoTopic).filter(Boolean));
+    expect([...offered].sort()).toEqual([...DEMO_TOPICS].sort());
   });
 
   it("groups are known and every group heading key exists", () => {

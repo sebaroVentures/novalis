@@ -76,12 +76,12 @@ export function HelpGuide() {
   const [demoResult, setDemoResult] = useState<{ ok: boolean; text: string } | null>(null);
   const [demoBusy, setDemoBusy] = useState(false);
 
-  // "index" (or an unknown id) lands on the first topic — the left pane always
-  // mirrors the selection, so there is no separate empty/intro state to style.
+  // "index" lands on the first topic — the left pane always mirrors the
+  // selection, so there is no separate empty/intro state to style. (Topic ids
+  // are typed at the store now, so only "index"/null reach the fallback.)
   const selected =
-    (helpTopic && helpTopic !== "index"
-      ? HELP_TOPIC_BY_ID.get(helpTopic as HelpTopicId)
-      : undefined) ?? HELP_TOPICS[0];
+    (helpTopic && helpTopic !== "index" ? HELP_TOPIC_BY_ID.get(helpTopic) : undefined) ??
+    HELP_TOPICS[0];
 
   useEffect(() => {
     setDemoResult(null);

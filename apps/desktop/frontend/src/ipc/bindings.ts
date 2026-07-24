@@ -696,6 +696,9 @@ export const events = {
 	reindexedEvent: makeEvent<ReindexedEvent>("reindexed-event"),
 };
 
+/* Constants */
+export const DEMO_TOPICS = ["wikilinks","taskTokens","blockRefs","transclusion","mermaid","math","callouts","properties","queryEngine","canvas"] as const;
+
 /* Types */
 /**  A unified agenda entry merging tasks and calendar events. */
 export type AgendaItem = {

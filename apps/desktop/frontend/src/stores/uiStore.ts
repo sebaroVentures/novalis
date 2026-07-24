@@ -4,6 +4,7 @@ import type { Editor } from "@novalis/editor";
 
 import type { CategoryId } from "../components/settings/SettingsNav";
 import type { MainView } from "../components/Sidebar";
+import type { HelpTopicId } from "../help/registry";
 import { loadOnboardingDone, saveOnboardingDone } from "../lib/uiPrefs";
 import {
   emptyWorkspace,
@@ -31,8 +32,10 @@ interface UiState {
    *  Seeded from localStorage so a returning user never sees it again. */
   onboardingDone: boolean;
   /** The Feature Guide's open topic: a help-registry topic id, "index" (the
-   *  overview), or null while the guide is closed. */
-  helpTopic: string | null;
+   *  overview), or null while the guide is closed. Typed against the registry
+   *  so the contextual deep links (graph/chat/related/entities/query empty
+   *  states) can't silently mistype a topic and land on the first one. */
+  helpTopic: HelpTopicId | "index" | null;
   /** One-shot ask for App to open the Settings dialog at a category (set by
    *  the guide's "Open Settings › …" action; App consumes and clears it). */
   settingsCategoryRequest: CategoryId | null;
@@ -43,7 +46,7 @@ interface UiState {
   /** Mark first-run onboarding dismissed (also persists it for this device). */
   dismissOnboarding: () => void;
   /** Open the Feature Guide at `topic` (default: the index). */
-  openHelp: (topic?: string) => void;
+  openHelp: (topic?: HelpTopicId | "index") => void;
   /** Close the Feature Guide. */
   closeHelp: () => void;
   /** Ask App to open the Settings dialog at `category`. */
