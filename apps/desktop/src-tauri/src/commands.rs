@@ -595,6 +595,55 @@ pub fn rename_canvas(
     state.with(|e| canvas::rename(&e.vault_path, &path, &new_name))
 }
 
+// ── Feature Guide ───────────────────────────────────────────────────────────
+
+/// Insert one Feature Guide example file ([`novalis_core::help_demo`]) into
+/// the open vault under `Help examples/`, returning the vault-relative path it
+/// landed on. A name collision is deduped to `… 2`, `… 3` (the same numbering
+/// [`create_tour_vault`] uses) — an existing file is never overwritten.
+/// Markdown examples go through the same guarded create + reindex as
+/// [`create_note`]; the `canvas` topic writes a `.canvas` through the canvas
+/// path (guarded + atomic, no note indexing — canvases are fs-scanned, and
+/// like the canvas commands above need no self-write tracking). Deliberately
+/// NOT feature-flag-gated: the guide only offers a topic when it makes sense,
+/// and inserting an example must never flip a flag. Unknown topic →
+/// `badRequest`.
+#[tauri::command]
+#[specta::specta]
+pub fn create_demo_note(state: State<AppEngine>, topic: String) -> CmdResult<String> {
+    let Some((base_rel, content)) = novalis_core::help_demo::demo_note(&topic) else {
+        return Err(CoreError::BadRequest(format!("unknown demo topic: {topic}")).into());
+    };
+    let rel = state.with(|e| {
+        let rel = first_free_rel(&e.vault_path, &base_rel)?;
+        if rel.ends_with(".canvas") {
+            canvas::create(&e.vault_path, &rel, &content)?;
+        } else {
+            vault_fs::create_note(&e.vault_path, &rel, &content)?;
+            change::reindex_path(&e.db, &e.vault_path, &rel)?;
+        }
+        Ok(rel)
+    })?;
+    if rel.ends_with(".md") {
+        mark_self_write(&rel);
+    }
+    Ok(rel)
+}
+
+/// First free vault-relative path for `base`: the path itself, else
+/// `<stem> 2.<ext>`, `<stem> 3.<ext>`, … The probe goes through the vault path
+/// guard; the create that follows still does the authoritative exists check.
+fn first_free_rel(vault: &std::path::Path, base: &str) -> Result<String, CoreError> {
+    let (stem, ext) = base.rsplit_once('.').unwrap_or((base, "md"));
+    let mut rel = base.to_string();
+    let mut n = 2;
+    while vault_fs::vault_rel(vault, &rel)?.exists() {
+        rel = format!("{stem} {n}.{ext}");
+        n += 1;
+    }
+    Ok(rel)
+}
+
 /// Reveal a note file or folder in the OS file manager (Finder/Explorer/file
 /// manager), selecting the item. `path` is vault-relative (forward-slashed); an
 /// empty string reveals the vault root. If the target no longer exists (e.g. a

@@ -2,6 +2,10 @@
 // main.tsx, before <App/>) so the chosen language is active on first paint and
 // there is no flash of untranslated content. English catalogs are bundled, so
 // there's no async resource loading and no need for React Suspense.
+//
+// Exception: the namespaces in LAZY_NAMESPACES are NOT imported here. They are
+// registered at runtime via i18n.addResourceBundle by their own loader (help →
+// src/help/loadHelp.ts), keeping their catalogs out of the eager bundle.
 
 import i18n, { type Resource } from "i18next";
 import { initReactI18next } from "react-i18next";
@@ -85,6 +89,11 @@ export const NAMESPACES = [
   "links",
   "pdf",
 ] as const;
+
+/** Namespaces that exist on disk for every locale (and are covered by the
+ *  catalog parity tests) but load lazily instead of via the imports above.
+ *  Not part of `ns` below — each has a loader that addResourceBundle()s it. */
+export const LAZY_NAMESPACES = ["help"] as const;
 
 // --- dev-only pseudo-locale generation -------------------------------------
 // Defined before use so it isn't in the temporal-dead-zone when the resources

@@ -1,0 +1,284 @@
+{
+  "guide": {
+    "close": "Schließen",
+    "enable": "Einschalten",
+    "exampleCreated": "Beispielnotiz erstellt — du findest sie im Dateibaum.",
+    "exampleFailed": "Die Beispielnotiz konnte nicht erstellt werden.",
+    "groups": {
+      "basics": "Grundlagen"
+    },
+    "insertExample": "Beispielnotiz erstellen",
+    "learnMore": "Mehr erfahren",
+    "noResults": "Keine Funktionen passen zur Suche.",
+    "offBadge": "Aus",
+    "openSettings": "Einstellungen öffnen",
+    "searchPlaceholder": "Funktionen durchsuchen…",
+    "title": "Funktionsführer"
+  },
+  "topics": {
+    "ai": {
+      "setup": "Verbinde einen Anbieter (API-Schlüssel oder lokale CLI) unter Einstellungen › KI.",
+      "what": "Der Hauptschalter für alle KI: Zusammenfassen, Verfassen und Umschreiben im Editor plus jede KI-Unterfunktion. Nichts läuft, bevor du es aufrufst.",
+      "where": "Editor › KI-Menü und die Befehlspalette."
+    },
+    "aiMetaSuggestions": {
+      "what": "Metadaten mit einem Klick: schlägt Tags und Eigenschaften für die aktuelle Notiz vor; du bestätigst, bevor etwas geschrieben wird.",
+      "where": "Metadaten-Leiste der Notiz › Metadaten vorschlagen."
+    },
+    "aiTemplates": {
+      "what": "Deine eigenen Prompt-Vorlagen werden zu eigenen Aktionen im KI-Menü.",
+      "where": "Editor › KI-Menü; die Vorlagen verwaltest du unter Einstellungen › KI."
+    },
+    "ambientAi": {
+      "cost": "Läuft bei jeder Schreibpause und kostet daher fortlaufend KI-Tokens.",
+      "setup": "Ein separates Opt-in: sowohl der KI-Hauptschalter als auch der Ambient-Schalter (Einstellungen › KI oder Einstellungen › Funktionen) müssen an sein.",
+      "what": "Schlägt nach einer abgeschlossenen Bearbeitung im Hintergrund Links und Metadaten für die gerade bearbeitete Notiz vor.",
+      "where": "Vorschläge erscheinen als schließbare Leiste im Editor."
+    },
+    "backlinks": {
+      "what": "Welche Notizen hierher verlinken — plus unverlinkte Erwähnungen des Notiztitels, die du in Links verwandeln kannst.",
+      "where": "Rechte Leiste › Links-Button."
+    },
+    "blockRefs": {
+      "setup": "Nimm nach dem Einschalten das Reindex-Angebot unter Einstellungen › Funktionen an, damit vorhandene Ids gefunden werden.",
+      "syntax": {
+        "marker": "Beende eine Zeile mit Leerzeichen + ^id (Buchstaben/Ziffern, 4–32 Zeichen), um dem Block eine Adresse zu geben.",
+        "reference": "Bettet den Block mit dieser Id ein; (( öffnet Vorschläge."
+      },
+      "what": "Gib jedem Block eine dauerhafte ^id-Adresse und verlinke oder bette genau diesen Block anderswo ein.",
+      "where": "Im Editor; der Notizkopf hat einen Button zum Kopieren einer Block-Referenz."
+    },
+    "calendar": {
+      "what": "Monats-, Wochen- und Tagesansichten über deine eigenen Termine; Termine werden als Markdown im Vault gespeichert.",
+      "where": "Aktivitätsleiste › Kalender-Symbol."
+    },
+    "calendarSync": {
+      "setup": "Melde dich unter Einstellungen › Kalender an.",
+      "what": "Zeigt Termine aus Google- oder Outlook-Konten neben deinem lokalen Kalender (schreibgeschützt).",
+      "where": "Termine erscheinen in der Kalender- und der Heute-Ansicht."
+    },
+    "callouts": {
+      "syntax": {
+        "basic": "Erste Zeile eines Zitatblocks; der Typ bestimmt Farbe und Symbol.",
+        "titled": "Optionaler eigener Titel nach dem Typ; unbekannte Typen werden als note dargestellt."
+      },
+      "what": "Gestaltete Callout-Boxen aus einfachen Zitatblöcken (Obsidian-kompatibel). Typen: note, tip, info, warning, danger, success, question, quote, caution, important, error.",
+      "where": "Im Editor — der Zitatblock wird als farbige Box dargestellt."
+    },
+    "canvas": {
+      "what": "Freie räumliche Boards mit Haftnotizen und eingebetteten Vault-Notizen. Boards sind portable .canvas-Dateien.",
+      "where": "Aktivitätsleiste › Formen-Symbol."
+    },
+    "cheatsheet": {
+      "title": "Tastenkürzel-Übersicht",
+      "what": "Ein Overlay mit jedem Tastenkürzel und seiner aktuellen Belegung — es aktualisiert sich, wenn du Tasten neu belegst.",
+      "where": "Öffne es mit seinem Kürzel; alles neu belegen unter Einstellungen › Tastenkürzel."
+    },
+    "codeHighlight": {
+      "syntax": {
+        "fence": "Nenne die Sprache nach dem öffnenden Zaun, um die Grammatik zu wählen."
+      },
+      "what": "Syntaxfarben in Codeblöcken. Sprachgrammatiken laden bei Bedarf, ungenutzte kosten nichts.",
+      "where": "Im Editor, in jedem eingezäunten Codeblock."
+    },
+    "commandPalette": {
+      "title": "Befehlspalette",
+      "what": "Jeder Befehl in einer unscharf durchsuchbaren Liste: Ansichten wechseln, Notizen aus Vorlagen erstellen, Plugin- und KI-Aktionen ausführen.",
+      "where": "Öffnet sich als Overlay über dem, was du gerade tust."
+    },
+    "dailyNotes": {
+      "what": "Eine Journal-Notiz pro Tag, angelegt beim ersten Öffnen.",
+      "where": "Befehlspalette › heutige Tagesnotiz."
+    },
+    "editorBasics": {
+      "syntax": {
+        "slash": "Das Blockmenü auf einer leeren Zeile: Überschriften, Listen, Tabellen, Bilder und mehr.",
+        "tag": "Taggt die Notiz; Tags erscheinen im Tag-Browser der Seitenleiste und sind durchsuchbar."
+      },
+      "title": "Schreib-Grundlagen",
+      "what": "Notizen sind einfache Markdown-Dateien. Formatiere mit der Symbolleiste, dem /-Menü oder Markdown selbst; füge Bilder direkt per Einfügen oder Ziehen ein.",
+      "where": "Jeder Notiz-Tab; die Symbolleiste sitzt über der Notiz."
+    },
+    "entityGraph": {
+      "cost": "Die Extraktion kostet bei jedem (Re-)Indexieren KI-Tokens — deshalb bleibt sie auch bei aktivierter KI ein separates Opt-in.",
+      "what": "Extrahiert Personen, Orte und Themen aus deinen Notizen in einen durchsuchbaren Entitäten-Graphen.",
+      "where": "Rechte Leiste › Entitäten-Button."
+    },
+    "gitSync": {
+      "setup": "Der Schalter liegt bei den Git-Einstellungen: Autor-Identität und optionales Remote unter Einstellungen › Sync. Die Zeile unter Funktionen schaltet denselben Schalter.",
+      "what": "Versioniert den Vault mit Git und synchronisiert ihn mit einem Remote — volle Historie, Diffs und Konfliktbehandlung.",
+      "where": "Einstellungen › Sync und der Sync-Status in der Seitenleiste."
+    },
+    "graphView": {
+      "what": "Eine interaktive Karte der Verknüpfungen zwischen deinen Notizen. Ziehe, zoome und klicke dich zu jeder Notiz durch.",
+      "where": "Aktivitätsleiste › Graph-Symbol."
+    },
+    "icsSubscriptions": {
+      "setup": "Füge Feed-URLs unter Einstellungen › Kalender hinzu.",
+      "what": "Folge schreibgeschützten .ics-Feeds (Feiertage, Team-Kalender, private iCal-Links).",
+      "where": "Termine erscheinen in der Kalender- und der Heute-Ansicht."
+    },
+    "math": {
+      "syntax": {
+        "block": "Abgesetzte (Block-)Formel auf eigener Zeile.",
+        "inline": "Inline-Formel. Kein Leerzeichen direkt innerhalb der $-Zeichen — so bleiben $5 und $10 normaler Text."
+      },
+      "what": "Rendert TeX-Formeln mit KaTeX. Die Bibliothek lädt nur, wenn eine Notiz sie nutzt.",
+      "where": "Im Editor — direkt an Ort und Stelle gerendert."
+    },
+    "mermaid": {
+      "syntax": {
+        "fence": "Ein Codeblock mit der Sprache mermaid wird als Diagramm gerendert."
+      },
+      "what": "Verwandelt mermaid-Codeblöcke in gerenderte Diagramme: Flussdiagramme, Sequenzdiagramme, Gantt-Charts und mehr.",
+      "where": "Im Editor — das Diagramm wird an Ort und Stelle gerendert. Die Bibliothek lädt nur, wenn eine Notiz sie nutzt."
+    },
+    "outline": {
+      "what": "Die Überschriftenstruktur der Notiz als klickbares Inhaltsverzeichnis.",
+      "where": "Rechte Leiste › Gliederungs-Button."
+    },
+    "p2pSync": {
+      "setup": "Kopple deine Geräte einmalig unter Einstellungen › Sync.",
+      "what": "Ende-zu-Ende-verschlüsselter Sync direkt zwischen deinen Geräten — ohne Server dazwischen.",
+      "where": "Einstellungen › Sync › Geräte-Sync."
+    },
+    "pdfAnnotate": {
+      "what": "Lies PDFs in der App, markiere Passagen und verknüpfe Markierungen mit den Notizen, die sie zitieren.",
+      "where": "Befehlspalette › PDF öffnen; Anmerkungen liegen im Seitenpanel des Viewers."
+    },
+    "plugins": {
+      "what": "Vault-lokale JavaScript-Plugins, in Web Workern sandboxed, die der Palette Befehle hinzufügen.",
+      "where": "Verwalten unter Einstellungen › Plugins; ihre Befehle erscheinen in der Befehlspalette."
+    },
+    "properties": {
+      "syntax": {
+        "checkbox": "Eine Checkbox-Eigenschaft (boolesch).",
+        "frontmatter": "Eigenschaften stehen zwischen zwei Zeilen mit --- ganz oben in der Notiz.",
+        "list": "Eine Listen-Eigenschaft.",
+        "number": "Eine Zahlen-Eigenschaft — in Abfragen sortier- und vergleichbar.",
+        "relation": "Eine Relation: zeigt per Wikilink auf eine andere Notiz; abfragbar mit project:[[Launch]].",
+        "text": "Eine Text-Eigenschaft."
+      },
+      "what": "Typisierte Schlüssel-Wert-Metadaten im Frontmatter einer Notiz — Text, Zahlen, Checkboxen, Listen und Relationen zu anderen Notizen — editierbar in einem strukturierten Panel.",
+      "where": "Das Eigenschaften-Panel oben in der Notiz; das rohe YAML bleibt editierbar."
+    },
+    "queryEngine": {
+      "syntax": {
+        "alias": "Ein Notiz-Alias enthält den Text.",
+        "folder": "Notiz liegt im Ordner oder einem Unterordner.",
+        "fulltext": "Volltexttreffer in Text, Titel und Tags; mehrere Wörter in Anführungszeichen bilden eine Phrase.",
+        "hasFacet": "Notiz hat mindestens eine Aufgabe; has:link und has:backlink gehen auch.",
+        "hasProp": "Notiz hat eine Frontmatter-Eigenschaft mit diesem Namen.",
+        "negate": "Ein führendes - negiert jeden Term.",
+        "path": "Notiz-Pfad enthält den Text.",
+        "propCompare": "Numerischer Eigenschaftsvergleich: <, <=, >, >=, =, !=.",
+        "propEquals": "Frontmatter-Eigenschaft ist gleich einem Wert (jeder Eigenschaftsschlüssel geht).",
+        "propNotEquals": "Eigenschaft ist nicht der Wert.",
+        "relation": "Typisierte Relation zeigt auf die Notiz mit diesem Titel.",
+        "sort": "Sortieren nach title, path, modified, created oder einem Eigenschaftsschlüssel; :asc/:desc wählt die Richtung.",
+        "sortSimilarity": "Sortieren nach semantischer Ähnlichkeit zu einer Phrase (benötigt den semantischen Index).",
+        "tag": "Notiz trägt den Tag (exakter Treffer).",
+        "taskDone": "Notiz hat eine erledigte Aufgabe.",
+        "taskDue": "Notiz hat eine Aufgabe, die vor dem Datum fällig ist; task.start geht auch.",
+        "taskPriority": "Notiz hat eine Aufgabe mit der Priorität; task.project: und task.epic: gehen auch.",
+        "taskStatus": "Notiz hat eine Aufgabe mit diesem Status.",
+        "title": "Notiz-Titel enthält den Text.",
+        "view": "Wähle die Ergebnisansicht: table, kanban oder calendar."
+      },
+      "what": "Gespeicherte, datenbankartige Ansichten über Notizen und Aufgaben. Schreibe Filterterme, wähle Tabelle, Kanban oder Kalender und speichere die Abfrage zur Wiederverwendung.",
+      "where": "Aktivitätsleiste › Tabellen-Symbol."
+    },
+    "readingMode": {
+      "title": "Lesemodus",
+      "what": "Eine ablenkungsfreie, schreibgeschützte Darstellung der aktuellen Notiz.",
+      "where": "Notizkopf › Buch-Symbol."
+    },
+    "relatedNotes": {
+      "cost": "Die Indexierung auf dem Gerät lädt einmalig ein ~130 MB großes Modell; ein API-Embedding-Endpunkt geht stattdessen auch.",
+      "setup": "Benötigt den semantischen Index — erstelle ihn unter Einstellungen › KI.",
+      "what": "Ein Panel mit Notizen, die der gerade gelesenen semantisch ähneln — ganz ohne Links.",
+      "where": "Rechte Leiste › Orbit-Button."
+    },
+    "reminders": {
+      "what": "Systembenachrichtigungen für fällige Aufgaben (@remind) und anstehende Kalendertermine.",
+      "where": "Zugestellt von deinem Betriebssystem, solange die App läuft."
+    },
+    "search": {
+      "title": "Suche",
+      "what": "Volltextsuche über Notiztitel, -texte und Tags, mit hervorgehobenen Ausschnitten. Für unscharfes Notiz-Springen nutze die Befehlspalette.",
+      "where": "Seitenleiste › Such-Symbol oder das Kürzel von überall."
+    },
+    "tagAutocomplete": {
+      "what": "Schlägt beim Tippen von # deine vorhandenen Tags vor und hält die Tag-Schreibweise konsistent.",
+      "where": "Im Editor — ein Popup unter dem Cursor."
+    },
+    "taskExtract": {
+      "what": "Liest die aktuelle Notiz (z. B. ein Meeting-Protokoll) und schlägt eine Aufgabenliste vor; du prüfst sie, bevor die Aufgaben eingefügt werden.",
+      "where": "Editor › KI-Menü oder Befehlspalette › Aufgaben extrahieren."
+    },
+    "taskTokens": {
+      "syntax": {
+        "checkbox": "Eine Checkbox-Zeile wird zur Aufgabe; die Überschrift darüber bleibt ihr Abschnitt.",
+        "due": "Setzt das Fälligkeitsdatum.",
+        "epic": "Ordnet die Aufgabe einem Epic zu.",
+        "nlDates": "Aufgaben-Datumsfelder akzeptieren auch natürliche Ausdrücke wie diese und lösen sie in echte Daten auf.",
+        "priority": "Setzt die Priorität: urgent, high, medium oder low.",
+        "project": "Ordnet die Aufgabe einem Projekt zu.",
+        "remind": "Plant eine Erinnerung zu diesem Zeitpunkt.",
+        "repeat": "Wiederholt die Aufgabe: daily, weekly, monthly, yearly oder every N days/weeks/months.",
+        "start": "Setzt das Start-Datum.",
+        "status": "Setzt die Kanban-Spalte (Kleinbuchstaben, Ziffern, Bindestriche).",
+        "tag": "Taggt die Aufgabe."
+      },
+      "title": "Aufgaben in Notizen",
+      "what": "Jede Markdown-Checkbox ist eine Aufgabe. @-Tokens auf derselben Zeile ergänzen Daten, Priorität, Kanban-Status und Projekt-/Epic-Zuordnung; eingerückte Checkboxen werden Unteraufgaben.",
+      "where": "In jeder Notiz; extrahierte Aufgaben erscheinen in der Aufgaben- und der Heute-Ansicht."
+    },
+    "tasks": {
+      "what": "Alle Aufgaben aus allen Notizen an einem Ort — filterbare Liste und Kanban-Board. Checkboxen in Notizen funktionieren auch mit ausgeschalteter Ansicht weiter.",
+      "where": "Aktivitätsleiste › Checklisten-Symbol."
+    },
+    "todayView": {
+      "what": "Dein Tag auf einem Bildschirm: überfällige und fällige Aufgaben plus die heutigen Kalendertermine.",
+      "where": "Aktivitätsleiste › Sonnen-Symbol."
+    },
+    "transclusion": {
+      "syntax": {
+        "note": "Bettet die ganze Notiz ein.",
+        "section": "Bettet nur einen Abschnitt ein."
+      },
+      "what": "Zeige eine Notiz (oder einen Abschnitt daraus) in einer anderen. Einbettungen rendern live, bis zu drei Ebenen tief.",
+      "where": "Im Editor — die Einbettung wird an Ort und Stelle gerendert."
+    },
+    "vaultChat": {
+      "cost": "Die Indexierung auf dem Gerät lädt einmalig ein ~130 MB großes Modell; ein API-Embedding-Endpunkt geht stattdessen auch.",
+      "setup": "Benötigt den semantischen Index — erstelle ihn unter Einstellungen › KI.",
+      "what": "Stelle Fragen über deinen ganzen Vault; Antworten streamen und zitieren die Notizen, aus denen sie stammen.",
+      "where": "Befehlspalette oder Aktivitätsleiste › Chat; dockt rechts an."
+    },
+    "versionHistory": {
+      "title": "Versionsverlauf",
+      "what": "Automatische Schnappschüsse jeder Notiz beim Bearbeiten. Durchstöbere alte Versionen und stelle jede davon wieder her.",
+      "where": "Notizkopf › Verlaufs-Symbol."
+    },
+    "voice": {
+      "cost": "Lädt beim ersten Einsatz ein ~142 MB großes Transkriptionsmodell; jederzeit löschbar unter Einstellungen › Funktionen › Gespeicherte Daten.",
+      "what": "Nimm Audio auf (z. B. Meetings) und transkribiere es auf diesem Gerät mit Whisper. Das Transkript wird eine Notiz und kann die Aufgaben-Extraktion füttern.",
+      "where": "Aktivitätsleiste › Mikrofon-Button."
+    },
+    "weeklyReview": {
+      "what": "Ein von KI geschriebener Rückblick auf die Notizen und erledigten Aufgaben deiner Woche. Ohne ihn bleibt der einfache Digest verfügbar.",
+      "where": "Heute-Ansicht › Wochenrückblick-Karte."
+    },
+    "wikilinks": {
+      "syntax": {
+        "alias": "Verlinkt die Notiz, zeigt aber deinen eigenen Text.",
+        "heading": "Verlinkt einen Abschnitt der Notiz.",
+        "link": "Verlinkt die Notiz mit diesem Titel."
+      },
+      "title": "Wikilinks",
+      "what": "Verlinke Notizen über ihren Titel mit doppelten Klammern; Backlinks und der Graph greifen die Verbindung automatisch auf.",
+      "where": "Im Editor — tippe [[ irgendwo in einer Notiz und wähle aus den Vorschlägen."
+    }
+  }
+}

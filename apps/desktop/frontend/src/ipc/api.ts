@@ -69,6 +69,9 @@ export const api = {
   deleteCanvas: (path: string) => unwrap(commands.deleteCanvas(path)),
   renameCanvas: (path: string, newName: string) => unwrap(commands.renameCanvas(path, newName)),
 
+  // Feature Guide — insert an example note/canvas into the open vault
+  createDemoNote: (topic: string) => unwrap(commands.createDemoNote(topic)),
+
   createFolder: (path: string) => unwrap(commands.createFolder(path)),
   deleteFolder: (path: string) => unwrap(commands.deleteFolder(path)),
   deleteFolderRecursive: (path: string) => unwrap(commands.deleteFolderRecursive(path)),

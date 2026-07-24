@@ -12,8 +12,12 @@
 // pass is impossible.
 import { describe, expect, it } from "vitest";
 
-import { NAMESPACES } from "../../lib/i18n";
+import { LAZY_NAMESPACES, NAMESPACES } from "../../lib/i18n";
 import { SUPPORTED_LANGUAGES } from "../../lib/language";
+
+/** Everything a locale must ship: the eagerly-bundled namespaces plus the
+ *  lazily-loaded ones (which get the same key/interpolation parity checks). */
+const REGISTERED_NAMESPACES = [...NAMESPACES, ...LAZY_NAMESPACES];
 
 // Every catalog under src/locales/<locale>/<namespace>.json, eagerly imported.
 const modules = import.meta.glob("../*/*.json", { eager: true, import: "default" }) as Record<
@@ -44,7 +48,9 @@ describe("catalog discovery", () => {
 
   for (const locale of realLocales) {
     it(`${locale}: ships exactly the registered namespaces`, () => {
-      expect(Object.keys(byLocale[locale] ?? {}).sort()).toEqual([...NAMESPACES].sort());
+      expect(Object.keys(byLocale[locale] ?? {}).sort()).toEqual(
+        [...REGISTERED_NAMESPACES].sort(),
+      );
     });
   }
 });

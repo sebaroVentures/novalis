@@ -117,6 +117,20 @@ export const commands = {
 	/**  Rename a canvas to `new_name` (a bare display name) within its folder. */
 	renameCanvas: (path: string, newName: string) => typedError<CanvasFile, CommandError>(__TAURI_INVOKE("rename_canvas", { path, newName })),
 	/**
+	 *  Insert one Feature Guide example file ([`novalis_core::help_demo`]) into
+	 *  the open vault under `Help examples/`, returning the vault-relative path it
+	 *  landed on. A name collision is deduped to `… 2`, `… 3` (the same numbering
+	 *  [`create_tour_vault`] uses) — an existing file is never overwritten.
+	 *  Markdown examples go through the same guarded create + reindex as
+	 *  [`create_note`]; the `canvas` topic writes a `.canvas` through the canvas
+	 *  path (guarded + atomic, no note indexing — canvases are fs-scanned, and
+	 *  like the canvas commands above need no self-write tracking). Deliberately
+	 *  NOT feature-flag-gated: the guide only offers a topic when it makes sense,
+	 *  and inserting an example must never flip a flag. Unknown topic →
+	 *  `badRequest`.
+	 */
+	createDemoNote: (topic: string) => typedError<string, CommandError>(__TAURI_INVOKE("create_demo_note", { topic })),
+	/**
 	 *  Reveal a note file or folder in the OS file manager (Finder/Explorer/file
 	 *  manager), selecting the item. `path` is vault-relative (forward-slashed); an
 	 *  empty string reveals the vault root. If the target no longer exists (e.g. a

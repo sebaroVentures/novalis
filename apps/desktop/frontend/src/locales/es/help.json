@@ -1,0 +1,284 @@
+{
+  "guide": {
+    "close": "Cerrar",
+    "enable": "Activar",
+    "exampleCreated": "Nota de ejemplo creada — la encontrarás en el árbol de archivos.",
+    "exampleFailed": "No se pudo crear la nota de ejemplo.",
+    "groups": {
+      "basics": "Fundamentos"
+    },
+    "insertExample": "Crear nota de ejemplo",
+    "learnMore": "Más información",
+    "noResults": "Ninguna función coincide con tu búsqueda.",
+    "offBadge": "Desactivada",
+    "openSettings": "Abrir Ajustes",
+    "searchPlaceholder": "Buscar funciones…",
+    "title": "Guía de funciones"
+  },
+  "topics": {
+    "ai": {
+      "setup": "Conecta un proveedor (clave de API o CLI local) en Ajustes › IA.",
+      "what": "El interruptor principal de toda la IA: acciones de resumir, redactar y reescribir en el editor, más cada subfunción de IA. Nada se ejecuta hasta que lo invocas.",
+      "where": "Editor › menú de IA, y la paleta de comandos."
+    },
+    "aiMetaSuggestions": {
+      "what": "Metadatos con un clic: sugiere etiquetas y propiedades para la nota actual; apruebas antes de que se escriba nada.",
+      "where": "Franja de metadatos de la nota › Sugerir metadatos."
+    },
+    "aiTemplates": {
+      "what": "Tus propias plantillas de prompts se convierten en acciones personalizadas del menú de IA.",
+      "where": "Editor › menú de IA; gestiona las plantillas en Ajustes › IA."
+    },
+    "ambientAi": {
+      "cost": "Se ejecuta en cada pausa mientras escribes, así que consume tokens de IA de forma continua.",
+      "setup": "Una activación aparte: tanto el interruptor principal de IA como el ambiental (Ajustes › IA o Ajustes › Funciones) deben estar activados.",
+      "what": "Cuando una edición se asienta, sugiere enlaces y metadatos para la nota que estás escribiendo — en silencio, en segundo plano.",
+      "where": "Las sugerencias aparecen como una franja descartable en el editor."
+    },
+    "backlinks": {
+      "what": "Qué notas enlazan aquí — más menciones sin enlazar del título de esta nota que puedes convertir en enlaces.",
+      "where": "Barra derecha › botón de enlaces."
+    },
+    "blockRefs": {
+      "setup": "Tras activarlo, acepta la oferta de reindexado en Ajustes › Funciones para que se encuentren los ids existentes.",
+      "syntax": {
+        "marker": "Termina una línea con espacio + ^id (letras/dígitos, 4–32 caracteres) para dar una dirección al bloque.",
+        "reference": "Incrusta el bloque con ese id; escribir (( abre sugerencias."
+      },
+      "what": "Da a cualquier bloque una dirección ^id permanente y luego enlaza o incrusta exactamente ese bloque en otro lugar.",
+      "where": "En el editor; la cabecera de la nota tiene un botón para copiar la referencia de bloque."
+    },
+    "calendar": {
+      "what": "Vistas de mes, semana y día sobre tus propios eventos; los eventos se guardan como Markdown en el baúl.",
+      "where": "Barra de actividad › icono de calendario."
+    },
+    "calendarSync": {
+      "setup": "Inicia sesión en Ajustes › Calendario.",
+      "what": "Muestra eventos de cuentas de Google u Outlook junto a tu calendario local (solo lectura).",
+      "where": "Los eventos aparecen en las vistas Calendario y Hoy."
+    },
+    "callouts": {
+      "syntax": {
+        "basic": "Primera línea de una cita; el tipo determina el color y el icono.",
+        "titled": "Título propio opcional tras el tipo; los tipos desconocidos se muestran como note."
+      },
+      "what": "Cajas de aviso con estilo a partir de citas normales (compatible con Obsidian). Tipos: note, tip, info, warning, danger, success, question, quote, caution, important, error.",
+      "where": "En el editor — la cita se muestra como una caja de color."
+    },
+    "canvas": {
+      "what": "Tableros espaciales libres que mezclan notas adhesivas y notas del baúl incrustadas. Los tableros son archivos .canvas portables.",
+      "where": "Barra de actividad › icono de formas."
+    },
+    "cheatsheet": {
+      "title": "Hoja de atajos",
+      "what": "Un panel superpuesto con cada atajo de teclado y su asignación actual — se actualiza cuando reasignas teclas.",
+      "where": "Ábrelo con su atajo; reasigna todo en Ajustes › Atajos."
+    },
+    "codeHighlight": {
+      "syntax": {
+        "fence": "Nombra el lenguaje tras la valla de apertura para elegir la gramática."
+      },
+      "what": "Colores de sintaxis en bloques de código. Las gramáticas se cargan bajo demanda, así que las no usadas no cuestan nada.",
+      "where": "En el editor, en cualquier bloque de código vallado."
+    },
+    "commandPalette": {
+      "title": "Paleta de comandos",
+      "what": "Todos los comandos en una lista con búsqueda difusa: cambiar de vista, crear notas desde plantillas, ejecutar acciones de plugins y de IA.",
+      "where": "Se abre como un panel superpuesto sobre lo que estés haciendo."
+    },
+    "dailyNotes": {
+      "what": "Una nota de diario por día, creada la primera vez que la abres.",
+      "where": "Paleta de comandos › nota diaria de hoy."
+    },
+    "editorBasics": {
+      "syntax": {
+        "slash": "El menú de bloques en una línea vacía: encabezados, listas, tablas, imágenes y más.",
+        "tag": "Etiqueta la nota; las etiquetas aparecen en el navegador de etiquetas de la barra lateral y se pueden buscar."
+      },
+      "title": "Fundamentos de escritura",
+      "what": "Las notas son archivos Markdown simples. Da formato con la barra de herramientas, el menú / o el propio Markdown; pega o arrastra imágenes directamente a una nota.",
+      "where": "Cada pestaña de nota; la barra de herramientas está encima de la nota."
+    },
+    "entityGraph": {
+      "cost": "La extracción consume tokens de IA cada vez que se (re)indexan notas — por eso sigue siendo una activación aparte aunque la IA esté activada.",
+      "what": "Extrae personas, lugares y temas de tus notas a un grafo de entidades navegable.",
+      "where": "Barra derecha › botón de entidades."
+    },
+    "gitSync": {
+      "setup": "Su interruptor vive con los ajustes de git: configura la identidad de autor y un remoto opcional en Ajustes › Sincronización. La fila de Funciones activa el mismo interruptor.",
+      "what": "Versiona el baúl con git y sincronízalo con un remoto — historial completo, diffs y gestión de conflictos.",
+      "where": "Ajustes › Sincronización, y el estado de sincronización en la barra lateral."
+    },
+    "graphView": {
+      "what": "Un mapa interactivo de los enlaces entre tus notas. Arrastra, haz zoom y entra en cualquier nota con un clic.",
+      "where": "Barra de actividad › icono de grafo."
+    },
+    "icsSubscriptions": {
+      "setup": "Añade las URL de las fuentes en Ajustes › Calendario.",
+      "what": "Sigue fuentes .ics de solo lectura (festivos, calendarios de equipo, enlaces iCal privados).",
+      "where": "Los eventos aparecen en las vistas Calendario y Hoy."
+    },
+    "math": {
+      "syntax": {
+        "block": "Fórmula destacada (de bloque) en su propia línea.",
+        "inline": "Fórmula en línea. Sin espacio justo dentro de los signos $ — así $5 y $10 siguen siendo texto normal."
+      },
+      "what": "Muestra fórmulas TeX con KaTeX. La biblioteca solo se carga cuando una nota la usa.",
+      "where": "En el editor — se muestra en el sitio."
+    },
+    "mermaid": {
+      "syntax": {
+        "fence": "Un bloque de código con el lenguaje mermaid se muestra como diagrama."
+      },
+      "what": "Convierte los bloques de código mermaid en diagramas: diagramas de flujo, de secuencia, gantt y más.",
+      "where": "En el editor — el diagrama se muestra en el sitio. La biblioteca solo se carga cuando una nota la usa."
+    },
+    "outline": {
+      "what": "La estructura de encabezados de la nota como índice clicable.",
+      "where": "Barra derecha › botón de esquema."
+    },
+    "p2pSync": {
+      "setup": "Empareja tus dispositivos una vez en Ajustes › Sincronización.",
+      "what": "Sincronización cifrada de extremo a extremo directamente entre tus dispositivos — sin servidor de por medio.",
+      "where": "Ajustes › Sincronización › sincronización entre dispositivos."
+    },
+    "pdfAnnotate": {
+      "what": "Lee PDF en la app, resalta pasajes y enlaza los resaltados con las notas que los citan.",
+      "where": "Paleta de comandos › abrir PDF; las anotaciones viven en el panel lateral del visor."
+    },
+    "plugins": {
+      "what": "Plugins de JavaScript locales del baúl, aislados en Web Workers, que añaden comandos a la paleta.",
+      "where": "Gestiónalos en Ajustes › Plugins; sus comandos aparecen en la paleta de comandos."
+    },
+    "properties": {
+      "syntax": {
+        "checkbox": "Una propiedad de casilla (booleana).",
+        "frontmatter": "Las propiedades viven entre dos líneas con --- al principio de la nota.",
+        "list": "Una propiedad de lista.",
+        "number": "Una propiedad numérica — ordenable y comparable en consultas.",
+        "relation": "Una relación: apunta a otra nota mediante un wikilink; se consulta con project:[[Launch]].",
+        "text": "Una propiedad de texto."
+      },
+      "what": "Metadatos tipados clave-valor en el frontmatter de una nota — texto, números, casillas, listas y relaciones con otras notas — editables en un panel estructurado.",
+      "where": "El panel de propiedades en la parte superior de la nota; el YAML en bruto sigue siendo editable."
+    },
+    "queryEngine": {
+      "syntax": {
+        "alias": "Un alias de la nota contiene el texto.",
+        "folder": "La nota está en la carpeta o en cualquier subcarpeta.",
+        "fulltext": "Coincidencia de texto completo en cuerpo, título y etiquetas; entrecomilla varias palabras para formar una frase.",
+        "hasFacet": "La nota tiene al menos una tarea; has:link y has:backlink también funcionan.",
+        "hasProp": "La nota tiene una propiedad de frontmatter con ese nombre.",
+        "negate": "Un - inicial niega cualquier término.",
+        "path": "La ruta de la nota contiene el texto.",
+        "propCompare": "Comparación numérica de propiedades: <, <=, >, >=, =, !=.",
+        "propEquals": "La propiedad de frontmatter es igual a un valor (vale cualquier clave de propiedad).",
+        "propNotEquals": "La propiedad no es el valor.",
+        "relation": "La relación tipada apunta a la nota con ese título.",
+        "sort": "Ordena por title, path, modified, created o cualquier clave de propiedad; :asc/:desc elige la dirección.",
+        "sortSimilarity": "Ordena por similitud semántica con una frase (necesita el índice semántico).",
+        "tag": "La nota lleva la etiqueta (coincidencia exacta).",
+        "taskDone": "La nota tiene una tarea completada.",
+        "taskDue": "La nota tiene una tarea que vence antes de la fecha; task.start también funciona.",
+        "taskPriority": "La nota tiene una tarea con esa prioridad; task.project: y task.epic: también funcionan.",
+        "taskStatus": "La nota tiene una tarea con ese estado.",
+        "title": "El título de la nota contiene el texto.",
+        "view": "Elige la vista de resultados: table, kanban o calendar."
+      },
+      "what": "Vistas guardadas estilo base de datos sobre notas y tareas. Escribe términos de filtro, elige tabla, kanban o calendario y guarda la consulta para reutilizarla.",
+      "where": "Barra de actividad › icono de tabla."
+    },
+    "readingMode": {
+      "title": "Modo de lectura",
+      "what": "Una vista de solo lectura, sin distracciones, de la nota actual.",
+      "where": "Cabecera de la nota › icono de libro."
+    },
+    "relatedNotes": {
+      "cost": "La indexación en el dispositivo descarga una vez un modelo de ~130 MB; también sirve un endpoint de embeddings por API.",
+      "setup": "Necesita el índice semántico — constrúyelo en Ajustes › IA.",
+      "what": "Un panel de notas semánticamente similares a la que estás leyendo — sin necesidad de enlaces.",
+      "where": "Barra derecha › botón Orbit."
+    },
+    "reminders": {
+      "what": "Notificaciones del sistema para tareas que vencen (@remind) y eventos próximos del calendario.",
+      "where": "Las entrega tu sistema operativo mientras la app está abierta."
+    },
+    "search": {
+      "title": "Búsqueda",
+      "what": "Búsqueda de texto completo en títulos, cuerpos y etiquetas de las notas, con fragmentos resaltados. Para saltar entre notas con búsqueda difusa, usa la paleta de comandos.",
+      "where": "Barra lateral › icono de búsqueda, o el atajo desde cualquier sitio."
+    },
+    "tagAutocomplete": {
+      "what": "Sugiere tus etiquetas existentes mientras escribes #, manteniendo la ortografía de las etiquetas consistente.",
+      "where": "En el editor — un menú emergente bajo el cursor."
+    },
+    "taskExtract": {
+      "what": "Lee la nota actual (p. ej. el acta de una reunión) y propone una lista de tareas; la revisas antes de que se inserten.",
+      "where": "Editor › menú de IA o paleta de comandos › Extraer tareas."
+    },
+    "taskTokens": {
+      "syntax": {
+        "checkbox": "Una línea con casilla se convierte en tarea; el encabezado superior se conserva como su sección.",
+        "due": "Establece la fecha de vencimiento.",
+        "epic": "Agrupa la tarea bajo una épica.",
+        "nlDates": "Los campos de fecha de las tareas también aceptan frases naturales como estas y las resuelven a fechas reales.",
+        "priority": "Establece la prioridad: urgent, high, medium o low.",
+        "project": "Agrupa la tarea bajo un proyecto.",
+        "remind": "Programa un recordatorio en esa fecha y hora.",
+        "repeat": "Repite la tarea: daily, weekly, monthly, yearly o every N days/weeks/months.",
+        "start": "Establece la fecha de inicio.",
+        "status": "Establece la columna del kanban (minúsculas, dígitos, guiones).",
+        "tag": "Etiqueta la tarea."
+      },
+      "title": "Tareas en notas",
+      "what": "Cada casilla de Markdown es una tarea. Los @tokens en la misma línea añaden fechas, prioridad, estado de kanban y agrupación por proyecto/épica; las casillas con sangría se vuelven subtareas.",
+      "where": "En cualquier nota; las tareas extraídas aparecen en las vistas Tareas y Hoy."
+    },
+    "tasks": {
+      "what": "Todas las tareas de todas las notas en un solo lugar — lista filtrable y tablero kanban. Las casillas en las notas siguen funcionando aunque esta vista esté desactivada.",
+      "where": "Barra de actividad › icono de lista de verificación."
+    },
+    "todayView": {
+      "what": "Tu día en una pantalla: tareas vencidas y por vencer más los eventos de hoy.",
+      "where": "Barra de actividad › icono de sol."
+    },
+    "transclusion": {
+      "syntax": {
+        "note": "Incrusta la nota completa.",
+        "section": "Incrusta solo una sección."
+      },
+      "what": "Muestra una nota (o una sección de ella) dentro de otra. Las incrustaciones se muestran en vivo, hasta tres niveles de profundidad.",
+      "where": "En el editor — la incrustación se muestra en el sitio."
+    },
+    "vaultChat": {
+      "cost": "La indexación en el dispositivo descarga una vez un modelo de ~130 MB; también sirve un endpoint de embeddings por API.",
+      "setup": "Necesita el índice semántico — constrúyelo en Ajustes › IA.",
+      "what": "Haz preguntas sobre todo tu baúl; las respuestas llegan en streaming y citan las notas de las que proceden.",
+      "where": "Paleta de comandos o barra de actividad › chat; se acopla a la derecha."
+    },
+    "versionHistory": {
+      "title": "Historial de versiones",
+      "what": "Instantáneas automáticas de cada nota mientras editas. Explora versiones antiguas y restaura cualquiera de ellas.",
+      "where": "Cabecera de la nota › icono de historial."
+    },
+    "voice": {
+      "cost": "Descarga un modelo de transcripción de ~142 MB en el primer uso; bórralo cuando quieras en Ajustes › Funciones › Datos almacenados.",
+      "what": "Graba audio (p. ej. reuniones) y transcríbelo en este dispositivo con Whisper. La transcripción se convierte en una nota y puede alimentar la extracción de tareas.",
+      "where": "Barra de actividad › botón de micrófono."
+    },
+    "weeklyReview": {
+      "what": "Una mirada atrás escrita por IA sobre las notas y tareas completadas de tu semana. Sin ella, el resumen simple sigue disponible.",
+      "where": "Vista Hoy › tarjeta de revisión semanal."
+    },
+    "wikilinks": {
+      "syntax": {
+        "alias": "Enlaza la nota pero muestra tu propio texto.",
+        "heading": "Enlaza una sección de la nota.",
+        "link": "Enlaza la nota con ese título."
+      },
+      "title": "Wikilinks",
+      "what": "Enlaza notas por su título con corchetes dobles; los retroenlaces y el grafo recogen la conexión automáticamente.",
+      "where": "En el editor — escribe [[ en cualquier parte de una nota y elige entre las sugerencias."
+    }
+  }
+}

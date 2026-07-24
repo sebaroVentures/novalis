@@ -12,6 +12,7 @@ pub mod conflict;
 pub mod error;
 pub mod export;
 pub mod git;
+pub mod help_demo;
 pub mod import;
 pub mod index;
 pub mod media;

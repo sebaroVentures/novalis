@@ -1,0 +1,284 @@
+{
+  "guide": {
+    "close": "Close",
+    "enable": "Turn on",
+    "exampleCreated": "Example note created — find it in the file tree.",
+    "exampleFailed": "Couldn't create the example note.",
+    "groups": {
+      "basics": "Basics"
+    },
+    "insertExample": "Create example note",
+    "learnMore": "Learn more",
+    "noResults": "No features match your search.",
+    "offBadge": "Off",
+    "openSettings": "Open Settings",
+    "searchPlaceholder": "Search features…",
+    "title": "Feature Guide"
+  },
+  "topics": {
+    "ai": {
+      "setup": "Connect a provider (API key or local CLI) in Settings › AI.",
+      "what": "The master switch for all AI: summarize, compose, and rewrite actions in the editor, plus every AI sub-feature. Nothing runs until you invoke it.",
+      "where": "Editor › AI menu, and the command palette."
+    },
+    "aiMetaSuggestions": {
+      "what": "One-click metadata: suggests tags and properties for the current note; you approve before anything is written.",
+      "where": "Note metadata strip › Suggest metadata."
+    },
+    "aiTemplates": {
+      "what": "Your own prompt templates become custom actions in the AI menu.",
+      "where": "Editor › AI menu; manage the templates in Settings › AI."
+    },
+    "ambientAi": {
+      "cost": "Runs on every pause while you write, so it costs AI tokens continuously.",
+      "setup": "A separate opt-in: both the AI master switch and the ambient toggle (Settings › AI or Settings › Features) must be on.",
+      "what": "After an edit settles, suggests links and metadata for the note you're writing — quietly, in the background.",
+      "where": "Suggestions appear as a dismissible strip in the editor."
+    },
+    "backlinks": {
+      "what": "Which notes link here — plus unlinked mentions of this note's title that you can turn into links.",
+      "where": "Right rail › links button."
+    },
+    "blockRefs": {
+      "setup": "After enabling, accept the reindex offer in Settings › Features so existing ids are found.",
+      "syntax": {
+        "marker": "End a line with a space + ^id (letters/digits, 4–32 chars) to give the block an address.",
+        "reference": "Embeds the block with that id; typing (( opens suggestions."
+      },
+      "what": "Give any block a permanent ^id address, then link or embed exactly that block elsewhere.",
+      "where": "In the editor; the note header has a copy-block-reference button."
+    },
+    "calendar": {
+      "what": "Month, week, and day views over your own events; events are stored as Markdown in the vault.",
+      "where": "Activity rail › calendar icon."
+    },
+    "calendarSync": {
+      "setup": "Sign in under Settings › Calendar.",
+      "what": "Show events from Google or Outlook accounts alongside your local calendar (read-only).",
+      "where": "Events appear in the Calendar and Today views."
+    },
+    "callouts": {
+      "syntax": {
+        "basic": "First line of a blockquote; the type picks the color and icon.",
+        "titled": "Optional custom title after the type; unknown types render as note."
+      },
+      "what": "Styled callout boxes from plain blockquotes (Obsidian-compatible). Types: note, tip, info, warning, danger, success, question, quote, caution, important, error.",
+      "where": "In the editor — the blockquote renders as a colored box."
+    },
+    "canvas": {
+      "what": "Freeform spatial boards mixing sticky notes and embedded vault notes. Boards are portable .canvas files.",
+      "where": "Activity rail › shapes icon."
+    },
+    "cheatsheet": {
+      "title": "Shortcut cheatsheet",
+      "what": "An overlay listing every keyboard shortcut with its current binding — it updates when you rebind keys.",
+      "where": "Open it with its shortcut; rebind everything in Settings › Keybindings."
+    },
+    "codeHighlight": {
+      "syntax": {
+        "fence": "Name the language after the opening fence to pick the grammar."
+      },
+      "what": "Syntax colors in fenced code blocks. Language grammars load on demand, so unused ones cost nothing.",
+      "where": "In the editor, in any fenced code block."
+    },
+    "commandPalette": {
+      "title": "Command palette",
+      "what": "Every command in one fuzzy-searchable list: switch views, create notes from templates, run plugin and AI actions.",
+      "where": "Opens as an overlay on top of whatever you're doing."
+    },
+    "dailyNotes": {
+      "what": "One journal note per day, created the first time you open it.",
+      "where": "Command palette › today's daily note."
+    },
+    "editorBasics": {
+      "syntax": {
+        "slash": "The block menu on an empty line: headings, lists, tables, images, and more.",
+        "tag": "Tags the note; tags show in the sidebar's tag browser and are searchable."
+      },
+      "title": "Writing basics",
+      "what": "Notes are plain Markdown files. Format with the toolbar, the / menu, or Markdown itself; paste or drop images straight into a note.",
+      "where": "Every note tab; the toolbar sits above the note."
+    },
+    "entityGraph": {
+      "cost": "Extraction spends AI tokens whenever notes are (re)indexed — that's why it stays a separate opt-in even when AI is on.",
+      "what": "Extracts people, places, and topics from your notes into a browsable entity graph.",
+      "where": "Right rail › entities button."
+    },
+    "gitSync": {
+      "setup": "Its switch lives with git's own settings: set author identity and an optional remote in Settings › Sync. The Features row flips the same switch.",
+      "what": "Version the vault with git and sync it to a remote — full history, diffs, and conflict handling.",
+      "where": "Settings › Sync, and the sync status in the sidebar."
+    },
+    "graphView": {
+      "what": "An interactive map of the links between your notes. Drag, zoom, and click through to any note.",
+      "where": "Activity rail › graph icon."
+    },
+    "icsSubscriptions": {
+      "setup": "Add feed URLs under Settings › Calendar.",
+      "what": "Follow read-only .ics feeds (public holidays, team calendars, private iCal links).",
+      "where": "Events appear in the Calendar and Today views."
+    },
+    "math": {
+      "syntax": {
+        "block": "Displayed (block) math on its own line.",
+        "inline": "Inline math. No space just inside the $ signs — so $5 and $10 stay plain text."
+      },
+      "what": "Renders TeX math with KaTeX. The library loads only when a note uses it.",
+      "where": "In the editor — rendered in place."
+    },
+    "mermaid": {
+      "syntax": {
+        "fence": "A code block with the language set to mermaid renders as a diagram."
+      },
+      "what": "Turns mermaid code blocks into rendered diagrams: flowcharts, sequence diagrams, gantt charts, and more.",
+      "where": "In the editor — the diagram renders in place. The library loads only when a note uses it."
+    },
+    "outline": {
+      "what": "The note's heading structure as a clickable table of contents.",
+      "where": "Right rail › outline button."
+    },
+    "p2pSync": {
+      "setup": "Pair your devices once in Settings › Sync.",
+      "what": "End-to-end encrypted sync directly between your devices — no server in between.",
+      "where": "Settings › Sync › device sync."
+    },
+    "pdfAnnotate": {
+      "what": "Read PDFs in the app, highlight passages, and link highlights to the notes that cite them.",
+      "where": "Command palette › open PDF; annotations live in the viewer's side panel."
+    },
+    "plugins": {
+      "what": "Vault-local JavaScript plugins, sandboxed in Web Workers, that add commands to the palette.",
+      "where": "Manage them in Settings › Plugins; their commands appear in the command palette."
+    },
+    "properties": {
+      "syntax": {
+        "checkbox": "A checkbox (boolean) property.",
+        "frontmatter": "Properties live between --- fences at the very top of the note.",
+        "list": "A list property.",
+        "number": "A number property — sortable and comparable in queries.",
+        "relation": "A relation: points at another note by wikilink; query it with project:[[Launch]].",
+        "text": "A text property."
+      },
+      "what": "Typed key–value metadata in a note's frontmatter — text, numbers, checkboxes, lists, and relations to other notes — editable in a structured panel.",
+      "where": "The properties panel at the top of a note; the raw YAML stays editable."
+    },
+    "queryEngine": {
+      "syntax": {
+        "alias": "A note alias contains the text.",
+        "folder": "Note is in the folder or any subfolder.",
+        "fulltext": "Full-text match on body, title, and tags; quote multiple words as a phrase.",
+        "hasFacet": "Note has at least one task; has:link and has:backlink work too.",
+        "hasProp": "Note has a frontmatter property with that name.",
+        "negate": "A leading - negates any term.",
+        "path": "Note path contains the text.",
+        "propCompare": "Numeric property comparison: <, <=, >, >=, =, !=.",
+        "propEquals": "Frontmatter property equals a value (any property key works).",
+        "propNotEquals": "Property is not the value.",
+        "relation": "Typed relation points at the note with that title.",
+        "sort": "Order by title, path, modified, created, or any property key; :asc/:desc picks the direction.",
+        "sortSimilarity": "Order by semantic similarity to a phrase (needs the semantic index).",
+        "tag": "Note carries the tag (exact match).",
+        "taskDone": "Note has a completed task.",
+        "taskDue": "Note has a task due before the date; task.start works too.",
+        "taskPriority": "Note has a task with the priority; task.project: and task.epic: work too.",
+        "taskStatus": "Note has a task with that status.",
+        "title": "Note title contains the text.",
+        "view": "Pick the result view: table, kanban, or calendar."
+      },
+      "what": "Saved, database-style views over notes and tasks. Write filter terms, pick a table, kanban, or calendar view, and save the query for reuse.",
+      "where": "Activity rail › table icon."
+    },
+    "readingMode": {
+      "title": "Reading mode",
+      "what": "A distraction-free, read-only rendering of the current note.",
+      "where": "Note header › book icon."
+    },
+    "relatedNotes": {
+      "cost": "On-device indexing downloads a ~130 MB model once; an API embedding endpoint works instead.",
+      "setup": "Needs the semantic index — build it in Settings › AI.",
+      "what": "A panel of notes semantically similar to the one you're reading — no links required.",
+      "where": "Right rail › Orbit button."
+    },
+    "reminders": {
+      "what": "System notifications for due tasks (@remind) and upcoming calendar events.",
+      "where": "Delivered by your OS while the app is running."
+    },
+    "search": {
+      "title": "Search",
+      "what": "Full-text search across note titles, bodies, and tags, with highlighted snippets. For fuzzy note-jumping, use the command palette.",
+      "where": "Sidebar › search icon, or the shortcut from anywhere."
+    },
+    "tagAutocomplete": {
+      "what": "Suggests your existing tags while you type a #, keeping tag spelling consistent.",
+      "where": "In the editor — a popup under the cursor."
+    },
+    "taskExtract": {
+      "what": "Reads the current note (e.g. meeting minutes) and proposes a task list; you review it before the tasks are inserted.",
+      "where": "Editor › AI menu or command palette › Extract tasks."
+    },
+    "tasks": {
+      "what": "All tasks from all notes in one place — a filterable list and a kanban board. Checkboxes in notes keep working even with this view off.",
+      "where": "Activity rail › checklist icon."
+    },
+    "taskTokens": {
+      "syntax": {
+        "checkbox": "A checkbox line becomes a task; the heading above it is kept as its section.",
+        "due": "Sets the due date.",
+        "epic": "Groups the task under an epic.",
+        "nlDates": "Task date fields also accept natural phrases like these and resolve them to real dates.",
+        "priority": "Sets the priority: urgent, high, medium, or low.",
+        "project": "Groups the task under a project.",
+        "remind": "Schedules a reminder at that date and time.",
+        "repeat": "Repeats the task: daily, weekly, monthly, yearly, or every N days/weeks/months.",
+        "start": "Sets the start (do) date.",
+        "status": "Sets the kanban column (lowercase letters, digits, dashes).",
+        "tag": "Tags the task."
+      },
+      "title": "Tasks in notes",
+      "what": "Every Markdown checkbox is a task. @tokens on the same line add dates, priority, kanban status, and project/epic grouping; indented checkboxes become subtasks.",
+      "where": "In any note; extracted tasks appear in the Tasks and Today views."
+    },
+    "todayView": {
+      "what": "Your day on one screen: overdue and due tasks plus today's calendar events.",
+      "where": "Activity rail › sun icon."
+    },
+    "transclusion": {
+      "syntax": {
+        "note": "Embeds the whole note.",
+        "section": "Embeds one section only."
+      },
+      "what": "Show one note (or a section of it) inside another. Embeds render live, up to three levels deep.",
+      "where": "In the editor — the embed renders in place."
+    },
+    "vaultChat": {
+      "cost": "On-device indexing downloads a ~130 MB model once; an API embedding endpoint works instead.",
+      "setup": "Needs the semantic index — build it in Settings › AI.",
+      "what": "Ask questions across your whole vault; answers stream in and cite the notes they come from.",
+      "where": "Command palette or activity rail › chat; docks on the right."
+    },
+    "versionHistory": {
+      "title": "Version history",
+      "what": "Automatic snapshots of every note as you edit. Browse old versions and restore any of them.",
+      "where": "Note header › history icon."
+    },
+    "voice": {
+      "cost": "Downloads a ~142 MB transcription model on first use; delete it any time under Settings › Features › Stored data.",
+      "what": "Record audio (e.g. meetings) and transcribe it on this device with Whisper. The transcript becomes a note and can feed task extraction.",
+      "where": "Activity rail › microphone button."
+    },
+    "weeklyReview": {
+      "what": "An AI-written look back over your week's notes and completed tasks. Without it, the plain digest stays available.",
+      "where": "Today view › weekly review card."
+    },
+    "wikilinks": {
+      "syntax": {
+        "alias": "Links to the note but shows your own text.",
+        "heading": "Links to one section of the note.",
+        "link": "Links to the note with that title."
+      },
+      "title": "Wikilinks",
+      "what": "Link notes by title with double brackets; backlinks and the graph pick the connection up automatically.",
+      "where": "In the editor — type [[ anywhere in a note and pick from the suggestions."
+    }
+  }
+}
