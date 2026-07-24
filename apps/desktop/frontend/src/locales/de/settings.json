@@ -308,7 +308,8 @@
       "aria": "KI-Wochenrückblick umschalten",
       "desc": "Ein von der KI geschriebener Rückblick auf deine Woche; der einfache Digest bleibt auch ohne verfügbar.",
       "label": "KI-Wochenrückblick"
-    }
+    },
+    "learnMoreAria": "„{{feature}}“ im Funktions-Guide öffnen"
   },
   "general": {
     "defaultTaskView": {
@@ -367,6 +368,7 @@
   },
   "keybindings": {
     "cheatsheet": "Kürzelübersicht",
+    "help": "Funktions-Guide",
     "commandPalette": "Befehlspalette",
     "navBack": "Zurück",
     "navForward": "Vor",

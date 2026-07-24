@@ -2,6 +2,7 @@ import { useEffect } from "react";
 
 import {
   Calendar,
+  CircleHelp,
   FileText,
   Mic,
   PanelLeftClose,
@@ -23,6 +24,7 @@ import { ACTION_FEATURE, formatChord, type ActionId, type Chord } from "../lib/k
 import { useRailConfig } from "../lib/railPrefs";
 import { useKeymap } from "../stores/keymapStore";
 import { useSettings } from "../stores/settingsStore";
+import { useUi } from "../stores/uiStore";
 import { useVoice } from "../stores/voiceStore";
 import type { MainView } from "./Sidebar";
 
@@ -185,6 +187,16 @@ export function ActivityRail({
           className={`${railBtn} ${railBtnIdle}`}
         >
           <Settings size={18} />
+        </button>
+        {/* Feature Guide — imperative store call like the voice button above
+            (the guide's open state lives in uiStore, not App). */}
+        <button
+          aria-label={t("helpGuide")}
+          title={withChord(t("helpGuide"), keymap.help)}
+          onClick={() => useUi.getState().openHelp()}
+          className={`${railBtn} ${railBtnIdle}`}
+        >
+          <CircleHelp size={18} />
         </button>
         <button
           aria-label={toggleLabel}

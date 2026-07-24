@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-import { Loader2, Orbit, RefreshCw, X } from "lucide-react";
+import { ArrowUpRight, Loader2, Orbit, RefreshCw, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, NovalisError, type RelatedNote } from "../ipc/api";
@@ -96,7 +96,17 @@ export function RelatedPanel({ path, onClose, stacked }: RelatedPanelProps) {
           </div>
         )}
         {state.kind === "notConfigured" && (
-          <p className="text-xs text-fg-faint">{t("related.notConfigured")}</p>
+          <>
+            <p className="text-xs text-fg-faint">{t("related.notConfigured")}</p>
+            <button
+              type="button"
+              onClick={() => useUi.getState().openHelp("relatedNotes")}
+              className="mt-2 flex items-center gap-1 text-xs text-fg-subtle transition-colors hover:text-fg"
+            >
+              {t("common:helpGuide")}
+              <ArrowUpRight size={12} />
+            </button>
+          </>
         )}
         {state.kind === "stale" && (
           <p className="text-xs text-fg-faint">{t("related.stale")}</p>

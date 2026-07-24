@@ -18,7 +18,7 @@ import { api, NovalisError, type FeaturePrefs } from "../ipc/api";
 import { useSettings } from "../stores/settingsStore";
 import { useUi } from "../stores/uiStore";
 import { useVault } from "../stores/vaultStore";
-import { Modal, Switch } from "./ui";
+import { Disclosure, Modal, Switch } from "./ui";
 
 // First-run welcome. Shown once per device (gated on uiStore.onboardingDone in
 // App), it gives a one-screen tour of the four pillars, then asks once which
@@ -71,8 +71,47 @@ const GROUP_FLAGS: Record<ChoiceKey, Partial<FeaturePrefs>> = {
   media: { canvas: true, pdfAnnotate: true, voice: true },
 };
 
+// The AI subs that default ON once the master switch flips (resolveFeaturePrefs
+// defaults) — listed in the AI family's "what's inside" so the pick is honest
+// about what it brings along. The explicit opt-ins (ambient suggestions, the
+// token-costing entity graph) deliberately stay out.
+const AI_INCLUDED_SUBS = [
+  "aiMetaSuggestions",
+  "aiTemplates",
+  "taskExtract",
+  "weeklyReview",
+  "vaultChat",
+  "relatedNotes",
+] as const;
+
+/** The member flags a family card's "what's inside" disclosure lists. */
+const flagsFor = (key: ChoiceKey): readonly (keyof FeaturePrefs)[] =>
+  key === "ai" ? ["ai", ...AI_INCLUDED_SUBS] : (Object.keys(GROUP_FLAGS[key]) as (keyof FeaturePrefs)[]);
+
+// The disclosures reuse the settings catalog's label/desc per flag — dynamic
+// keys again, so enumerate them to keep them.
+// t("settings:features.ai.label") t("settings:features.ai.desc")
+// t("settings:features.aiMetaSuggestions.label") t("settings:features.aiMetaSuggestions.desc")
+// t("settings:features.aiTemplates.label") t("settings:features.aiTemplates.desc")
+// t("settings:features.taskExtract.label") t("settings:features.taskExtract.desc")
+// t("settings:features.weeklyReview.label") t("settings:features.weeklyReview.desc")
+// t("settings:features.vaultChat.label") t("settings:features.vaultChat.desc")
+// t("settings:features.relatedNotes.label") t("settings:features.relatedNotes.desc")
+// t("settings:features.blockRefs.label") t("settings:features.blockRefs.desc")
+// t("settings:features.transclusion.label") t("settings:features.transclusion.desc")
+// t("settings:features.mermaid.label") t("settings:features.mermaid.desc")
+// t("settings:features.math.label") t("settings:features.math.desc")
+// t("settings:features.graphView.label") t("settings:features.graphView.desc")
+// t("settings:features.properties.label") t("settings:features.properties.desc")
+// t("settings:features.p2pSync.label") t("settings:features.p2pSync.desc")
+// t("settings:features.calendarSync.label") t("settings:features.calendarSync.desc")
+// t("settings:features.icsSubscriptions.label") t("settings:features.icsSubscriptions.desc")
+// t("settings:features.canvas.label") t("settings:features.canvas.desc")
+// t("settings:features.pdfAnnotate.label") t("settings:features.pdfAnnotate.desc")
+// t("settings:features.voice.label") t("settings:features.voice.desc")
+
 export function Onboarding() {
-  const { t } = useTranslation("onboarding");
+  const { t } = useTranslation(["onboarding", "settings"]);
   const dismiss = useUi((s) => s.dismissOnboarding);
   const [step, setStep] = useState<0 | 1>(0);
   const [picks, setPicks] = useState<Record<ChoiceKey, boolean>>({
@@ -146,6 +185,22 @@ export function Onboarding() {
       setError(e instanceof Error ? e.message : String(e));
       setBusy(false);
       setAction(null);
+    }
+  };
+
+  // Exit into the Feature Guide: same discipline as finish() (busy-guard,
+  // persist the picks, dismiss), then open the guide overlay on its index.
+  const openGuide = async () => {
+    if (busy) return;
+    setBusy(true);
+    setError(null);
+    try {
+      await persistPicks();
+      dismiss();
+      useUi.getState().openHelp("index");
+    } catch (e) {
+      setError(e instanceof Error ? e.message : String(e));
+      setBusy(false);
     }
   };
 
@@ -233,6 +288,22 @@ export function Onboarding() {
                 <p className="mt-0.5 text-xs leading-snug text-fg-subtle">
                   {t(`choose.${key}.desc`)}
                 </p>
+                <div className="mt-1.5">
+                  <Disclosure label={t("choose.whatsInside")}>
+                    <ul className="flex flex-col gap-1">
+                      {flagsFor(key).map((flag) => (
+                        <li key={flag}>
+                          <p className="text-xs font-medium text-fg-muted">
+                            {t(`settings:features.${flag}.label`)}
+                          </p>
+                          <p className="text-[11px] leading-snug text-fg-subtle">
+                            {t(`settings:features.${flag}.desc`)}
+                          </p>
+                        </li>
+                      ))}
+                    </ul>
+                  </Disclosure>
+                </div>
               </div>
               <Switch
                 checked={picks[key]}
@@ -242,7 +313,18 @@ export function Onboarding() {
               />
             </div>
           ))}
-          <p className="px-1 pt-1 text-xs text-fg-subtle">{t("choose.hint")}</p>
+          {/* The guide entry lives here as a text link, not as a fourth footer
+              button — four buttons overflow the max-w-lg card in every locale. */}
+          <p className="px-1 pt-1 text-xs text-fg-subtle">
+            {t("choose.hint")}{" "}
+            <button
+              onClick={() => void openGuide()}
+              disabled={busy}
+              className="font-medium text-accent transition-opacity hover:opacity-80 disabled:opacity-50"
+            >
+              {t("openGuide")}
+            </button>
+          </p>
         </div>
       )}
 

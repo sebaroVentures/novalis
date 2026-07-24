@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import {
+  ArrowUpRight,
   ChevronLeft,
   Loader2,
   Network,
@@ -249,6 +250,20 @@ export function EntitiesPanel({ path, onClose, stacked }: EntitiesPanelProps) {
 
         {!error && entities !== null && entities.length === 0 && !extracting && (
           <p className="text-xs text-fg-faint">{t("ai:entities.empty")}</p>
+        )}
+
+        {/* One guide link covers both the not-configured and the empty state
+            (they can render together — a single link avoids doubling up). */}
+        {((scope === "note" && !usableConnId) ||
+          (!error && entities !== null && entities.length === 0 && !extracting)) && (
+          <button
+            type="button"
+            onClick={() => useUi.getState().openHelp("entityGraph")}
+            className="mt-2 flex items-center gap-1 text-xs text-fg-subtle transition-colors hover:text-fg"
+          >
+            {t("common:helpGuide")}
+            <ArrowUpRight size={12} />
+          </button>
         )}
 
         {entities?.map((e) => (

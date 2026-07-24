@@ -308,7 +308,8 @@
       "aria": "Basculer le bilan hebdomadaire IA",
       "desc": "Un retour sur votre semaine rédigé par l'IA ; le résumé simple reste disponible sans elle.",
       "label": "Bilan hebdomadaire IA"
-    }
+    },
+    "learnMoreAria": "Ouvrir « {{feature}} » dans le guide des fonctionnalités"
   },
   "general": {
     "defaultTaskView": {
@@ -367,6 +368,7 @@
   },
   "keybindings": {
     "cheatsheet": "Aide-mémoire",
+    "help": "Guide des fonctionnalités",
     "commandPalette": "Palette de commandes",
     "navBack": "Précédent",
     "navForward": "Suivant",

@@ -157,6 +157,8 @@ export function CommandPalette({ open, onClose }: { open: boolean; onClose: () =
       const p = useVault.getState().activeNote?.path;
       if (p) void useVault.getState().revealInFileManager(p);
     }),
+    // The Feature Guide (one entry, not one per topic — search happens inside).
+    builtin("open-help", t("common:helpGuide"), "help", () => useUi.getState().openHelp()),
     // Whole-note AI action: open the task-extraction review for the active note.
     ...(on("taskExtract")
       ? [

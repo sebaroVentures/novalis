@@ -308,7 +308,8 @@
       "aria": "Alternar revisión semanal con IA",
       "desc": "Un repaso de tu semana escrito por la IA; el resumen simple sigue disponible sin ella.",
       "label": "Revisión semanal con IA"
-    }
+    },
+    "learnMoreAria": "Abrir «{{feature}}» en la guía de funciones"
   },
   "general": {
     "defaultTaskView": {
@@ -367,6 +368,7 @@
   },
   "keybindings": {
     "cheatsheet": "Resumen de atajos",
+    "help": "Guía de funciones",
     "commandPalette": "Paleta de comandos",
     "navBack": "Atrás",
     "navForward": "Adelante",

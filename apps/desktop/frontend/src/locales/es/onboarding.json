@@ -13,7 +13,7 @@
       "desc": "El grafo interactivo de enlaces y propiedades tipadas de notas.",
       "title": "Grafo de conocimiento"
     },
-    "hint": "Puedes ajustar cada función más tarde en Ajustes › Funciones.",
+    "hint": "Puedes ajustar cada función más tarde en Ajustes › Funciones, o abrir la guía de funciones en cualquier momento con el botón ? de la barra lateral.",
     "media": {
       "desc": "Tableros de lienzo libres, anotación de PDF y notas de voz.",
       "title": "Lienzo y medios"
@@ -23,7 +23,8 @@
       "desc": "Sincronización entre dispositivos más calendarios de Google, Outlook e .ics.",
       "title": "Sincronización y calendarios"
     },
-    "title": "Elige lo que necesitas"
+    "title": "Elige lo que necesitas",
+    "whatsInside": "Qué incluye"
   },
   "createNote": "Crear una nota inicial",
   "creating": "Creando…",
@@ -54,5 +55,6 @@
   "subtitle": "Notas, tareas y calendario locales, todo en archivos simples que te pertenecen. Aquí tienes un recorrido rápido.",
   "takeTour": "Hacer el recorrido",
   "title": "Te damos la bienvenida a Novalis",
-  "continue": "Continuar"
+  "continue": "Continuar",
+  "openGuide": "Abrir la guía"
 }

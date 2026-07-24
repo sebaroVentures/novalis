@@ -2,6 +2,7 @@ import { create } from "zustand";
 
 import type { Editor } from "@novalis/editor";
 
+import type { CategoryId } from "../components/settings/SettingsNav";
 import type { MainView } from "../components/Sidebar";
 import { loadOnboardingDone, saveOnboardingDone } from "../lib/uiPrefs";
 import {
@@ -29,12 +30,26 @@ interface UiState {
   /** Whether first-run onboarding has been dismissed (persisted per device).
    *  Seeded from localStorage so a returning user never sees it again. */
   onboardingDone: boolean;
+  /** The Feature Guide's open topic: a help-registry topic id, "index" (the
+   *  overview), or null while the guide is closed. */
+  helpTopic: string | null;
+  /** One-shot ask for App to open the Settings dialog at a category (set by
+   *  the guide's "Open Settings › …" action; App consumes and clears it). */
+  settingsCategoryRequest: CategoryId | null;
 
   /** Switch the top-level view. A deliberate switch clears any pending "Back"
    *  target — the user chose where to be. */
   setView: (view: MainView) => void;
   /** Mark first-run onboarding dismissed (also persists it for this device). */
   dismissOnboarding: () => void;
+  /** Open the Feature Guide at `topic` (default: the index). */
+  openHelp: (topic?: string) => void;
+  /** Close the Feature Guide. */
+  closeHelp: () => void;
+  /** Ask App to open the Settings dialog at `category`. */
+  requestSettingsCategory: (category: CategoryId) => void;
+  /** Consume a pending settings-category request (App, once it opened). */
+  clearSettingsCategoryRequest: () => void;
   /** Register/clear the open note's editor instance. */
   setActiveEditor: (editor: Editor | null) => void;
   /** Open a note and jump to the Notes view, remembering where we came from so
@@ -146,6 +161,8 @@ export const useUi = create<UiState>((set, get) => ({
   activeEditor: null,
   workspace: emptyWorkspace(),
   onboardingDone: loadOnboardingDone(),
+  helpTopic: null,
+  settingsCategoryRequest: null,
 
   setView: (view) => set({ view, returnView: null }),
 
@@ -153,6 +170,14 @@ export const useUi = create<UiState>((set, get) => ({
     saveOnboardingDone(true);
     set({ onboardingDone: true });
   },
+
+  openHelp: (topic = "index") => set({ helpTopic: topic }),
+
+  closeHelp: () => set({ helpTopic: null }),
+
+  requestSettingsCategory: (category) => set({ settingsCategoryRequest: category }),
+
+  clearSettingsCategoryRequest: () => set({ settingsCategoryRequest: null }),
 
   setActiveEditor: (editor) => set({ activeEditor: editor }),
 

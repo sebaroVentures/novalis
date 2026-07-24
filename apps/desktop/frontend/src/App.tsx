@@ -17,6 +17,7 @@ import { Onboarding } from "./components/Onboarding";
 import { PdfPicker } from "./components/PdfPicker";
 import { QueryView } from "./components/QueryView";
 import { SearchModal } from "./components/SearchModal";
+import type { CategoryId } from "./components/settings/SettingsNav";
 import { Sidebar, type MainView } from "./components/Sidebar";
 import { TasksView } from "./components/TasksView";
 import { TodayView } from "./components/TodayView";
@@ -40,6 +41,11 @@ const PdfViewer = lazy(() => import("./components/PdfViewer"));
 // export, so map it onto `default` for React.lazy.
 const SettingsModal = lazy(() =>
   import("./components/settings/SettingsModal").then((m) => ({ default: m.SettingsModal })),
+);
+// Lazy: the Feature Guide overlay is modal-gated like SettingsModal above (and
+// its `help` i18n catalogs already load lazily via help/loadHelp.ts).
+const HelpGuide = lazy(() =>
+  import("./components/help/HelpGuide").then((m) => ({ default: m.HelpGuide })),
 );
 // Lazy: the AI review/extract cards and the vault-chat panel are all store-gated
 // (rendered only once their trigger fires), so they ship as on-demand chunks
@@ -105,6 +111,10 @@ export default function App() {
   // Latch: keep the lazy SettingsModal mounted once first opened, so its exit
   // animation still plays on close (it manages its own `open`-driven enter/exit).
   const [settingsMounted, setSettingsMounted] = useState(false);
+  // Category the Feature Guide asked Settings to open at (consumed from the
+  // uiStore one-shot request below); cleared again when the dialog closes so a
+  // later plain open doesn't re-apply it.
+  const [settingsCategory, setSettingsCategory] = useState<CategoryId | undefined>(undefined);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [navOpen, setNavOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(loadSidebarCollapsed);
@@ -115,6 +125,8 @@ export default function App() {
   const conflicts = useConflicts((s) => s.conflicts);
   const [notice, setNotice] = useState<string | null>(null);
   const onboardingDone = useUi((s) => s.onboardingDone);
+  const helpTopic = useUi((s) => s.helpTopic);
+  const settingsCategoryRequest = useUi((s) => s.settingsCategoryRequest);
   const pdfPath = usePdf((s) => s.path);
   // Store-gated lazy panels: subscribe to the same slice each panel already
   // checks internally, so we only mount (and fetch) the chunk once it's needed.
@@ -234,6 +246,33 @@ export default function App() {
     if (settingsOpen) setSettingsMounted(true);
   }, [settingsOpen]);
 
+  // The Feature Guide's "Open Settings › …": consume the store's one-shot
+  // category request — latch it locally for the modal prop, open the dialog,
+  // and clear the request. (The settings opener is App-local state, so the
+  // store can only ask; this effect is the minimal wire.)
+  useEffect(() => {
+    if (!settingsCategoryRequest) return;
+    setSettingsCategory(settingsCategoryRequest);
+    setSettingsOpen(true);
+    useUi.getState().clearSettingsCategoryRequest();
+  }, [settingsCategoryRequest]);
+
+  // No stacked dialogs, both directions: opening the guide (e.g. via a
+  // Features-row learn-more icon) closes the settings dialog — including the
+  // one-shot category latch, which onClose would normally clear but a forced
+  // close bypasses — and opening settings (mod+, over the guide) closes the
+  // guide. Pending debounced settings edits still persist — the
+  // schedulePersist timer runs independently of the modal.
+  useEffect(() => {
+    if (helpTopic !== null) {
+      setSettingsOpen(false);
+      setSettingsCategory(undefined);
+    }
+  }, [helpTopic]);
+  useEffect(() => {
+    if (settingsOpen) useUi.getState().closeHelp();
+  }, [settingsOpen]);
+
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
       // actionForEvent ignores modifier-less keystrokes, so ordinary typing
@@ -263,6 +302,16 @@ export default function App() {
         "new-note": () =>
           void useVault.getState().newNote(useVault.getState().selectedFolder ?? ""),
         cheatsheet: () => setCheatsheetOpen((v) => !v),
+        // Toggles like the other modal chords (search/palette/settings) above.
+        // No-op without an open vault: the guide only renders in the vault
+        // branch, so setting helpTopic on the VaultGate/loading screens would
+        // pop it open unrequested once a vault opens.
+        help: () => {
+          if (!useVault.getState().vaultPath) return;
+          const ui = useUi.getState();
+          if (ui.helpTopic !== null) ui.closeHelp();
+          else ui.openHelp();
+        },
         "nav-back": () => void useVault.getState().navBack(),
         "nav-forward": () => void useVault.getState().navForward(),
         "close-tab": () => {
@@ -546,7 +595,16 @@ export default function App() {
       <CommandPalette open={paletteOpen} onClose={() => setPaletteOpen(false)} />
       {settingsMounted && (
         <Suspense fallback={null}>
-          <SettingsModal open={settingsOpen} onClose={() => setSettingsOpen(false)} />
+          <SettingsModal
+            open={settingsOpen}
+            initialCategory={settingsCategory}
+            onClose={() => {
+              setSettingsOpen(false);
+              // Guide-requested categories are one-shot: a later plain open
+              // must land on the modal's own latched category again.
+              setSettingsCategory(undefined);
+            }}
+          />
         </Suspense>
       )}
       <ConflictModal open={conflictsOpen} onClose={() => setConflictsOpen(false)} />
@@ -556,6 +614,13 @@ export default function App() {
       <MergeConflictModal />
       <TrashModal open={trashOpen} onClose={() => setTrashOpen(false)} />
       <Cheatsheet open={cheatsheetOpen} onClose={() => setCheatsheetOpen(false)} />
+      {/* Feature Guide — store-driven open (rail / palette / mod+shift+/ /
+          deep links via useUi.openHelp("topic")). */}
+      {helpTopic !== null && (
+        <Suspense fallback={null}>
+          <HelpGuide />
+        </Suspense>
+      )}
       {/* First-run welcome — only reachable here (a vault is open); shows once
           per device, gated on the persisted onboardingDone flag. */}
       {!onboardingDone && <Onboarding />}

@@ -1,20 +1,42 @@
 import { useEffect, useState, type ReactNode } from "react";
 
-import { Loader2 } from "lucide-react";
+import { CircleHelp, Loader2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import type { HelpTopicId } from "../../../help/registry";
 import { api, type FeaturePrefs } from "../../../ipc/api";
 import {
   resolveFeaturePrefs,
   resolveGitPrefs,
   useSettings,
 } from "../../../stores/settingsStore";
+import { useUi } from "../../../stores/uiStore";
 import { useVault } from "../../../stores/vaultStore";
 import { SettingRow, SettingsSection, Switch } from "../../ui";
 import { ConfirmDialog } from "../../ui/ConfirmDialog";
 import { PanelLoading } from "./PanelLoading";
 
 type FlagKey = keyof Required<FeaturePrefs>;
+
+/** Icon-only "learn more" that opens the Feature Guide on this row's topic
+ *  (App closes the settings dialog when the guide opens — no stacked modals).
+ *  `label` feeds the accessible name so the ~34 instances stay
+ *  distinguishable for screen readers. */
+function LearnMore({ topic, label }: { topic: HelpTopicId; label: string }) {
+  const { t } = useTranslation("settings");
+  const aria = t("features.learnMoreAria", { feature: label });
+  return (
+    <button
+      type="button"
+      onClick={() => useUi.getState().openHelp(topic)}
+      aria-label={aria}
+      title={aria}
+      className="rounded p-0.5 text-fg-subtle transition-colors hover:bg-hover hover:text-fg"
+    >
+      <CircleHelp size={14} />
+    </button>
+  );
+}
 
 /** One feature toggle bound to Preferences.features. Labels arrive already
  *  translated so every t() call below stays a static literal. */
@@ -41,15 +63,18 @@ function FeatureRow({
       label={label}
       description={description}
       control={
-        <Switch
-          checked={checked}
-          disabled={disabled}
-          onChange={(v) => {
-            useSettings.getState().setFeatures({ [flag]: v });
-            onToggled?.(v);
-          }}
-          aria-label={aria}
-        />
+        <span className="flex items-center gap-1.5">
+          <LearnMore topic={flag} label={label} />
+          <Switch
+            checked={checked}
+            disabled={disabled}
+            onChange={(v) => {
+              useSettings.getState().setFeatures({ [flag]: v });
+              onToggled?.(v);
+            }}
+            aria-label={aria}
+          />
+        </span>
       }
     />
   );
@@ -114,12 +139,15 @@ export function FeaturesPanel() {
             label={t("features.ambient.label")}
             description={t("features.ambient.desc")}
             control={
-              <Switch
-                checked={prefs.editor?.ambientAi ?? false}
-                disabled={!f.ai}
-                onChange={(v) => settings.setEditor({ ambientAi: v })}
-                aria-label={t("features.ambient.aria")}
-              />
+              <span className="flex items-center gap-1.5">
+                <LearnMore topic="ambientAi" label={t("features.ambient.label")} />
+                <Switch
+                  checked={prefs.editor?.ambientAi ?? false}
+                  disabled={!f.ai}
+                  onChange={(v) => settings.setEditor({ ambientAi: v })}
+                  aria-label={t("features.ambient.aria")}
+                />
+              </span>
             }
           />
           <FeatureRow
@@ -344,11 +372,14 @@ export function FeaturesPanel() {
           label={t("features.git.label")}
           description={t("features.git.desc")}
           control={
-            <Switch
-              checked={git.enabled}
-              onChange={(v) => settings.setGit({ enabled: v })}
-              aria-label={t("features.git.aria")}
-            />
+            <span className="flex items-center gap-1.5">
+              <LearnMore topic="gitSync" label={t("features.git.label")} />
+              <Switch
+                checked={git.enabled}
+                onChange={(v) => settings.setGit({ enabled: v })}
+                aria-label={t("features.git.aria")}
+              />
+            </span>
           }
         />
         <FeatureRow

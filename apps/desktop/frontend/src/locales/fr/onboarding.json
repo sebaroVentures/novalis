@@ -13,7 +13,7 @@
       "desc": "Le graphe de liens interactif et les propriétés typées des notes.",
       "title": "Graphe de connaissances"
     },
-    "hint": "Vous pourrez affiner chaque fonction plus tard dans Réglages › Fonctionnalités.",
+    "hint": "Vous pourrez affiner chaque fonction plus tard dans Réglages › Fonctionnalités — ou ouvrir à tout moment le guide des fonctionnalités via le bouton ? de la barre latérale.",
     "media": {
       "desc": "Tableaux de canevas libres, annotation PDF et notes vocales.",
       "title": "Canevas et médias"
@@ -23,7 +23,8 @@
       "desc": "Synchro d'appareil à appareil plus calendriers Google, Outlook et .ics.",
       "title": "Synchro et calendriers"
     },
-    "title": "Choisissez ce qu'il vous faut"
+    "title": "Choisissez ce qu'il vous faut",
+    "whatsInside": "Ce qu'il contient"
   },
   "createNote": "Créer une note de départ",
   "creating": "Création…",
@@ -54,5 +55,6 @@
   "subtitle": "Des notes, des tâches et un calendrier local-first — le tout dans des fichiers simples qui vous appartiennent. Voici le tour rapide.",
   "takeTour": "Faire la visite",
   "title": "Bienvenue dans Novalis",
-  "continue": "Continuer"
+  "continue": "Continuer",
+  "openGuide": "Ouvrir le guide"
 }

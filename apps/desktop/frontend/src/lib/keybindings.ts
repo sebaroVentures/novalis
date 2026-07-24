@@ -20,6 +20,7 @@ export type ActionId =
   | "nav-back"
   | "nav-forward"
   | "cheatsheet"
+  | "help"
   | "toggle-sidebar"
   | "close-tab"
   | "next-tab"
@@ -44,6 +45,7 @@ export const ACTION_IDS: ActionId[] = [
   "nav-back",
   "nav-forward",
   "cheatsheet",
+  "help",
   "toggle-sidebar",
   "close-tab",
   "next-tab",
@@ -87,6 +89,7 @@ export const DEFAULT_KEYMAP: Record<ActionId, Chord> = {
   "nav-back": "mod+[",
   "nav-forward": "mod+]",
   cheatsheet: "mod+/",
+  help: "mod+shift+/",
   "toggle-sidebar": "mod+\\",
   "close-tab": "mod+w",
   "next-tab": "mod+alt+]",
@@ -133,11 +136,16 @@ export function chordFromEvent(e: {
   altKey: boolean;
   key: string;
 }): ParsedChord {
+  let key = e.key.toLowerCase();
+  // On layouts where Shift+/ produces "?" (e.g. US), normalize back to "/" so
+  // a stored "mod+shift+/" chord (the guide default) fires layout-independently.
+  // No chord binds "?" directly, so this cannot shadow anything.
+  if (key === "?") key = "/";
   return {
     mod: e.metaKey || e.ctrlKey,
     shift: e.shiftKey,
     alt: e.altKey,
-    key: e.key.toLowerCase(),
+    key,
   };
 }
 
@@ -205,7 +213,16 @@ const STORAGE_KEY = "novalis:device:keybindings";
 function readOverrides(): Partial<Record<ActionId, Chord>> {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
-    return raw ? (JSON.parse(raw) as Partial<Record<ActionId, Chord>>) : {};
+    const overrides = raw ? (JSON.parse(raw) as Partial<Record<ActionId, Chord>>) : {};
+    // Chords captured before chordFromEvent normalized "?" to "/" may be
+    // stored with a "?" key (US layouts report Shift+/ as "?"). Normalize on
+    // read so those overrides keep matching — events can no longer produce "?".
+    for (const [action, chord] of Object.entries(overrides)) {
+      if (chord?.endsWith("?")) {
+        overrides[action as ActionId] = `${chord.slice(0, -1)}/`;
+      }
+    }
+    return overrides;
   } catch {
     return {};
   }

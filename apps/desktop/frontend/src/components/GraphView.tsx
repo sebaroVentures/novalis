@@ -9,7 +9,7 @@ import {
   type SimulationLinkDatum,
   type SimulationNodeDatum,
 } from "d3-force";
-import { Loader2, Share2 } from "lucide-react";
+import { ArrowUpRight, Loader2, Share2 } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { api, events, type FullGraph } from "../ipc/api";
@@ -311,6 +311,14 @@ export default function GraphView({
         <p className="text-sm text-fg-muted">
           {focusPath ? t("links:noGraph") : t("common:graph.empty")}
         </p>
+        <button
+          type="button"
+          onClick={() => useUi.getState().openHelp("graphView")}
+          className="flex items-center gap-1 text-xs text-fg-subtle transition-colors hover:text-fg"
+        >
+          {t("common:helpGuide")}
+          <ArrowUpRight size={12} />
+        </button>
       </div>
     );
   }

@@ -7,6 +7,9 @@ import calendar from "../locales/en/calendar.json";
 import common from "../locales/en/common.json";
 import conflict from "../locales/en/conflict.json";
 import editor from "../locales/en/editor.json";
+// `help` loads lazily at runtime (src/help/loadHelp.ts) — this import is
+// type-only (d.ts), so the catalog stays out of the eager bundle.
+import help from "../locales/en/help.json";
 import links from "../locales/en/links.json";
 import onboarding from "../locales/en/onboarding.json";
 import pdf from "../locales/en/pdf.json";
@@ -37,6 +40,7 @@ declare module "i18next" {
       versions: typeof versions;
       links: typeof links;
       pdf: typeof pdf;
+      help: typeof help;
     };
   }
 }

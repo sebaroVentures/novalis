@@ -23,7 +23,17 @@ import { TasksPanel } from "./panels/TasksPanel";
 import { TemplatesPanel } from "./panels/TemplatesPanel";
 import { VaultPanel } from "./panels/VaultPanel";
 
-export function SettingsModal({ open, onClose }: { open: boolean; onClose: () => void }) {
+export function SettingsModal({
+  open,
+  onClose,
+  initialCategory,
+}: {
+  open: boolean;
+  onClose: () => void;
+  /** Category to land on when the dialog (re)opens — e.g. the Feature Guide's
+   *  "Open Settings › …" deep link. Absent = keep the latched category. */
+  initialCategory?: CategoryId;
+}) {
   const { t } = useTranslation("settings");
   const labels = useCategoryLabels();
   const [active, setActive] = useState<CategoryId>("general");
@@ -46,6 +56,15 @@ export function SettingsModal({ open, onClose }: { open: boolean; onClose: () =>
     const t = setTimeout(() => setRender(false), 180);
     return () => clearTimeout(t);
   }, [open]);
+
+  // `active` latches across open/close cycles (App keeps the modal mounted
+  // after its first open), so seeding useState from a prop would only work on
+  // the very first mount — apply a requested category via an effect on every
+  // (re)open instead. Also fires when the request changes while the dialog is
+  // already open (a guide "Open Settings › …" underneath it).
+  useEffect(() => {
+    if (open && initialCategory) setActive(initialCategory);
+  }, [open, initialCategory]);
 
   const close = async () => {
     if (closingRef.current) return;

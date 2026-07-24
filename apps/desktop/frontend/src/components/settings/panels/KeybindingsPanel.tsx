@@ -34,6 +34,7 @@ export function useActionLabels(): Record<ActionId, string> {
     "nav-back": t("settings:keybindings.navBack"),
     "nav-forward": t("settings:keybindings.navForward"),
     cheatsheet: t("settings:keybindings.cheatsheet"),
+    help: t("settings:keybindings.help"),
     "toggle-sidebar": t("settings:keybindings.toggleSidebar"),
     "close-tab": t("settings:keybindings.closeTab"),
     "next-tab": t("settings:keybindings.nextTab"),

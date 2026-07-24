@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 
-import { CornerDownLeft, FileText, Loader2, Sparkles, X } from "lucide-react";
+import { ArrowUpRight, CornerDownLeft, FileText, Loader2, Sparkles, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { type RagCitation } from "../ipc/api";
@@ -85,7 +85,17 @@ export function VaultChatPanel() {
 
       <div ref={scrollRef} className="min-h-0 flex-1 overflow-y-auto px-3.5 py-3">
         {status === "idle" ? (
-          <p className="mt-2 text-xs leading-relaxed text-fg-faint">{t("chat.emptyState")}</p>
+          <>
+            <p className="mt-2 text-xs leading-relaxed text-fg-faint">{t("chat.emptyState")}</p>
+            <button
+              type="button"
+              onClick={() => useUi.getState().openHelp("vaultChat")}
+              className="mt-2 flex items-center gap-1 text-xs text-fg-subtle transition-colors hover:text-fg"
+            >
+              {t("common:helpGuide")}
+              <ArrowUpRight size={12} />
+            </button>
+          </>
         ) : (
           <div className="flex flex-col gap-3">
             {question && (

@@ -13,7 +13,7 @@
       "desc": "Der interaktive Link-Graph und typisierte Notiz-Eigenschaften.",
       "title": "Wissensgraph"
     },
-    "hint": "Jede Funktion lässt sich später unter Einstellungen › Funktionen feinjustieren.",
+    "hint": "Jede Funktion lässt sich später unter Einstellungen › Funktionen feinjustieren — oder öffne jederzeit den Funktions-Guide über den ?-Button in der Seitenleiste.",
     "media": {
       "desc": "Freie Canvas-Boards, PDF-Annotation und Sprachnotizen.",
       "title": "Canvas & Medien"
@@ -23,7 +23,8 @@
       "desc": "Geräte-zu-Geräte-Sync plus Google-, Outlook- und .ics-Kalender.",
       "title": "Sync & Kalender"
     },
-    "title": "Wähle, was du brauchst"
+    "title": "Wähle, was du brauchst",
+    "whatsInside": "Was steckt drin?"
   },
   "createNote": "Startnotiz erstellen",
   "creating": "Wird erstellt …",
@@ -54,5 +55,6 @@
   "subtitle": "Local-first Notizen, Aufgaben und Kalender – alles in einfachen Dateien, die dir gehören. Hier der kurze Rundgang.",
   "takeTour": "Rundgang starten",
   "title": "Willkommen bei Novalis",
-  "continue": "Weiter"
+  "continue": "Weiter",
+  "openGuide": "Guide öffnen"
 }

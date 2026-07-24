@@ -42,6 +42,7 @@
     "linksCount": "{{n}} links",
     "notesCount": "{{n}} notes"
   },
+  "helpGuide": "Feature guide",
   "indexing": "Indexing {{done}} / {{total}} notes…",
   "indexingHint": "This can take a moment for a large vault — the app stays usable.",
   "loading": "Loading…",

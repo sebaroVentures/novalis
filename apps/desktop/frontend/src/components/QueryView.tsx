@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 
-import { Bookmark, ChevronLeft, ChevronRight, Play, X } from "lucide-react";
+import { ArrowUpRight, Bookmark, ChevronLeft, ChevronRight, Play, X } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
+import { useHelpLoaded } from "../help/loadHelp";
+import { HELP_TOPIC_BY_ID } from "../help/registry";
 import type { PropertyValue, QueryResult, QueryViewKind, SavedQuery, Task } from "../ipc/api";
 import { api, NovalisError } from "../ipc/api";
 import { displayText, noteTitleFromPath } from "../lib/taskDisplay";
@@ -180,9 +182,7 @@ export function QueryView() {
         {error ? (
           <div className="p-4 text-sm text-danger">{error}</div>
         ) : !result ? (
-          <div className="flex h-full items-center justify-center text-sm text-fg-faint">
-            {t("query.prompt")}
-          </div>
+          <QueryEmptyState />
         ) : effectiveView === "kanban" ? (
           <KanbanResult tasks={result.tasks} />
         ) : effectiveView === "calendar" ? (
@@ -194,6 +194,49 @@ export function QueryView() {
 
       {naming && <SaveQueryModal onSubmit={commitName} onCancel={() => setNaming(false)} />}
     </section>
+  );
+}
+
+/** Pre-first-run empty state: the prompt hint, a Feature Guide link, and — once
+ *  the lazy help catalogs are in — the query DSL syntax table straight from the
+ *  guide's queryEngine topic (no spinner: the table just appends when ready).
+ *  useHelpLoaded kicks off ensureHelpLoaded on mount, so the catalogs load only
+ *  when this empty state actually renders. The dynamic `help:` desc keys are
+ *  kept alive by the enumeration in help/registry.ts. */
+function QueryEmptyState() {
+  const { t, i18n } = useTranslation(["common", "help"]);
+  const helpLoaded = useHelpLoaded();
+  const syntax = HELP_TOPIC_BY_ID.get("queryEngine")?.syntax ?? [];
+  // descKey is a runtime string (registry data), so the lookup needs an escape
+  // hatch from the typed key union; help/registry.ts enumerates the keys for
+  // i18next-parser and its test proves they exist.
+  const helpText = (key: string): string => (i18n.t as unknown as (k: string) => string)(key);
+  return (
+    <div className="flex min-h-full flex-col items-center justify-center gap-3 p-4">
+      <p className="text-sm text-fg-faint">{t("query.prompt")}</p>
+      <button
+        type="button"
+        onClick={() => useUi.getState().openHelp("queryEngine")}
+        className="flex items-center gap-1 text-xs text-fg-subtle transition-colors hover:text-fg"
+      >
+        {t("helpGuide")}
+        <ArrowUpRight size={12} />
+      </button>
+      {helpLoaded && syntax.length > 0 && (
+        <table className="mt-2 text-xs">
+          <tbody>
+            {syntax.map((row) => (
+              <tr key={row.code}>
+                <td className="whitespace-nowrap py-0.5 pr-4 font-mono text-fg-muted">
+                  {row.code}
+                </td>
+                <td className="py-0.5 text-fg-subtle">{helpText(`help:${row.descKey}`)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </div>
   );
 }
 

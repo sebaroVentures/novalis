@@ -177,6 +177,7 @@
       "desc": "Follow read-only .ics calendar feeds.",
       "label": "Calendar subscriptions"
     },
+    "learnMoreAria": "Open “{{feature}}” in the feature guide",
     "math": {
       "aria": "Toggle math rendering",
       "desc": "Render $inline$ and $$block$$ math.",
@@ -371,6 +372,7 @@
     "commandPalette": "Command palette",
     "focusPaneLeft": "Previous pane",
     "focusPaneRight": "Next pane",
+    "help": "Feature guide",
     "navBack": "Back",
     "navForward": "Forward",
     "nextTab": "Next tab",
