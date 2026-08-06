@@ -53,7 +53,7 @@ git2 = { workspace = true }
 # `iroh` QUIC transport lives in the desktop shell, not here.
 chacha20poly1305 = "0.10"
 rand = "0.8"
-base64 = "0.22"
+base64 = "0.23"
 postcard = { version = "1", features = ["use-std"] }
 # Pure-Rust HNSW: the native ANN backing chunk-level semantic retrieval. Chosen
 # over the sqlite-vec vec0 extension so the multi-model/variable-dim vectors that
