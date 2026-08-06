@@ -51,7 +51,7 @@ git2 = { workspace = true }
 # wire protocol; `base64` encodes the pairing ticket. All pure-Rust — no
 # openssl — so they add nothing to the openssl isolation surface. The async
 # `iroh` QUIC transport lives in the desktop shell, not here.
-chacha20poly1305 = "0.10"
+chacha20poly1305 = "0.11"
 rand = "0.8"
 base64 = "0.22"
 postcard = { version = "1", features = ["use-std"] }
