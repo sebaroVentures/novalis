@@ -42,7 +42,7 @@ jobs:
     steps:
       # `persist-credentials: false` keeps the job's token out of .git/config
       # while ~925 crates' build.rs and esbuild's postinstall run as this user.
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -171,7 +171,7 @@ jobs:
     # warnings, not failures.) Deliberately carries no `if:` guard, so the
     # weekly `schedule` trigger above actually reaches it.
     steps:
-      - uses: actions/checkout@d23441a48e516b6c34aea4fa41551a30e30af803 # v6.1.0
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
