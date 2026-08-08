@@ -42,7 +42,7 @@ similar = "2"
 # emits entity references as separate `Event::GeneralRef`s instead of resolving
 # them inline, so a naive bump silently drops every `&amp;` from an imported
 # note. See `.cargo/audit.toml` for the audit-gate justifications.
-zip = { version = "0.6", default-features = false, features = ["deflate"] }
+zip = { version = "8.6", default-features = false, features = ["deflate"] }
 quick-xml = "0.36"
 uuid = { workspace = true }
 git2 = { workspace = true }
